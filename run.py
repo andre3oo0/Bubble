@@ -1,5 +1,5 @@
 import os
-from flask import Flask, Blueprint
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -15,9 +15,8 @@ def create_app(config_name=None):
     app = Flask(__name__)
 
     # Load configuration
-    config_name = os.getenv("FLASK_ENV", "development")
+    config_name = config_name or os.getenv("FLASK_ENV", "development")
     app.config.from_object(f"app.configs.{config_name.capitalize()}Config")
-
 
     # Initialize extensions
     cors.init_app(app)
@@ -40,6 +39,3 @@ def create_app(config_name=None):
 if __name__ == "__main__":
     app = create_app()
     app.run(host="0.0.0.0", port=5000)
-    
-from app.configs import DevelopmentConfig
-print(DevelopmentConfig)
