@@ -4,7 +4,7 @@
 Bubble is a Flask-based backend providing users with a safe space for emotional well-being through AI-driven interactions, journaling, affirmations, and wellness reminders.
 
 Project Structure
-```
+
 Bubble/  
 │── app/  
 │   │── __init__.py          # Initializes Flask, DB, JWT, and Scheduler  
@@ -42,7 +42,6 @@ Clone the Repository**
 ```bash
  git clone https://github.com/your-repo/bubble-backend.git
  cd bubble-backend
-```
 
 ```bash
  python -m venv venv
@@ -75,30 +74,31 @@ Run the Application**
 Your API will be available at `http://127.0.0.1:5000/`
 
 Features Implemented
-✅ **User Authentication** - Signup & Login with JWT  
-✅ **AI-Based Conversations** - OpenAI-powered emotional support  
-✅ **Personalized Care** - AI remembers past interactions  
-✅ **Safe Space Features** - Affirmations & virtual hug system  
-✅ **Journaling System** - Users can log and retrieve journal entries  
-✅ **Wellness Reminders** - Scheduled reminders for self-care  
-✅ **Automated Testing** - Pytest-based test cases  
+
+User Authentication** - Signup & Login with JWT  
+AI-Based Conversations** - OpenAI-powered emotional support  
+Personalized Care** - AI remembers past interactions  
+Safe Space Features** - Affirmations & virtual hug system  
+Journaling System** - Users can log and retrieve journal entries  
+Wellness Reminders** - Scheduled reminders for self-care  
+Automated Testing** - Pytest-based test cases  
 
 API Endpoints
-### **🔐 Authentication**
+Authentication
 - `POST /auth/signup` - Register new user  
 - `POST /auth/login` - Authenticate user  
 
-AI Interactions**
+AI Interactions
 - `POST /interactions/process` - AI-based response to user input  
 
-Journaling**
+Journaling
 - `POST /journal/add` - Add a new journal entry  
 - `GET /journal/list/<user_id>` - Retrieve all journal entries  
 - `DELETE /journal/delete/<entry_id>` - Delete a journal entry  
 
-Reminders**
+Reminders
 - `POST /reminders/add` - Schedule a reminder  
 - `GET /reminders/list/<user_id>` - Get reminders for a user  
 - `DELETE /reminders/delete/<reminder_id>` - Delete a reminder  
-Safe Space**
+Safe Space
 - `GET /safe-space/affirmation` - Retrieve a positive affirmation
