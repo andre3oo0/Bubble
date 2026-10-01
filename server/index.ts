@@ -23,7 +23,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      // never log chat content, it's private
+      if (capturedJsonResponse && path !== "/api/chat") {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

@@ -43,7 +43,6 @@ export default function AvatarPanel({
   // Handle mood change and save it
   const handleMoodChange = (newMood: Mood) => {
     setCurrentMood(newMood);
-    localStorage.setItem('currentMood', newMood);
   };
 
   // Handle environment change and save it

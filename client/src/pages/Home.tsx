@@ -8,14 +8,14 @@ import MoodPanel from '@/components/MoodPanel';
 import AvatarPanel from '@/components/AvatarPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
-import { Mood } from '@/models/types';
+import { useMoodStore } from '@/store/moodStore';
 
 type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'feedback' | 'welcome' | 'home';
 
 export default function Home() {
   const [activePanel, setActivePanel] = useState<ActivePanel>('welcome');
   const [isTyping, setIsTyping] = useState(false);
-  const [currentMood, setCurrentMood] = useState<Mood>('neutral');
+  const { currentMood, setCurrentMood } = useMoodStore();
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('ocean');
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
 
@@ -31,19 +31,6 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('activePanel', activePanel);
   }, [activePanel]);
-
-  // Load mood from localStorage
-  useEffect(() => {
-    const savedMood = localStorage.getItem('currentMood');
-    if (savedMood) {
-      setCurrentMood(savedMood as Mood);
-    }
-  }, []);
-
-  // Save mood to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('currentMood', currentMood);
-  }, [currentMood]);
 
   // Load selected environment from localStorage
   useEffect(() => {

@@ -68,7 +68,6 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       
       // Save to localStorage
       localStorage.setItem('moodHistory', JSON.stringify(updatedHistory));
-      localStorage.setItem('currentMood', selectedMood);
     }
   };
 

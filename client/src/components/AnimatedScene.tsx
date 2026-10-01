@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useEnvironmentStore } from '@/store/environmentStore';
 import { useChatStore } from '@/store/chatStore';
+import { useMoodStore } from '@/store/moodStore';
 import BubbleAvatar from './BubbleAvatar';
 import UserAvatar from './UserAvatar';
 import { useAvatarStore } from '@/store/avatarStore';
@@ -11,7 +12,8 @@ import { environmentImages } from './assets';
 export default function AnimatedScene() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const { currentEnvironment } = useEnvironmentStore();
-  const { currentMood, messages } = useChatStore();
+  const { messages } = useChatStore();
+  const { currentMood } = useMoodStore();
   const { avatarCustomization } = useAvatarStore();
   const [audioPlaying, setAudioPlaying] = useState(false);
   

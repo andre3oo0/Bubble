@@ -1,5 +1,5 @@
 import { useEnvironmentStore } from '@/store/environmentStore';
-import { useChatStore } from '@/store/chatStore';
+import { useMoodStore } from '@/store/moodStore';
 import { useEffect, useState, useMemo } from 'react';
 import { AudioHandler } from '@/lib/audioHandler';
 import { environmentSounds } from './assets';
@@ -16,7 +16,7 @@ interface Bubble {
 
 export default function EnvironmentDisplay() {
   const { currentEnvironment } = useEnvironmentStore();
-  const { currentMood } = useChatStore();
+  const { currentMood } = useMoodStore();
   const [showFullScreen, setShowFullScreen] = useState(false);
   
   // Generate random bubbles for the environment

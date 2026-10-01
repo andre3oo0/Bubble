@@ -1,22 +1,42 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomUUID } from "crypto";
 import { storage } from "./storage";
-import { WebSocketServer, WebSocket, MessageEvent } from "ws";
-import { processChatMessage } from "./openaiService";
+import { generateReply, type AiReply, type ChatTurn } from "./openaiService";
+import { chatRequestSchema, type ChatResponse, type Mood, type RiskLevel } from "@shared/chat";
+import { CRISIS_REPLY, HELPLINES, detectCrisis } from "@shared/safety";
 
-// Client connections
-const clients = new Map<string, WebSocket>();
-
-// Store conversation history for each client
-const conversationHistory = new Map<string, Array<{role: 'user' | 'assistant', content: string}>>();
-
-// Max conversation history to keep per client
+// Max conversation turns kept per session (user + assistant messages)
 const MAX_HISTORY_LENGTH = 10;
 
-// Ping interval to keep connections alive (30 seconds)
-const PING_INTERVAL = 30000;
+// Sessions live in memory until the database is wired up; drop idle ones
+const SESSION_TTL_MS = 60 * 60 * 1000;
 
-// Define different mood responses for chat
+interface ChatSession {
+  history: ChatTurn[];
+  lastActive: number;
+}
+
+const sessions = new Map<string, ChatSession>();
+
+function getSession(sessionId: string): ChatSession {
+  let session = sessions.get(sessionId);
+  if (!session) {
+    session = { history: [], lastActive: Date.now() };
+    sessions.set(sessionId, session);
+  }
+  session.lastActive = Date.now();
+  return session;
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - SESSION_TTL_MS;
+  sessions.forEach((session, id) => {
+    if (session.lastActive < cutoff) sessions.delete(id);
+  });
+}, 10 * 60 * 1000).unref();
+
+// Canned replies used when the AI is unavailable
 const moodResponses = {
   happy: [
     "I'm glad to hear you're feeling positive! What's bringing you joy today?",
@@ -48,17 +68,15 @@ const moodResponses = {
   ]
 };
 
-// Helper function to get a random response for a mood
-function getRandomMoodResponse(mood: string): string {
-  const responses = moodResponses[mood as keyof typeof moodResponses] || moodResponses.neutral;
+function getRandomMoodResponse(mood: Mood): string {
+  const responses = moodResponses[mood] || moodResponses.neutral;
   return responses[Math.floor(Math.random() * responses.length)];
 }
 
-// Helper function to analyze message and determine mood
-function analyzeMood(message: string): string {
+// Keyword fallback for the user's message when the AI can't classify it
+function analyzeMood(message: string): Mood {
   const message_lower = message.toLowerCase();
-  
-  // Very simple sentiment analysis
+
   if (message_lower.includes('happy') || message_lower.includes('joy') || message_lower.includes('excited')) {
     return 'happy';
   } else if (message_lower.includes('calm') || message_lower.includes('peaceful') || message_lower.includes('relaxed')) {
@@ -72,258 +90,52 @@ function analyzeMood(message: string): string {
   } else if (message_lower.includes('better') || message_lower.includes('improv') || message_lower.includes('progress')) {
     return 'improved';
   }
-  
+
   return 'neutral';
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Create HTTP server
   const httpServer = createServer(app);
-
-  // Create WebSocket server on /ws path
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  // Extend WebSocket interface for our custom properties
-  interface ExtendedWebSocket extends WebSocket {
-    isAlive: boolean;
-  }
-
-  // Heartbeat to keep connections alive
-  function heartbeat(this: WebSocket) {
-    (this as ExtendedWebSocket).isAlive = true;
-  }
-  
-  // Set up interval to check connections
-  const interval = setInterval(() => {
-    wss.clients.forEach((ws) => {
-      const extWs = ws as ExtendedWebSocket;
-      if (extWs.isAlive === false) return extWs.terminate();
-      
-      extWs.isAlive = false;
-      extWs.ping();
-    });
-  }, PING_INTERVAL);
-  
-  // Clear interval when server closes
-  wss.on('close', () => {
-    clearInterval(interval);
-  });
-
-  // WebSocket connection handler
-  wss.on('connection', (ws) => {
-    const extWs = ws as ExtendedWebSocket;
-    const clientId = Date.now().toString();
-    console.log(`Client connected: ${clientId}`);
-    clients.set(clientId, extWs);
-    
-    // Set initial alive state
-    extWs.isAlive = true;
-    extWs.on('pong', function() {
-      (this as ExtendedWebSocket).isAlive = true;
-    });
-
-    // Send welcome message
-    extWs.send(JSON.stringify({
-      type: 'system',
-      payload: { 
-        message: 'Connected to Bubble WebSocket Server',
-        clientId
-      }
-    }));
-
-    // Message handler
-    extWs.on('message', async (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        console.log(`Received from ${clientId}:`, data);
-
-        if (data.type === 'chat') {
-          // Get or initialize conversation history for this client
-          if (!conversationHistory.has(clientId)) {
-            conversationHistory.set(clientId, []);
-          }
-          
-          const history = conversationHistory.get(clientId)!;
-          
-          // Add user message to history
-          history.push({
-            role: 'user',
-            content: data.payload.message
-          });
-          
-          // Limit history size
-          while (history.length > MAX_HISTORY_LENGTH) {
-            history.shift();
-          }
-          
-          try {
-            // Indicate typing status to client
-            if (extWs.readyState === WebSocket.OPEN) {
-              extWs.send(JSON.stringify({
-                type: 'system',
-                payload: { status: 'typing' }
-              }));
-            }
-            
-            // Process chat message with OpenAI
-            const aiResponse = await processChatMessage({
-              userMessage: data.payload.message,
-              previousMessages: history.slice(0, -1) // Exclude the current message
-            });
-            
-            // Add AI response to conversation history
-            history.push({
-              role: 'assistant',
-              content: aiResponse.message
-            });
-            
-            // Send response back to the client
-            const response = {
-              type: 'chat',
-              payload: {
-                message: aiResponse.message,
-                mood: aiResponse.mood,
-                messageId: data.payload.messageId // Return the same message ID if provided
-              }
-            };
-            
-            if (extWs.readyState === WebSocket.OPEN) {
-              extWs.send(JSON.stringify(response));
-            }
-          } catch (error) {
-            console.error("Error processing chat with OpenAI:", error);
-            
-            // Fallback to rule-based response
-            const detectedMood = analyzeMood(data.payload.message);
-            const fallbackResponse = {
-              type: 'chat',
-              payload: {
-                message: getRandomMoodResponse(detectedMood),
-                mood: detectedMood,
-                messageId: data.payload.messageId // Return the same message ID if provided
-              }
-            };
-            
-            if (extWs.readyState === WebSocket.OPEN) {
-              extWs.send(JSON.stringify(fallbackResponse));
-            }
-          }
-        }
-        
-        // Handle environment change
-        else if (data.type === 'environment') {
-          // Broadcast environment change to all clients for collaborative experiences
-          const broadcastMsg = {
-            type: 'environment',
-            payload: {
-              environment: data.payload.environment,
-              changedBy: clientId
-            }
-          };
-          
-          wss.clients.forEach((client) => {
-            if (client.readyState === client.OPEN) {
-              client.send(JSON.stringify(broadcastMsg));
-            }
-          });
-        }
-        
-        // Handle mood tracking
-        else if (data.type === 'mood') {
-          // Store mood data (would save to database in production)
-          console.log(`Mood update from ${clientId}:`, data.payload.mood);
-          
-          // Acknowledge receipt
-          extWs.send(JSON.stringify({
-            type: 'system',
-            payload: { message: 'Mood update received' }
-          }));
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-        extWs.send(JSON.stringify({
-          type: 'system',
-          payload: { error: 'Invalid message format' }
-        }));
-      }
-    });
-
-    // Handle disconnection
-    extWs.on('close', () => {
-      console.log(`Client disconnected: ${clientId}`);
-      clients.delete(clientId);
-    });
-  });
 
   // REST API routes
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
   });
 
-  // Chat interactions API
-  app.post('/api/interactions/process', async (req, res) => {
-    try {
-      const { message, sessionId } = req.body;
-      
-      // Generate a unique session ID if not provided
-      const actualSessionId = sessionId || `session_${Date.now()}`;
-      
-      // Get or initialize conversation history for this session
-      if (!conversationHistory.has(actualSessionId)) {
-        conversationHistory.set(actualSessionId, []);
-      }
-      
-      const history = conversationHistory.get(actualSessionId)!;
-      
-      // Add user message to history
-      history.push({
-        role: 'user',
-        content: message
-      });
-      
-      // Limit history size
-      while (history.length > MAX_HISTORY_LENGTH) {
-        history.shift();
-      }
-      
-      try {
-        // Process chat message with OpenAI
-        const aiResponse = await processChatMessage({
-          userMessage: message,
-          previousMessages: history.slice(0, -1) // Exclude the current message
-        });
-        
-        // Add AI response to conversation history
-        history.push({
-          role: 'assistant',
-          content: aiResponse.message
-        });
-        
-        // Return response
-        res.json({
-          response: aiResponse.message,
-          mood: aiResponse.mood,
-          sessionId: actualSessionId
-        });
-      } catch (error) {
-        console.error("Error processing chat with OpenAI:", error);
-        
-        // Fallback to rule-based response
-        const detectedMood = analyzeMood(message);
-        const fallbackMessage = getRandomMoodResponse(detectedMood);
-        
-        res.json({
-          response: fallbackMessage,
-          mood: detectedMood,
-          sessionId: actualSessionId,
-          fallback: true
-        });
-      }
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to process interaction' });
+  app.post('/api/chat', async (req, res) => {
+    const parsed = chatRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Message is required (max 2000 characters)' });
     }
+
+    const { message } = parsed.data;
+    const sessionId = parsed.data.sessionId ?? randomUUID();
+    const session = getSession(sessionId);
+
+    let ai: AiReply | null = null;
+    try {
+      ai = await generateReply(message, [...session.history]);
+    } catch (error) {
+      console.error('Chat AI error:', error instanceof Error ? error.message : error);
+    }
+
+    // The keyword check wins even if the model rated the message lower
+    const risk: RiskLevel = detectCrisis(message) ? 'crisis' : ai?.risk ?? 'none';
+    const mood = ai?.mood ?? analyzeMood(message);
+    const reply = ai?.reply ?? (risk === 'crisis' ? CRISIS_REPLY : getRandomMoodResponse(mood));
+
+    session.history.push({ role: 'user', content: message }, { role: 'assistant', content: reply });
+    if (session.history.length > MAX_HISTORY_LENGTH) {
+      session.history.splice(0, session.history.length - MAX_HISTORY_LENGTH);
+    }
+
+    const response: ChatResponse = { reply, mood, risk, sessionId };
+    if (risk === 'crisis') response.helplines = HELPLINES;
+    if (!ai) response.fallback = true;
+
+    res.json(response);
   });
-  
+
   // Environment change API (with ambient sound selection)
   app.post('/api/environment/change', async (req, res) => {
     try {

@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { Phone } from 'lucide-react';
 import { Message, Mood } from '@/models/types';
 import { useChatStore } from '@/store/chatStore';
+import { useMoodStore } from '@/store/moodStore';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage } from '@/lib/chatService';
+import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
 
 interface ChatPanelProps {
   setIsTyping: (typing: boolean) => void;
@@ -11,68 +14,33 @@ interface ChatPanelProps {
   setShowBreathingExercise: (show: boolean) => void;
 }
 
+const BREATHING_OFFER_MOODS: Mood[] = ['anxious', 'stressed'];
+
 export default function ChatPanel({ 
   setIsTyping,
   showBreathingExercise, 
   setShowBreathingExercise 
 }: ChatPanelProps) {
   const [inputMessage, setInputMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [isBreathingPromptVisible, setIsBreathingPromptVisible] = useState(false);
-  const { messages, addMessage, currentMood, setCurrentMood } = useChatStore();
+  const { messages, addMessage } = useChatStore();
+  const { currentMood, setCurrentMood } = useMoodStore();
   const previousMoodRef = useRef<Mood>(currentMood);
-  
-  // Listen for mood changes and notify when mood changes
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Keep the newest message in view, otherwise helplines can end up below the fold
   useEffect(() => {
-    // Only trigger if previous mood exists and is different
-    if (previousMoodRef.current && previousMoodRef.current !== currentMood) {
-      respondToMoodChange(previousMoodRef.current, currentMood);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages]);
+
+  // Rising bubbles when the mood changes; no chat message, that was confusing
+  useEffect(() => {
+    if (previousMoodRef.current !== currentMood) {
+      createMoodChangeBubbles(currentMood);
     }
-    
-    // Update the previous mood ref
     previousMoodRef.current = currentMood;
   }, [currentMood]);
-
-  // Function to respond to mood changes with appropriate messages
-  const respondToMoodChange = (oldMood: Mood, newMood: Mood) => {
-    let responseContent = '';
-    
-    // Create mood-change bubble animation
-    createMoodChangeBubbles(newMood);
-    
-    // Different responses based on mood transitions
-    if (newMood === 'sad' || newMood === 'anxious' || newMood === 'stressed') {
-      responseContent = `I noticed your mood has changed to ${newMood}. Would you like to talk about what's happening? A breathing exercise might also help.`;
-      setIsBreathingPromptVisible(true);
-    } else if (newMood === 'happy') {
-      responseContent = `I'm so glad to see you're feeling happy! Would you like to share what's bringing you joy today?`;
-    } else if (newMood === 'improved') {
-      responseContent = `It's great to see you're feeling better! What positive changes have you noticed?`;
-    } else if (newMood === 'calm') {
-      responseContent = `I notice you're feeling calm. That's wonderful! Would you like to continue this peaceful state with a mindfulness exercise?`;
-    } else if (newMood === 'neutral') {
-      responseContent = `I see your mood has shifted to neutral. How would you describe how you're feeling right now?`;
-    }
-    
-    // Only add a response if we have content
-    if (responseContent) {
-      // Simulate Bubble typing
-      setIsTyping(true);
-      
-      setTimeout(() => {
-        setIsTyping(false);
-        
-        const bubbleMessage: Message = {
-          id: uuidv4(),
-          content: responseContent,
-          sender: 'bubble',
-          timestamp: new Date(),
-          mood: 'neutral' // Keep Bubble neutral when responding to user's mood changes
-        };
-        
-        addMessage(bubbleMessage);
-      }, 1000);
-    }
-  };
   
   // Function to create animated bubbles when mood changes
   const createMoodChangeBubbles = (mood: Mood) => {
@@ -143,75 +111,71 @@ export default function ChatPanel({
         return '#9ca3af'; // gray-400
     }
   };
-  
-  // Function to handle user message sending
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    
-    // Check for distress keywords that might indicate need for breathing exercise
-    const distressKeywords = ['anxious', 'anxiety', 'stressed', 'overwhelmed', 'panic', 'scared', 'frightened', 'worry', 'worried', 'nervous', 'tense', 'uneasy'];
-    const shouldOfferBreathing = distressKeywords.some(keyword => inputMessage.toLowerCase().includes(keyword));
-    
-    // Add user message
-    const userMessage: Message = {
+
+  const offerBreathingOnce = () => {
+    const alreadyOffered = useChatStore.getState().messages.some(m => m.kind === 'breathing-offer');
+    if (alreadyOffered) return;
+
+    setIsBreathingPromptVisible(true);
+    addMessage({
       id: uuidv4(),
-      content: inputMessage,
+      content: "Would you like to try a short breathing exercise together? It can help settle your mind.",
+      sender: 'bubble',
+      timestamp: new Date(),
+      kind: 'breathing-offer'
+    });
+  };
+  
+  const handleSendMessage = async () => {
+    const text = inputMessage.trim();
+    if (!text || isSending) return;
+    
+    addMessage({
+      id: uuidv4(),
+      content: text,
       sender: 'user',
       timestamp: new Date()
-    };
-    
-    addMessage(userMessage);
+    });
     setInputMessage('');
-    
-    // Simulate Bubble typing
+    setIsSending(true);
     setIsTyping(true);
     
     try {
-      // Attempt to get response from the API
-      const response = await sendChatMessage(inputMessage);
+      const response = await sendChatMessage(text);
       
-      setIsTyping(false);
-      
-      const bubbleMessage: Message = {
+      addMessage({
         id: uuidv4(),
-        content: response.message,
+        content: response.reply,
         sender: 'bubble',
         timestamp: new Date(),
-        mood: response.mood as Mood || 'neutral'
-      };
-      
-      addMessage(bubbleMessage);
-      
-      // If distress detected, offer breathing exercise
-      if (shouldOfferBreathing && !isBreathingPromptVisible) {
-        setTimeout(() => {
-          setIsBreathingPromptVisible(true);
-          
-          const breathingPromptMessage: Message = {
-            id: uuidv4(),
-            content: "I noticed you might be feeling stressed. Would you like to try a breathing exercise to help calm your mind?",
-            sender: 'bubble',
-            timestamp: new Date(),
-            mood: 'calm'
-          };
-          
-          addMessage(breathingPromptMessage);
-        }, 1000);
+        helplines: response.helplines
+      });
+
+      // Only a clear signal moves Bubble's mood, so a neutral reply doesn't undo a check-in
+      if (response.mood !== 'neutral') {
+        setCurrentMood(response.mood);
+      }
+
+      if (response.risk !== 'crisis' && BREATHING_OFFER_MOODS.includes(response.mood)) {
+        offerBreathingOnce();
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      setIsTyping(false);
-      
-      // Fallback response
-      const fallbackMessage: Message = {
+
+      // Can't reach the server: still show helplines if the message needs them
+      const crisis = detectCrisis(text);
+      addMessage({
         id: uuidv4(),
-        content: "I'm here to listen and support you. Please continue sharing how you're feeling.",
+        content: crisis
+          ? CRISIS_REPLY
+          : "I'm having trouble connecting right now, but I'm still here. Could you try sending that again in a moment?",
         sender: 'bubble',
         timestamp: new Date(),
-        mood: 'neutral'
-      };
-      
-      addMessage(fallbackMessage);
+        helplines: crisis ? HELPLINES : undefined
+      });
+    } finally {
+      setIsSending(false);
+      setIsTyping(false);
     }
   };
   
@@ -225,8 +189,7 @@ export default function ChatPanel({
       id: uuidv4(),
       content: "Great! Let's begin a breathing exercise to help you relax. Take your time with it.",
       sender: 'bubble',
-      timestamp: new Date(),
-      mood: 'calm'
+      timestamp: new Date()
     };
     
     addMessage(confirmationMessage);
@@ -241,8 +204,7 @@ export default function ChatPanel({
       id: uuidv4(),
       content: "That's okay. I'm here whenever you need to talk or try a relaxation exercise.",
       sender: 'bubble',
-      timestamp: new Date(),
-      mood: 'neutral'
+      timestamp: new Date()
     };
     
     addMessage(acknowledgmentMessage);
@@ -277,7 +239,26 @@ export default function ChatPanel({
                 {message.content}
                 
                 {/* Breathing exercise prompt buttons */}
-                {message.sender === 'bubble' && isBreathingPromptVisible && message.content.includes('breathing exercise') && (
+                {message.helplines && (
+                  <div className="mt-3 space-y-2">
+                    {message.helplines.map((line) => (
+                      <a
+                        key={line.phone}
+                        href={`tel:${line.phone.replace(/\s/g, '')}`}
+                        className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-gray-800 shadow-sm"
+                      >
+                        <Phone className="h-4 w-4 shrink-0 text-[#0077b6]" />
+                        <span className="flex-1">
+                          <span className="block text-sm font-semibold">{line.name}</span>
+                          <span className="block text-xs text-gray-600">{line.hours}</span>
+                        </span>
+                        <span className="text-sm font-bold text-[#0077b6]">{line.phone}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {message.kind === 'breathing-offer' && isBreathingPromptVisible && (
                   <div className="mt-2 flex space-x-2">
                     <button 
                       onClick={startBreathingExercise}
@@ -296,6 +277,7 @@ export default function ChatPanel({
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
       </div>
       
@@ -337,7 +319,7 @@ export default function ChatPanel({
         
         <button 
           onClick={handleSendMessage}
-          disabled={!inputMessage.trim()}
+          disabled={!inputMessage.trim() || isSending}
           className="p-2 text-white rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

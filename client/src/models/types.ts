@@ -3,12 +3,19 @@ export interface User {
   username: string;
 }
 
+import type { Helpline, Mood } from '@shared/chat';
+
+export type { Mood };
+
 export interface Message {
   id: string;
   content: string;
   sender: 'user' | 'bubble';
   timestamp: Date;
   mood?: Mood;
+  kind?: 'breathing-offer';
+  // shown as a call card under the message when the user may be in crisis
+  helplines?: Helpline[];
 }
 
 export interface JournalEntry {
@@ -18,8 +25,6 @@ export interface JournalEntry {
   mood: Mood;
   createdAt: Date;
 }
-
-export type Mood = 'happy' | 'calm' | 'sad' | 'anxious' | 'stressed' | 'neutral' | 'improved';
 
 export interface MoodData {
   mood: Mood;
