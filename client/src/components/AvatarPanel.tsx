@@ -53,12 +53,12 @@ export default function AvatarPanel({
 
   return (
     <motion.div 
-      className="h-full flex flex-col"
+      className="md:h-full flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-white text-4xl font-bold mb-4 text-center">AVATAR</div>
+      <div className="text-white text-3xl md:text-4xl font-bold mb-4 text-center">AVATAR</div>
       
       {/* Preview section */}
       <div className="bg-[#3498db]/30 rounded-3xl p-6 mb-6 flex flex-col items-center glassmorphism">
@@ -91,7 +91,7 @@ export default function AvatarPanel({
       </div>
       
       {/* Environment selection */}
-      <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-4 overflow-y-auto glassmorphism">
+      <div className="md:flex-1 bg-[#3498db]/30 rounded-3xl p-4 md:overflow-y-auto glassmorphism">
         <h3 className="text-white text-lg mb-3">Environment</h3>
         <div className="grid grid-cols-2 gap-3">
           {environments.map((env) => (

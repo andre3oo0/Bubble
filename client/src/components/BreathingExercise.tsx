@@ -148,13 +148,17 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
             </h2>
             
             <div className="flex flex-col items-center">
-              <motion.div 
-                className="w-48 h-48 bg-[#D4F1FF]/70 rounded-full flex items-center justify-center mb-6 breathe-circle"
-                variants={circleVariants}
-                animate={phase}
-              >
-                <div className="text-[#2980b9] text-5xl font-bold">{count}</div>
-              </motion.div>
+              {/* Fixed-size stage so the circle (scaled 1.5x on inhale, plus its glow)
+                  never spills over the title or the instruction text */}
+              <div className="flex h-[19rem] w-full items-center justify-center">
+                <motion.div
+                  className="w-40 h-40 bg-[#D4F1FF]/70 rounded-full flex items-center justify-center breathe-circle"
+                  variants={circleVariants}
+                  animate={phase}
+                >
+                  <div className="text-[#2980b9] text-5xl font-bold">{count}</div>
+                </motion.div>
+              </div>
               
               <p className="text-white text-xl mb-4">{getInstructions()}</p>
               

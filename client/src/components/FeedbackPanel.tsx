@@ -21,7 +21,7 @@ export default function FeedbackPanel() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-white text-4xl font-bold mb-4 text-center">FEEDBACK</div>
+      <div className="text-white text-3xl md:text-4xl font-bold mb-4 text-center">FEEDBACK</div>
       
       {submitted ? (
         <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-8 flex flex-col items-center justify-center text-white">

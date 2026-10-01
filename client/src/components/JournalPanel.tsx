@@ -135,7 +135,7 @@ export default function JournalPanel() {
       transition={{ duration: 0.3 }}
     >
       <div className="flex justify-between items-center mb-4">
-        <div className="text-white text-4xl font-bold text-center">JOURNAL</div>
+        <div className="text-white text-3xl md:text-4xl font-bold text-center">JOURNAL</div>
         {session && !isViewingEntry && !showNewEntry && (
           <button 
             onClick={() => setShowNewEntry(true)}
@@ -295,7 +295,7 @@ export default function JournalPanel() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {journalEntries.map((entry) => (
                 <motion.div 
                   key={entry.id}

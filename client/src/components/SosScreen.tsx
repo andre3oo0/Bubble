@@ -30,11 +30,13 @@ export default function SosScreen({ onBreathe }: SosScreenProps) {
               className="flex min-h-[64px] items-center gap-4 rounded-2xl bg-[#0b5394] px-4 py-3 text-white shadow-md focus:outline-none focus:ring-4 focus:ring-[#0b5394]/40"
             >
               <Phone className="h-6 w-6 shrink-0" aria-hidden="true" />
-              <span className="flex-1">
+              <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{line.name}</span>
+                {/* On phones the number goes under the name so the name isn't squeezed */}
+                <span className="block text-lg font-bold tracking-wide sm:hidden">{line.phone}</span>
                 <span className="block text-sm text-white/90">{line.hours}</span>
               </span>
-              <span className="text-lg font-bold tracking-wide">{line.phone}</span>
+              <span className="hidden text-lg font-bold tracking-wide sm:block">{line.phone}</span>
             </a>
           ))}
         </div>

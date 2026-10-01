@@ -228,7 +228,7 @@ export default function ChatPanel({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-white text-4xl font-bold mb-4 text-center">CHAT</div>
+      <div className="text-white text-3xl md:text-4xl font-bold mb-4 text-center">CHAT</div>
       
       {/* Breathing Exercise is now handled by the parent component */}
       

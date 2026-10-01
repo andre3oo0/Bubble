@@ -101,13 +101,13 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
 
   return (
     <motion.div 
-      className="h-full flex flex-col"
+      className="md:h-full flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
       <div className="flex justify-between items-center mb-4">
-        <div className="text-white text-4xl font-bold text-center flex-1">MOOD</div>
+        <div className="text-white text-3xl md:text-4xl font-bold text-center flex-1">MOOD</div>
         <button 
           onClick={() => setShowSettings(!showSettings)} 
           className="text-white hover:text-[#50c8ff] transition-colors"
@@ -210,7 +210,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       )}
       
       {/* Mood history */}
-      <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-4 overflow-y-auto glassmorphism">
+      <div className="md:flex-1 bg-[#3498db]/30 rounded-3xl p-4 md:overflow-y-auto glassmorphism">
         <div className="text-white text-lg mb-4">Your mood history</div>
         
         {!session && !sessionPending ? (
