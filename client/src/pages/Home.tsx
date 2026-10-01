@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind } from 'lucide-react';
+import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind, LifeBuoy } from 'lucide-react';
 import BubbleAvatar from '@/components/BubbleAvatar';
 import ChatInterface from '@/components/ChatInterface';
 import JournalPanel from '@/components/JournalPanel';
@@ -8,7 +8,9 @@ import MoodPanel from '@/components/MoodPanel';
 import AvatarPanel from '@/components/AvatarPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
+import SosScreen from '@/components/SosScreen';
 import { useMoodStore } from '@/store/moodStore';
+import { useSosStore } from '@/store/sosStore';
 
 type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'feedback' | 'welcome' | 'home';
 
@@ -18,6 +20,7 @@ export default function Home() {
   const { currentMood, setCurrentMood } = useMoodStore();
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('ocean');
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
+  const { open: openSos, close: closeSos } = useSosStore();
 
   // Load the last active panel from localStorage
   useEffect(() => {
@@ -110,6 +113,23 @@ export default function Home() {
 
   return (
     <div className={`flex h-screen overflow-y-auto bg-gradient-to-br from-[#1e90ff] to-[#0077b6] ${getEnvironmentClass()}`}>
+      {/* Always reachable in one tap, on every panel */}
+      <button
+        onClick={openSos}
+        aria-haspopup="dialog"
+        className="fixed top-4 right-4 z-40 hidden md:flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#b42318] shadow-lg focus:outline-none focus:ring-4 focus:ring-white/60"
+      >
+        <LifeBuoy size={18} aria-hidden="true" />
+        Get help now
+      </button>
+
+      <SosScreen
+        onBreathe={() => {
+          closeSos();
+          setShowBreathingExercise(true);
+        }}
+      />
+
       {/* Breathing Exercise Overlay */}
       <BreathingExercise 
         isOpen={showBreathingExercise} 
@@ -133,7 +153,18 @@ export default function Home() {
       {/* Left sidebar with persistent navigation */}
       <div className="w-16 min-w-[4rem] h-full bg-[#3498db]/30 backdrop-blur-md flex flex-col items-center py-6 border-r border-[#B8DFFC]/40 z-10">
         {/* Bubble logo */}
-        <div className="text-white font-bold text-xl mb-12">B</div>
+        <div className="text-white font-bold text-xl mb-6 md:mb-12">B</div>
+
+        {/* On small screens the top-right pill would cover the header, so SOS lives here */}
+        <button
+          onClick={openSos}
+          aria-haspopup="dialog"
+          aria-label="Get help now"
+          className="md:hidden mb-6 flex flex-col items-center rounded-2xl bg-white px-2 py-1.5 text-[#b42318] shadow-lg focus:outline-none focus:ring-4 focus:ring-white/60"
+        >
+          <LifeBuoy size={20} aria-hidden="true" />
+          <span className="text-[10px] font-bold leading-tight">SOS</span>
+        </button>
 
         {/* Navigation icons */}
         <div className="flex-1 flex flex-col items-center gap-8">
@@ -231,7 +262,8 @@ export default function Home() {
       </div>
 
       {/* Environment elements based on selection */}
-      <div className={`absolute inset-0 pointer-events-none ${selectedEnvironment}-elements`}>
+      {/* overflow-hidden: the drifting clouds/waves otherwise make the page scroll sideways */}
+      <div className={`absolute inset-0 overflow-hidden pointer-events-none ${selectedEnvironment}-elements`}>
         {selectedEnvironment === 'forest' && (
           <>
             <div className="swaying-tree-1"></div>

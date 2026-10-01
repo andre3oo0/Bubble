@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import audioHandler from '@/lib/audioHandler';
+import { nextBreathingStep, PHASE_DURATIONS, type BreathingPhase } from '@/lib/breathing';
 
 interface BreathingExerciseProps {
   isOpen: boolean;
@@ -9,12 +10,15 @@ interface BreathingExerciseProps {
 }
 
 export default function BreathingExercise({ isOpen, onClose }: BreathingExerciseProps) {
-  const [phase, setPhase] = useState<'inhale' | 'hold' | 'exhale' | 'rest'>('inhale');
-  const [count, setCount] = useState(4);
+  const [phase, setPhase] = useState<BreathingPhase>('inhale');
+  const [count, setCount] = useState(PHASE_DURATIONS.inhale);
   const [rounds, setRounds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [totalTime, setTotalTime] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // The interval callback reads these, so it never sees a stale phase
+  const phaseRef = useRef<BreathingPhase>('inhale');
+  const countRef = useRef(PHASE_DURATIONS.inhale);
 
   // Animation properties for the breathing circle
   const circleVariants = {
@@ -47,22 +51,13 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
     }
   };
 
-  // Get the duration for each phase
-  const getPhaseDuration = () => {
-    switch (phase) {
-      case 'inhale': return 4;
-      case 'hold': return 2;
-      case 'exhale': return 4;
-      case 'rest': return 2;
-      default: return 4;
-    }
-  };
-
   // Start the breathing exercise
   const startExercise = () => {
+    phaseRef.current = 'inhale';
+    countRef.current = PHASE_DURATIONS.inhale;
     setIsActive(true);
     setPhase('inhale');
-    setCount(4);
+    setCount(PHASE_DURATIONS.inhale);
     setRounds(0);
     setTotalTime(0);
     
@@ -75,26 +70,13 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
     }
     
     intervalRef.current = setInterval(() => {
-      setCount(prevCount => {
-        if (prevCount === 1) {
-          setPhase(prevPhase => {
-            // Cycle through phases
-            switch (prevPhase) {
-              case 'inhale': return 'hold';
-              case 'hold': return 'exhale';
-              case 'exhale': return 'rest';
-              case 'rest': 
-                setRounds(prevRounds => prevRounds + 1);
-                return 'inhale';
-              default: return 'inhale';
-            }
-          });
-          return getPhaseDuration();
-        }
-        return prevCount - 1;
-      });
-      
-      // Track total time spent in the exercise
+      const step = nextBreathingStep(phaseRef.current, countRef.current);
+      phaseRef.current = step.phase;
+      countRef.current = step.count;
+
+      setPhase(step.phase);
+      setCount(step.count);
+      if (step.completedRound) setRounds(prevRounds => prevRounds + 1);
       setTotalTime(prevTime => prevTime + 1);
     }, 1000);
   };
@@ -153,8 +135,9 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
           >
-            <button 
+            <button
               onClick={onClose}
+              aria-label="Close breathing exercise"
               className="absolute top-4 right-4 text-white hover:text-gray-200"
             >
               <X size={24} />

@@ -4,6 +4,7 @@ import { Phone } from 'lucide-react';
 import { Message, Mood } from '@/models/types';
 import { useChatStore } from '@/store/chatStore';
 import { useMoodStore } from '@/store/moodStore';
+import { useSosStore } from '@/store/sosStore';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage } from '@/lib/chatService';
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
@@ -15,6 +16,13 @@ interface ChatPanelProps {
 }
 
 const BREATHING_OFFER_MOODS: Mood[] = ['anxious', 'stressed'];
+
+// Let Bubble's reply appear before the SOS screen covers it
+const SOS_OPEN_DELAY_MS = 800;
+
+function openSosForCrisis() {
+  setTimeout(() => useSosStore.getState().openForCrisis(), SOS_OPEN_DELAY_MS);
+}
 
 export default function ChatPanel({ 
   setIsTyping,
@@ -156,7 +164,9 @@ export default function ChatPanel({
         setCurrentMood(response.mood);
       }
 
-      if (response.risk !== 'crisis' && BREATHING_OFFER_MOODS.includes(response.mood)) {
+      if (response.risk === 'crisis') {
+        openSosForCrisis();
+      } else if (BREATHING_OFFER_MOODS.includes(response.mood)) {
         offerBreathingOnce();
       }
     } catch (error) {
@@ -173,6 +183,7 @@ export default function ChatPanel({
         timestamp: new Date(),
         helplines: crisis ? HELPLINES : undefined
       });
+      if (crisis) openSosForCrisis();
     } finally {
       setIsSending(false);
       setIsTyping(false);
@@ -247,12 +258,12 @@ export default function ChatPanel({
                         href={`tel:${line.phone.replace(/\s/g, '')}`}
                         className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-gray-800 shadow-sm"
                       >
-                        <Phone className="h-4 w-4 shrink-0 text-[#0077b6]" />
-                        <span className="flex-1">
+                        <Phone className="h-4 w-4 shrink-0 text-[#0077b6]" aria-hidden="true" />
+                        <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold">{line.name}</span>
+                          <span className="block whitespace-nowrap text-base font-bold text-[#0077b6]">{line.phone}</span>
                           <span className="block text-xs text-gray-600">{line.hours}</span>
                         </span>
-                        <span className="text-sm font-bold text-[#0077b6]">{line.phone}</span>
                       </a>
                     ))}
                   </div>
