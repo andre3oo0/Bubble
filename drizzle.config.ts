@@ -1,14 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
-
+// `npm run db:generate` only needs the schema. DATABASE_URL is used by
+// `npm run db:studio` to inspect a real database.
 export default defineConfig({
   out: "./migrations",
   schema: "./shared/schema.ts",
   dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL,
-  },
+  ...(process.env.DATABASE_URL && { dbCredentials: { url: process.env.DATABASE_URL } }),
 });

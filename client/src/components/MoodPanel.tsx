@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Mood } from '@/models/types';
 import { Clock, Settings, Plus, Save, X } from 'lucide-react';
+import { useSession } from '@/lib/authClient';
+
+import { fetchMoods, queryKeys, saveMoodCheckin } from '@/lib/api';
+import { useAccountDialog } from '@/store/accountStore';
 
 interface MoodCheckIn {
   id: string;
@@ -16,8 +21,10 @@ interface MoodPanelProps {
 }
 
 export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProps) {
+  const { data: session, isPending: sessionPending } = useSession();
+  const { open: openAccount } = useAccountDialog();
+  const queryClient = useQueryClient();
   const [selectedMood, setSelectedMood] = useState<Mood>(currentMood);
-  const [moodHistory, setMoodHistory] = useState<MoodCheckIn[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [checkInTimes, setCheckInTimes] = useState<string[]>(['12:00', '18:00']);
   const [newCheckInTime, setNewCheckInTime] = useState('');
@@ -33,14 +40,24 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
     improved: { label: 'Improved', color: 'bg-[#4CAF50]', icon: '😌' }
   };
 
-  // Load mood history from localStorage
+  const moodsQuery = useQuery({ queryKey: queryKeys.moods, queryFn: fetchMoods, enabled: !!session });
+  const moodHistory: MoodCheckIn[] = (moodsQuery.data ?? []).map((checkin) => {
+    const at = new Date(checkin.createdAt);
+    return {
+      id: checkin.id,
+      date: at.toLocaleDateString(),
+      time: at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      mood: checkin.mood,
+    };
+  });
+
+  const saveCheckin = useMutation({
+    mutationFn: saveMoodCheckin,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.moods }),
+  });
+
+  // Check-in times are a device setting for now, they move to the server with reminders
   useEffect(() => {
-    const savedHistory = localStorage.getItem('moodHistory');
-    if (savedHistory) {
-      setMoodHistory(JSON.parse(savedHistory));
-    }
-    
-    // Load check-in times
     const savedCheckInTimes = localStorage.getItem('checkInTimes');
     if (savedCheckInTimes) {
       setCheckInTimes(JSON.parse(savedCheckInTimes));
@@ -50,24 +67,9 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
   // Save mood when selected
   const saveMood = () => {
     if (selectedMood) {
-      // Update current mood
+      // Bubble's mood updates either way; history needs an account
       setCurrentMood(selectedMood);
-      
-      // Create new check-in
-      const now = new Date();
-      const newCheckIn: MoodCheckIn = {
-        id: now.getTime().toString(),
-        date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        mood: selectedMood
-      };
-      
-      // Update history
-      const updatedHistory = [newCheckIn, ...moodHistory];
-      setMoodHistory(updatedHistory);
-      
-      // Save to localStorage
-      localStorage.setItem('moodHistory', JSON.stringify(updatedHistory));
+      if (session) saveCheckin.mutate(selectedMood);
     }
   };
 
@@ -211,9 +213,23 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-4 overflow-y-auto glassmorphism">
         <div className="text-white text-lg mb-4">Your mood history</div>
         
-        {Object.keys(groupedHistory).length === 0 ? (
+        {!session && !sessionPending ? (
+          <div className="text-white text-center py-8">
+            <p className="mb-4 text-white/80">Sign in to keep a history of your check-ins and spot patterns over time.</p>
+            <button onClick={openAccount} className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2">
+              Sign in or create an account
+            </button>
+          </div>
+        ) : moodsQuery.isError || saveCheckin.isError ? (
+          <div className="text-white text-center py-8">
+            <p className="mb-4">Couldn't reach your mood history.</p>
+            <button onClick={() => moodsQuery.refetch()} className="bg-white/20 rounded-full px-6 py-2">
+              Try again
+            </button>
+          </div>
+        ) : Object.keys(groupedHistory).length === 0 ? (
           <div className="text-white/70 text-center py-8">
-            No mood entries yet. Start by saving your current mood!
+            {moodsQuery.isPending ? 'Loading...' : 'No mood entries yet. Start by saving your current mood!'}
           </div>
         ) : (
           <div className="space-y-6">

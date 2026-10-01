@@ -1,68 +1,106 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-// Users table
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email"),
-  authProvider: text("auth_provider"), // 'local', 'google', 'apple'
-  avatarUrl: text("avatar_url"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Server-only: database tables. The client uses the types in ./api.ts instead.
+
+const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
+const updatedAt = () =>
+  timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date());
+
+// Auth tables. Property names must match the fields Better Auth expects.
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  email: true,
-  authProvider: true,
-  avatarUrl: true,
-});
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("session_user_id_idx").on(table.userId)],
+);
 
-// Affirmations table
-export const affirmations = pgTable("affirmations", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  text: text("text").notNull(),
-  reminderTime: text("reminder_time"),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    // hashed by Better Auth, never plain text
+    password: text("password"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("account_user_id_idx").on(table.userId)],
+);
 
-export const insertAffirmationSchema = createInsertSchema(affirmations).pick({
-  userId: true,
-  text: true,
-  reminderTime: true,
-  isActive: true,
-});
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
 
-// Reminders table
-export const reminders = pgTable("reminders", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  title: text("title").notNull(),
-  description: text("description"),
-  scheduledTime: timestamp("scheduled_time").notNull(),
-  isComplete: boolean("is_complete").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// App data. Everything belongs to a user and is deleted with their account.
+export const journalEntries = pgTable(
+  "journal_entry",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    mood: text("mood").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("journal_entry_user_created_idx").on(table.userId, table.createdAt)],
+);
 
-export const insertReminderSchema = createInsertSchema(reminders).pick({
-  userId: true,
-  title: true,
-  description: true,
-  scheduledTime: true,
-  isComplete: true,
-});
+export const moodCheckins = pgTable(
+  "mood_checkin",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    mood: text("mood").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index("mood_checkin_user_created_idx").on(table.userId, table.createdAt)],
+);
 
-// Export types
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-export type InsertAffirmation = z.infer<typeof insertAffirmationSchema>;
-export type Affirmation = typeof affirmations.$inferSelect;
-
-export type InsertReminder = z.infer<typeof insertReminderSchema>;
-export type Reminder = typeof reminders.$inferSelect;
+export const authSchema = { user, session, account, verification };

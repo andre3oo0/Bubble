@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind, LifeBuoy } from 'lucide-react';
+import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind, LifeBuoy, UserRound } from 'lucide-react';
 import BubbleAvatar from '@/components/BubbleAvatar';
 import ChatInterface from '@/components/ChatInterface';
 import JournalPanel from '@/components/JournalPanel';
@@ -9,6 +9,9 @@ import AvatarPanel from '@/components/AvatarPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen from '@/components/SosScreen';
+import AuthenticationModal from '@/components/AuthenticationModal';
+import { useSession } from '@/lib/authClient';
+import { useAccountDialog } from '@/store/accountStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
 
@@ -21,6 +24,8 @@ export default function Home() {
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('ocean');
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
   const { open: openSos, close: closeSos } = useSosStore();
+  const { open: openAccount } = useAccountDialog();
+  const { data: session } = useSession();
 
   // Load the last active panel from localStorage
   useEffect(() => {
@@ -123,6 +128,8 @@ export default function Home() {
         Get help now
       </button>
 
+      <AuthenticationModal />
+
       <SosScreen
         onBreathe={() => {
           closeSos();
@@ -205,6 +212,16 @@ export default function Home() {
             onClick={() => setActivePanel('feedback')}
           />
         </div>
+
+        {/* Account: initial when signed in, sign-in icon when not */}
+        <button
+          onClick={openAccount}
+          aria-label={session ? `Account: ${session.user.name}` : 'Sign in'}
+          title={session ? session.user.name : 'Sign in'}
+          className="mt-4 w-10 h-10 rounded-full flex items-center justify-center bg-white/90 text-[#0b5394] font-bold shadow focus:outline-none focus:ring-4 focus:ring-white/60"
+        >
+          {session ? session.user.name.charAt(0).toUpperCase() : <UserRound size={20} aria-hidden="true" />}
+        </button>
       </div>
 
       {/* Avatar area */}

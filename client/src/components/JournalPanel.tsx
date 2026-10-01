@@ -1,18 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Trash2, X, ArrowLeft, Edit } from 'lucide-react';
+import { Save, Trash2, X, ArrowLeft, Edit, Lock } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { JournalEntry } from '@shared/api';
 import { Mood } from '@/models/types';
+import { useSession } from '@/lib/authClient';
 
-interface JournalEntry {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  mood: Mood;
-}
+import {
+  createJournalEntry,
+  deleteJournalEntry,
+  fetchJournal,
+  queryKeys,
+  updateJournalEntry,
+} from '@/lib/api';
+import { useAccountDialog } from '@/store/accountStore';
+
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
 export default function JournalPanel() {
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const { data: session, isPending: sessionPending } = useSession();
+  const { open: openAccount } = useAccountDialog();
+  const queryClient = useQueryClient();
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [isViewingEntry, setIsViewingEntry] = useState(false);
   const [isEditingEntry, setIsEditingEntry] = useState(false);
@@ -31,69 +39,59 @@ export default function JournalPanel() {
     improved: { label: 'Improved', icon: '😌' }
   };
 
-  // Load journal entries from localStorage
-  useEffect(() => {
-    const savedEntries = localStorage.getItem('journalEntries');
-    if (savedEntries) {
-      setJournalEntries(JSON.parse(savedEntries));
-    }
-  }, []);
+  const journal = useQuery({
+    queryKey: queryKeys.journal,
+    queryFn: fetchJournal,
+    enabled: !!session,
+  });
+  const journalEntries = journal.data ?? [];
+
+  const onSaved = () => queryClient.invalidateQueries({ queryKey: queryKeys.journal });
+
+  const createEntry = useMutation({ mutationFn: createJournalEntry, onSuccess: onSaved });
+  const updateEntry = useMutation({
+    mutationFn: ({ id, ...input }: { id: string; title: string; content: string; mood: Mood }) =>
+      updateJournalEntry(id, input),
+    onSuccess: onSaved,
+  });
+  const removeEntry = useMutation({ mutationFn: deleteJournalEntry, onSuccess: onSaved });
+
+  const isSaving = createEntry.isPending || updateEntry.isPending;
+  const saveError = createEntry.error || updateEntry.error || removeEntry.error;
 
   // Save new journal entry
-  const saveJournalEntry = () => {
+  const saveJournalEntry = async () => {
     if (newEntryTitle.trim() === '' || newEntryContent.trim() === '') {
       return; // Don't save empty entries
     }
     
-    if (isEditingEntry && currentEntry) {
-      // Update existing entry
-      const updatedEntry = {
-        ...currentEntry,
-        title: newEntryTitle,
-        content: newEntryContent,
-        mood: selectedMood
-      };
-      
-      const updatedEntries = journalEntries.map(entry => 
-        entry.id === currentEntry.id ? updatedEntry : entry
-      );
-      
-      setJournalEntries(updatedEntries);
-      localStorage.setItem('journalEntries', JSON.stringify(updatedEntries));
-      
-      // Reset state
-      setCurrentEntry(null);
-      setIsEditingEntry(false);
-      setShowNewEntry(false);
-      setIsViewingEntry(false);
-      
-    } else {
-      // Create new entry
-      const newEntry: JournalEntry = {
-        id: Date.now().toString(),
-        title: newEntryTitle,
-        content: newEntryContent,
-        date: new Date().toLocaleDateString(),
-        mood: selectedMood
-      };
-      
-      const updatedEntries = [newEntry, ...journalEntries];
-      setJournalEntries(updatedEntries);
-      localStorage.setItem('journalEntries', JSON.stringify(updatedEntries));
-      
-      // Reset fields
-      setNewEntryTitle('');
-      setNewEntryContent('');
-      setSelectedMood('neutral');
-      setShowNewEntry(false);
+    const input = { title: newEntryTitle, content: newEntryContent, mood: selectedMood };
+    try {
+      if (isEditingEntry && currentEntry) {
+        await updateEntry.mutateAsync({ id: currentEntry.id, ...input });
+        setCurrentEntry(null);
+        setIsEditingEntry(false);
+        setShowNewEntry(false);
+        setIsViewingEntry(false);
+      } else {
+        await createEntry.mutateAsync(input);
+        setNewEntryTitle('');
+        setNewEntryContent('');
+        setSelectedMood('neutral');
+        setShowNewEntry(false);
+      }
+    } catch {
+      // shown below the form via saveError; the draft is kept so nothing is lost
     }
   };
 
   // Delete journal entry
-  const deleteEntry = (id: string) => {
-    const updatedEntries = journalEntries.filter(entry => entry.id !== id);
-    setJournalEntries(updatedEntries);
-    localStorage.setItem('journalEntries', JSON.stringify(updatedEntries));
+  const deleteEntry = async (id: string) => {
+    try {
+      await removeEntry.mutateAsync(id);
+    } catch {
+      return;
+    }
     
     if (isViewingEntry || isEditingEntry) {
       setIsViewingEntry(false);
@@ -138,7 +136,7 @@ export default function JournalPanel() {
     >
       <div className="flex justify-between items-center mb-4">
         <div className="text-white text-4xl font-bold text-center">JOURNAL</div>
-        {!isViewingEntry && !showNewEntry && (
+        {session && !isViewingEntry && !showNewEntry && (
           <button 
             onClick={() => setShowNewEntry(true)}
             className="bg-[#50c8ff] rounded-full w-10 h-10 flex items-center justify-center text-white"
@@ -200,7 +198,13 @@ export default function JournalPanel() {
               ))}
             </div>
           </div>
-          
+
+          {saveError && (
+            <p role="alert" className="mb-3 rounded-xl bg-white/90 px-3 py-2 text-sm text-red-800">
+              Couldn't save that. Your text is still here, please try again.
+            </p>
+          )}
+
           <div className="flex justify-between">
             <button
               onClick={resetForm}
@@ -212,7 +216,7 @@ export default function JournalPanel() {
             <button
               onClick={saveJournalEntry}
               className="bg-[#50c8ff] text-white rounded-full px-6 py-2 flex items-center"
-              disabled={!newEntryTitle.trim() || !newEntryContent.trim()}
+              disabled={!newEntryTitle.trim() || !newEntryContent.trim() || isSaving}
             >
               <Save className="w-5 h-5 mr-2" />
               Save Entry
@@ -225,14 +229,17 @@ export default function JournalPanel() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-white text-2xl font-bold">{currentEntry.title}</h2>
             <div className="flex space-x-2">
-              <button 
+              <button
                 onClick={() => editEntry(currentEntry)}
+                aria-label="Edit entry"
                 className="text-white hover:text-[#50c8ff]"
               >
                 <Edit className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 onClick={() => deleteEntry(currentEntry.id)}
+                aria-label="Delete entry"
+                disabled={removeEntry.isPending}
                 className="text-white hover:text-red-500"
               >
                 <Trash2 className="w-5 h-5" />
@@ -241,7 +248,7 @@ export default function JournalPanel() {
           </div>
           
           <div className="flex items-center text-white/70 text-sm mb-4">
-            <span>{currentEntry.date}</span>
+            <span>{formatDate(currentEntry.createdAt)}</span>
             <span className="mx-2">•</span>
             <span className="flex items-center">
               {moods[currentEntry.mood].icon} {moods[currentEntry.mood].label}
@@ -255,7 +262,28 @@ export default function JournalPanel() {
       ) : (
         // Journal entries list
         <div className="flex-1 overflow-y-auto space-y-3">
-          {journalEntries.length === 0 ? (
+          {!session && !sessionPending ? (
+            <div className="text-white text-center py-16 px-4">
+              <Lock className="w-8 h-8 mx-auto mb-3 opacity-80" aria-hidden="true" />
+              <p className="mb-1 text-lg font-semibold">Your journal is private</p>
+              <p className="mb-5 text-white/80">Sign in so your entries are saved to your account and only you can read them.</p>
+              <button
+                onClick={openAccount}
+                className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2"
+              >
+                Sign in or create an account
+              </button>
+            </div>
+          ) : journal.isPending ? (
+            <p className="text-white/70 text-center py-20">Loading your journal...</p>
+          ) : journal.isError ? (
+            <div className="text-white text-center py-20">
+              <p className="mb-4">Couldn't load your journal.</p>
+              <button onClick={() => journal.refetch()} className="bg-white/20 rounded-full px-6 py-2">
+                Try again
+              </button>
+            </div>
+          ) : journalEntries.length === 0 ? (
             <div className="text-white/70 text-center py-20">
               <p className="mb-4">No journal entries yet</p>
               <button
@@ -279,7 +307,7 @@ export default function JournalPanel() {
                   <p className="text-sm opacity-80 mb-4 line-clamp-2">{entry.content}</p>
                   <div className="flex justify-between items-center">
                     <span className="text-lg">{moods[entry.mood].icon}</span>
-                    <p className="text-xs opacity-60">{entry.date}</p>
+                    <p className="text-xs opacity-60">{formatDate(entry.createdAt)}</p>
                   </div>
                 </motion.div>
               ))}

@@ -1,15 +1,44 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import path from "path";
+import { mkdirSync } from "fs";
+import { fileURLToPath } from "url";
+import pg from "pg";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import { migrate as migratePg } from "drizzle-orm/node-postgres/migrator";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
+// server/db.ts in dev and dist/index.js in production are both one level below the root
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const migrationsFolder = path.join(rootDir, "migrations");
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
+
+function createDatabase() {
+  const url = process.env.DATABASE_URL;
+
+  if (url) {
+    const pool = new pg.Pool({ connectionString: url, max: 10 });
+    const db = drizzlePg(pool, { schema });
+    return { db: db as unknown as Database, migrate: () => migratePg(db, { migrationsFolder }) };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("DATABASE_URL must be set in production");
+  }
+
+  // Local development and tests: embedded Postgres, no install needed.
+  // PGLITE_DIR=memory:// keeps everything in memory (used by the tests).
+  const dataDir = process.env.PGLITE_DIR || path.join(rootDir, ".data", "pglite");
+  if (!dataDir.startsWith("memory://")) mkdirSync(dataDir, { recursive: true });
+  const client = new PGlite(dataDir);
+  const db = drizzlePglite(client, { schema });
+  return { db: db as unknown as Database, migrate: () => migratePglite(db, { migrationsFolder }) };
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+const database = createDatabase();
+
+export const db = database.db;
+export const migrateDatabase = database.migrate;
