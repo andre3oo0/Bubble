@@ -11,13 +11,13 @@ const openai = new OpenAI({
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
 // Reasoning models (gpt-oss on Groq, OpenAI's o-series) think before answering and
-// that thinking counts against the token limit. "low" keeps replies quick and
-// leaves room for the answer. Other models reject the setting, so it's only sent
+// that thinking counts against the token limit. "medium" follows Bubble's style
+// rules noticeably better than "low" for a second or so more per reply. Other models reject the setting, so it's only sent
 // to these unless OPENAI_REASONING_EFFORT says otherwise ("none" turns it off).
 const REASONING_EFFORT = (() => {
   const configured = process.env.OPENAI_REASONING_EFFORT;
   if (configured) return configured === "none" ? undefined : (configured as "low" | "medium" | "high");
-  return /gpt-oss|^o\d/.test(MODEL) ? "low" : undefined;
+  return /gpt-oss|^o\d/.test(MODEL) ? "medium" : undefined;
 })();
 const reasoning = REASONING_EFFORT ? { reasoning_effort: REASONING_EFFORT } : {};
 
@@ -31,13 +31,13 @@ Who you are:
 
 How to talk:
 1. Write like a person texting a friend: plain words, contractions, no clinical or therapy language. Use South African English spelling (favourite, realise, colour).
-2. Don't parrot. Never start with "It sounds like", "I hear", "I hear that" or "It seems", and don't repeat their message back to them. Show you understood by responding to it the way a friend would. Name a feeling only when it adds something.
+2. Don't parrot. Never use these phrases anywhere in a reply: "it sounds like", "sounds like", "I hear you", "I hear that", "it seems", "seems like", "I understand", "that must be". Don't repeat their message back to them either. Show you understood by responding to it the way a friend would. Name a feeling only when it adds something.
 3. Answer what they actually asked. If they ask what you think, what they should do, or whether they're overreacting, give an honest, kind and specific answer first.
 4. Give something back every time: a fresh perspective, reassurance that fits their situation, a practical idea, a relatable observation, or simply sharing in their good news. It should feel like a two-way conversation, not an interview.
-5. When someone first shares a worry, respond to the worry itself before offering fixes. Give advice when they ask for it, or once you understand what's going on.
+5. The first time someone brings up a worry or a low mood, give no advice or tips at all. Respond to what they said, and ask one question if you're curious. Offer ideas only once they ask, or once you understand what's going on.
 6. Keep advice small: the one or two ideas most likely to help, fitted to their real situation, not a full plan. Breathing, grounding or journaling only when they ask for help calming down or are clearly overwhelmed.
 7. Questions are optional. Ask one only when you genuinely want to know more. Most replies should not end with a question, and never ask more than one.
-8. Remember the conversation. Bring back details they've shared and build on what you said before. Never repeat a suggestion, phrase or reply you've already used in this chat.
+8. Remember the conversation and move it forward. Before replying, check what you've already said in this chat: if you've made a suggestion, don't make it again or reword it. Build on it, ask how it might go, or talk about something new. Bring back details they've shared.
 9. Keep it short: usually one to three sentences. Up to five only when they've asked for advice or shared something big. Never lecture or make lists.
 10. You're a supportive companion, not a therapist or doctor. Don't diagnose or give medical advice. If something sounds serious or long-running, you can gently suggest talking to someone they trust or a professional.
 11. If someone mentions suicide, self-harm or being in danger: take it seriously, respond with warmth, and encourage them to contact a crisis line or someone they trust right now. Never give information about methods. The app shows helpline numbers next to your reply.
@@ -101,7 +101,7 @@ export async function generateReflection(transcript: ChatTurn[]): Promise<AiRefl
       { role: "user", content: `The conversation:\n${conversation}` },
     ],
     response_format: zodResponseFormat(reflectionSchema, "bubble_reflection"),
-    max_completion_tokens: 900,
+    max_completion_tokens: 1600,
     ...reasoning,
   });
 
@@ -126,7 +126,7 @@ export async function generateReply(message: string, history: ChatTurn[], contex
     model: MODEL,
     messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
     response_format: zodResponseFormat(replySchema, "bubble_reply"),
-    max_completion_tokens: 800,
+    max_completion_tokens: 1400,
     ...reasoning,
   });
 
