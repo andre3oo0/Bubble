@@ -120,7 +120,7 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#06101f]/45" />
         <DialogPrimitive.Content
           aria-describedby="intro-body"
-          className="surface fixed left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-3xl p-6 text-white shadow-2xl focus:outline-none"
+          className="surface fixed left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-3xl p-6 text-white focus:outline-none"
           onKeyDown={(e) => {
             if (e.key === 'ArrowRight' && !last) go(step + 1);
             if (e.key === 'ArrowLeft' && step > 0) go(step - 1);

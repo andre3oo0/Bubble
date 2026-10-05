@@ -19,6 +19,9 @@ interface ChatPanelProps {
 
 const BREATHING_OFFER_MOODS: Mood[] = ['anxious', 'stressed'];
 
+// Ways in for someone who doesn't know how to start
+const STARTERS = ["I'm feeling stressed", "I can't switch my mind off", 'I just need to vent'];
+
 // Let Bubble's reply appear before the SOS screen covers it
 const SOS_OPEN_DELAY_MS = 800;
 
@@ -29,10 +32,10 @@ function openSosForCrisis() {
   setTimeout(() => useSosStore.getState().openForCrisis(), SOS_OPEN_DELAY_MS);
 }
 
-export default function ChatPanel({ 
+export default function ChatPanel({
   setIsTyping,
-  showBreathingExercise, 
-  setShowBreathingExercise 
+  showBreathingExercise,
+  setShowBreathingExercise
 }: ChatPanelProps) {
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -57,49 +60,49 @@ export default function ChatPanel({
     }
     previousMoodRef.current = currentMood;
   }, [currentMood]);
-  
+
   // Function to create animated bubbles when mood changes
   const createMoodChangeBubbles = (mood: Mood) => {
     // Create a container for the bubbles
     const bubbleContainer = document.createElement('div');
     bubbleContainer.className = 'fixed inset-0 pointer-events-none z-50';
     document.body.appendChild(bubbleContainer);
-    
+
     // Generate a number of bubbles
     const bubbleCount = 15;
     const sizes = ['bubble-xs', 'bubble-sm', 'bubble-md', 'bubble-lg', 'bubble-xl'];
     const moodColor = getMoodColor(mood);
-    
+
     for (let i = 0; i < bubbleCount; i++) {
       const bubble = document.createElement('div');
       const size = sizes[Math.floor(Math.random() * sizes.length)];
       const left = 10 + Math.random() * 80; // Keep bubbles within the middle 80% of screen
-      
+
       bubble.className = `floating-bubble ${size}`;
       bubble.style.position = 'absolute';
       bubble.style.bottom = '-50px';
       bubble.style.left = `${left}%`;
       bubble.style.opacity = '0';
-      bubble.style.background = `radial-gradient(circle at 30% 35%, 
-        rgba(255, 255, 255, 0.8) 0%, 
-        ${moodColor}99 40%, 
+      bubble.style.background = `radial-gradient(circle at 30% 35%,
+        rgba(255, 255, 255, 0.8) 0%,
+        ${moodColor}99 40%,
         ${moodColor}66 80%)`;
-      
+
       bubbleContainer.appendChild(bubble);
-      
+
       // Animate the bubble rising
       setTimeout(() => {
         bubble.style.transition = 'opacity 0.5s ease-in, transform 6s ease-out';
         bubble.style.opacity = '0.9';
         bubble.style.transform = 'translateY(-100vh) translateX(20px)';
       }, i * 100);
-      
+
       // Remove the bubble after animation
       setTimeout(() => {
         bubble.style.opacity = '0';
       }, 5000 + i * 100);
     }
-    
+
     // Remove the container after all animations
     setTimeout(() => {
       if (document.body.contains(bubbleContainer)) {
@@ -107,26 +110,9 @@ export default function ChatPanel({
       }
     }, 8000);
   };
-  
-  // Helper function to get color based on mood
-  const getMoodColor = (mood: Mood): string => {
-    switch (mood) {
-      case 'happy':
-        return '#4ade80'; // green-400
-      case 'calm':
-        return '#60a5fa'; // blue-400
-      case 'anxious':
-        return '#facc15'; // yellow-400
-      case 'sad':
-        return '#818cf8'; // indigo-400
-      case 'stressed':
-        return '#f87171'; // red-400
-      case 'improved':
-        return '#a3e635'; // lime-400
-      default:
-        return '#9ca3af'; // gray-400
-    }
-  };
+
+  // One soft tint for every mood: the bubbles mark a change, they don't colour-code it
+  const getMoodColor = (_mood: Mood): string => '#cfeaff';
 
   const offerBreathingOnce = () => {
     const alreadyOffered = useChatStore.getState().messages.some(m => m.kind === 'breathing-offer');
@@ -141,24 +127,24 @@ export default function ChatPanel({
       kind: 'breathing-offer'
     });
   };
-  
-  const handleSendMessage = async () => {
-    const text = inputMessage.trim();
+
+  const handleSendMessage = async (preset?: string) => {
+    const text = (preset ?? inputMessage).trim();
     if (!text || isSending) return;
-    
+
     addMessage({
       id: uuidv4(),
       content: text,
       sender: 'user',
       timestamp: new Date()
     });
-    setInputMessage('');
+    if (!preset) setInputMessage('');
     setIsSending(true);
     setIsTyping(true);
-    
+
     try {
       const response = await sendChatMessage(text);
-      
+
       addMessage({
         id: uuidv4(),
         content: response.reply,
@@ -200,7 +186,7 @@ export default function ChatPanel({
       setIsTyping(false);
     }
   };
-  
+
   // End of the debrief: forget the chat here and on the server, then a fresh start
   const finishChat = (closing: string) => {
     endChat();
@@ -230,7 +216,7 @@ export default function ChatPanel({
   const startBreathingExercise = () => {
     setShowBreathingExercise(true);
     setIsBreathingPromptVisible(false);
-    
+
     // Add confirmation message
     const confirmationMessage: Message = {
       id: uuidv4(),
@@ -238,14 +224,14 @@ export default function ChatPanel({
       sender: 'bubble',
       timestamp: new Date()
     };
-    
+
     addMessage(confirmationMessage);
   };
 
   // Function to decline breathing exercise
   const declineBreathingExercise = () => {
     setIsBreathingPromptVisible(false);
-    
+
     // Add acknowledgment message
     const acknowledgmentMessage: Message = {
       id: uuidv4(),
@@ -253,23 +239,43 @@ export default function ChatPanel({
       sender: 'bubble',
       timestamp: new Date()
     };
-    
+
     addMessage(acknowledgmentMessage);
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="h-full flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
       <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">Chat</h1>
-      
+
       {/* Breathing Exercise is now handled by the parent component */}
-      
+
       {/* Chat messages area */}
       <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
+        {messages.length === 0 && (
+          <div className="flex h-full flex-col items-center justify-center px-2 text-center text-white">
+            <p className="mb-1 text-lg font-semibold">This is your space</p>
+            <p className="mb-5 max-w-sm text-white/90">
+              Say whatever's on your mind, in your own words. There's no wrong way to start.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {STARTERS.map((starter) => (
+                <button
+                  key={starter}
+                  onClick={() => handleSendMessage(starter)}
+                  disabled={isSending}
+                  className="rounded-full px-4 py-2 text-sm font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex flex-col space-y-3">
           {messages.map((message, index) => (
             <motion.div
@@ -287,7 +293,7 @@ export default function ChatPanel({
                 }`}
               >
                 {message.content}
-                
+
                 {/* Breathing exercise prompt buttons */}
                 {message.helplines && (
                   <div className="mt-3 space-y-2">
@@ -295,7 +301,7 @@ export default function ChatPanel({
                       <a
                         key={line.phone}
                         href={`tel:${line.phone.replace(/\s/g, '')}`}
-                        className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-gray-800 shadow-sm"
+                        className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-gray-800"
                       >
                         <Phone className="h-4 w-4 shrink-0 text-[#0077b6]" aria-hidden="true" />
                         <span className="min-w-0 flex-1">
@@ -310,13 +316,13 @@ export default function ChatPanel({
 
                 {message.kind === 'breathing-offer' && isBreathingPromptVisible && (
                   <div className="mt-2 flex space-x-2">
-                    <button 
+                    <button
                       onClick={startBreathingExercise}
                       className="bg-[#0b6bb8] text-white px-3 py-1 rounded-full text-sm"
                     >
                       Try it now
                     </button>
-                    <button 
+                    <button
                       onClick={declineBreathingExercise}
                       className="bg-[#B8DFFC] text-gray-700 px-3 py-1 rounded-full text-sm"
                     >
@@ -330,7 +336,7 @@ export default function ChatPanel({
           <div ref={messagesEndRef} />
         </div>
       </div>
-      
+
       <div className="mb-4 flex flex-wrap justify-center gap-3">
         <button
           onClick={() => setShowBreathingExercise(true)}
@@ -373,7 +379,7 @@ export default function ChatPanel({
         />
 
         <button
-          onClick={handleSendMessage}
+          onClick={() => handleSendMessage()}
           disabled={!inputMessage.trim() || isSending || releasing}
           aria-label="Send message"
           className="p-2 text-white rounded-full"

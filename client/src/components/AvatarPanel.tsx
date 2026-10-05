@@ -91,13 +91,16 @@ export default function AvatarPanel({
               key={id}
               onClick={() => handleEnvironmentChange(id)}
               aria-pressed={selectedEnvironment === id}
-              className={`text-left surface-soft rounded-2xl p-3 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
-                selectedEnvironment === id ? 'ring-2 ring-white' : ''
-              }`}
+              className="group text-left rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >
-              <div className="relative h-24 overflow-hidden rounded-xl mb-2 flex items-center justify-center">
+              {/* The picture is the option; a white ring marks the chosen one */}
+              <div
+                className={`relative h-24 overflow-hidden rounded-xl mb-2 flex items-center justify-center ${
+                  selectedEnvironment === id ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent' : 'opacity-90 group-hover:opacity-100'
+                }`}
+              >
                 <SceneBackdrop scene={id} still />
                 <Icon className="relative h-8 w-8 text-white/90 drop-shadow" aria-hidden="true" />
               </div>
@@ -107,7 +110,7 @@ export default function AvatarPanel({
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl surface-soft p-3">
+        <div className="flex flex-wrap items-center gap-3 border-t border-white/15 pt-4">
           <button
             onClick={() => (sceneSoundPlaying ? stop() : play(scene.id))}
             aria-pressed={sceneSoundPlaying}

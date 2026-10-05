@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (95 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (102 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -88,6 +88,7 @@ npm run build && npm start
 - **Calm visuals** (reduced motion) follows the device setting or an in-app switch. The breathing circle keeps moving because it is the exercise.
 - **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back, including the scene skies.
 - **Scenes are drawn as one inline SVG each** (`SceneBackdrop.tsx`): no image files to host. The drawing is cropped to fill and anchored to the bottom, so phones only see the middle; keep the interesting part near the centre. Night swaps the sun for a moon and stars and dims the drawing, instead of covering it in navy.
+- **No "vibe-coded" UI**: no purple, neon accents, decorative glows or arbitrary shadows, cards inside cards, emoji icons or meaningless status dots. Moods are words with muted colours (`client/src/lib/moods.ts`, contrast-tested). Only the floating breathing button and dialogs have shadows.
 - **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean.
 - **Zero-cost hosting until funded**: Groq, Neon, Brevo, Render and UptimeRobot free plans, no card on file. Groq was picked over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations. Going back to OpenAI is a settings change.
 - **The introduction shows once per device** (remembered in local storage, `introStore.ts`) and can be replayed from the home screen or Settings. It has its own SOS button because it covers the header.
@@ -144,8 +145,7 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 9. Mood trend chart
 
 **From testing the APK (owner, 5 October):**
-- Sign-up is hard to find, and parts of the UI still feel generic. Needs a design pass: a clear sign-up entry point, then the rest of the screens
-- UI cleanup found in an audit against the "vibe-coded" list: emojis as icons (mood pickers in Mood and Journal, the Feedback screen's emoji and star rating), neon mood colours (Mood screen, the rising mood bubbles, the breathing exercise's red Stop button), purple in the sunset scene and the "sad" colour, arbitrary shadows (SOS button, sign-in pages, dialogs), cards inside cards (Settings, Mood history), the account button's green "signed in" dot, and no empty state in a new chat
+- Sign-up was hard to find: now a labelled "Sign in" button in the header and sidebar, plus "Create a free account" on the home screen. Worth asking testers whether it's clear enough now
 - The APK shows a browser bar until `ANDROID_PACKAGE_NAME` and `ANDROID_CERT_SHA256` are set on Render. The owner wants it to feel like a real app later, not the website in a wrapper
 
 **Known loose ends:**

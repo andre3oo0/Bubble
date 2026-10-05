@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Trash2, X, ArrowLeft, Edit, Lock } from 'lucide-react';
+import { ArrowLeft, Edit, Lock, Plus, Save, Trash2, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { JournalEntry } from '@shared/api';
 import { Mood } from '@/models/types';
@@ -14,6 +14,7 @@ import {
   updateJournalEntry,
 } from '@/lib/api';
 import { useAccountDialog } from '@/store/accountStore';
+import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
@@ -28,16 +29,6 @@ export default function JournalPanel() {
   const [newEntryContent, setNewEntryContent] = useState('');
   const [selectedMood, setSelectedMood] = useState<Mood>('neutral');
   const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
-  
-  const moods: Record<Mood, { label: string, icon: string }> = {
-    happy: { label: 'Happy', icon: '😊' },
-    calm: { label: 'Calm', icon: '😌' },
-    neutral: { label: 'Neutral', icon: '😐' },
-    sad: { label: 'Sad', icon: '😔' },
-    anxious: { label: 'Anxious', icon: '😰' },
-    stressed: { label: 'Stressed', icon: '😖' },
-    improved: { label: 'Improved', icon: '😌' }
-  };
 
   const journal = useQuery({
     queryKey: queryKeys.journal,
@@ -64,7 +55,7 @@ export default function JournalPanel() {
     if (newEntryTitle.trim() === '' || newEntryContent.trim() === '') {
       return; // Don't save empty entries
     }
-    
+
     const input = { title: newEntryTitle, content: newEntryContent, mood: selectedMood };
     try {
       if (isEditingEntry && currentEntry) {
@@ -92,7 +83,7 @@ export default function JournalPanel() {
     } catch {
       return;
     }
-    
+
     if (isViewingEntry || isEditingEntry) {
       setIsViewingEntry(false);
       setIsEditingEntry(false);
@@ -128,7 +119,7 @@ export default function JournalPanel() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="h-full flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -137,28 +128,30 @@ export default function JournalPanel() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center">Journal</h1>
         {session && !isViewingEntry && !showNewEntry && (
-          <button 
+          <button
             onClick={() => setShowNewEntry(true)}
-            className="bg-[#0b6bb8] rounded-full w-10 h-10 flex items-center justify-center text-white"
+            className="flex items-center gap-1.5 rounded-full bg-[#0b6bb8] px-4 py-2 text-sm font-medium text-white hover:bg-[#095a9c] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
           >
-            <span className="text-2xl font-bold">+</span>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New entry
           </button>
         )}
         {(isViewingEntry || showNewEntry) && (
-          <button 
+          <button
             onClick={() => {
               setIsViewingEntry(false);
               setShowNewEntry(false);
               setIsEditingEntry(false);
               setCurrentEntry(null);
             }}
-            className="text-white hover:text-sky-100 transition-colors"
+            aria-label="Back to your entries"
+            className="rounded-full p-2 text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-6 h-6" aria-hidden="true" />
           </button>
         )}
       </div>
-      
+
       {showNewEntry ? (
         // New entry form
         <div className="flex-1 surface rounded-3xl p-4 flex flex-col">
@@ -169,32 +162,28 @@ export default function JournalPanel() {
             placeholder="Title"
             className="w-full bg-white/20 border-none outline-none text-white placeholder-white/80 mb-4 p-3 rounded-full"
           />
-          
+
           <textarea
             value={newEntryContent}
             onChange={(e) => setNewEntryContent(e.target.value)}
             placeholder="Write your thoughts here..."
             className="flex-1 w-full bg-white/20 border-none outline-none text-white placeholder-white/80 p-4 rounded-3xl resize-none mb-4"
           />
-          
+
           <div className="mb-4">
             <div className="text-white mb-2">How were you feeling?</div>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(moods).map(([moodKey, { label, icon }]) => (
-                <motion.button
-                  key={moodKey}
-                  onClick={() => setSelectedMood(moodKey as Mood)}
-                  className={`rounded-full py-1 px-3 flex items-center ${
-                    selectedMood === moodKey 
-                      ? 'bg-[#0b6bb8] text-white' 
-                      : 'surface-soft text-white/90'
+              {MOOD_ORDER.map((mood) => (
+                <button
+                  key={mood}
+                  onClick={() => setSelectedMood(mood)}
+                  aria-pressed={selectedMood === mood}
+                  className={`rounded-full px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
+                    selectedMood === mood ? 'bg-white text-[#0b3d66]' : 'surface-soft surface-soft-hover text-white'
                   }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                 >
-                  <span className="mr-1">{icon}</span>
-                  <span className="text-sm">{label}</span>
-                </motion.button>
+                  {MOOD_LABELS[mood]}
+                </button>
               ))}
             </div>
           </div>
@@ -219,7 +208,7 @@ export default function JournalPanel() {
               disabled={!newEntryTitle.trim() || !newEntryContent.trim() || isSaving}
             >
               <Save className="w-5 h-5 mr-2" />
-              Save Entry
+              Save entry
             </button>
           </div>
         </div>
@@ -246,15 +235,13 @@ export default function JournalPanel() {
               </button>
             </div>
           </div>
-          
+
           <div className="flex items-center text-white/90 text-sm mb-4">
             <span>{formatDate(currentEntry.createdAt)}</span>
             <span className="mx-2">•</span>
-            <span className="flex items-center">
-              {moods[currentEntry.mood].icon} {moods[currentEntry.mood].label}
-            </span>
+            <span>{MOOD_LABELS[currentEntry.mood]}</span>
           </div>
-          
+
           <div className="text-white whitespace-pre-wrap">
             {currentEntry.content}
           </div>
@@ -290,26 +277,25 @@ export default function JournalPanel() {
                 onClick={() => setShowNewEntry(true)}
                 className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 inline-flex items-center"
               >
-                <span className="mr-2">+</span>
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                 Write your first entry
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {journalEntries.map((entry) => (
-                <motion.div 
+                <button
                   key={entry.id}
-                  className="surface rounded-3xl p-4 text-white cursor-pointer"
-                  whileHover={{ scale: 1.02 }}
+                  className="surface rounded-3xl p-4 text-left text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
                   onClick={() => viewEntry(entry)}
                 >
                   <h3 className="font-bold mb-2 truncate">{entry.title}</h3>
                   <p className="text-sm text-white/90 mb-4 line-clamp-2">{entry.content}</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg">{moods[entry.mood].icon}</span>
-                    <p className="text-xs text-white/90">{formatDate(entry.createdAt)}</p>
+                  <div className="flex justify-between items-center text-xs text-white/90">
+                    <span>{MOOD_LABELS[entry.mood]}</span>
+                    <span>{formatDate(entry.createdAt)}</span>
                   </div>
-                </motion.div>
+                </button>
               ))}
             </div>
           )}

@@ -66,14 +66,14 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
     setCount(PHASE_DURATIONS.inhale);
     setRounds(0);
     setTotalTime(0);
-    
+
     // Play breathing ambient sound
     useSoundStore.getState().play('breathing');
-    
+
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-    
+
     intervalRef.current = setInterval(() => {
       const step = nextBreathingStep(phaseRef.current, countRef.current);
       phaseRef.current = step.phase;
@@ -93,7 +93,7 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    
+
     // Stop the ambient sound
     stopBreathingSound();
   };
@@ -134,8 +134,8 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <motion.div 
-            className="bg-[#A3DAFF]/70 max-w-lg w-11/12 rounded-2xl p-6 relative glassmorphism"
+          <motion.div
+            className="surface max-w-lg w-11/12 rounded-3xl p-6 relative"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -147,11 +147,11 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
             >
               <X size={24} />
             </button>
-            
+
             <h2 className="text-2xl font-semibold text-white text-center mb-6">
-              Breathing Exercise
+              Breathe with Bubble
             </h2>
-            
+
             <div className="flex flex-col items-center">
               {/* Fixed-size stage so the circle (scaled 1.5x on inhale, plus its glow)
                   never spills over the title or the instruction text */}
@@ -168,33 +168,33 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
                   </motion.div>
                 </MotionConfig>
               </div>
-              
+
               <p className="text-white text-xl mb-4">{getInstructions()}</p>
-              
-              <div className="grid grid-cols-2 gap-4 w-full mb-6">
-                <div className="bg-[#B8DFFC]/60 p-3 rounded-xl text-center">
-                  <p className="text-white text-sm">Total Time</p>
-                  <p className="text-white font-semibold">{formatTime(totalTime)}</p>
+
+              <dl className="mb-6 grid w-full grid-cols-2 divide-x divide-white/20 text-center text-white">
+                <div>
+                  <dt className="text-sm text-white/85">Time</dt>
+                  <dd className="font-semibold">{formatTime(totalTime)}</dd>
                 </div>
-                <div className="bg-[#B8DFFC]/60 p-3 rounded-xl text-center">
-                  <p className="text-white text-sm">Rounds</p>
-                  <p className="text-white font-semibold">{rounds}</p>
+                <div>
+                  <dt className="text-sm text-white/85">Rounds</dt>
+                  <dd className="font-semibold">{rounds}</dd>
                 </div>
-              </div>
-              
+              </dl>
+
               {!isActive ? (
                 <button
                   onClick={startExercise}
                   className="bg-[#0b6bb8] hover:bg-[#095a9c] text-white px-6 py-3 rounded-full font-medium"
                 >
-                  Start Breathing
+                  Start
                 </button>
               ) : (
                 <button
                   onClick={stopExercise}
-                  className="bg-[#ff5050] hover:bg-[#ff3838] text-white px-6 py-3 rounded-full font-medium"
+                  className="surface-soft surface-soft-hover text-white px-6 py-3 rounded-full font-medium"
                 >
-                  Stop Exercise
+                  Stop
                 </button>
               )}
             </div>

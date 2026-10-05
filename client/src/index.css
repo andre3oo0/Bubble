@@ -19,41 +19,41 @@
   :root {
     --background: 210 50% 98%;
     --foreground: 222.2 84% 4.9%;
-    
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    
+
     /* Updated colors based on new design */
     --primary: 199 84% 55%; /* #3498db - primary blue */
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 196 94% 67%; /* #50c8ff - lighter blue */
     --secondary-foreground: 222.2 84% 4.9%;
-    
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    
+
     --accent: 195 53% 79%; /* #9AD9EA - lightest blue/teal */
     --accent-foreground: 222.2 84% 4.9%;
-    
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    
+
     --border: 195 53% 79%; /* #9AD9EA */
     --input: 199 84% 55%;
     --ring: 199 84% 55%;
-    
+
     --radius: 1.5rem; /* Increased radius for more rounded corners */
-    
+
     /* Bubble avatar color */
     --bubble-avatar: #C4F5F9; /* Light cyan for Bubble character */
-    
+
     /* Bubble mood colors */
     --bubble-primary: #3498db;
-    --bubble-calm: #50c8ff; 
+    --bubble-calm: #50c8ff;
     --bubble-happy: #50c8ff;
     --bubble-sad: #9AD9EA;
     --bubble-anxious: #9AD9EA;
@@ -70,7 +70,7 @@
     border: 1px solid rgba(184, 223, 252, 0.4);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   }
-  
+
   /* Glass panel effect for environment details */
   .glass {
     background: rgba(212, 241, 255, 0.7);
@@ -143,12 +143,12 @@
     50% { transform: translateY(-5px) scale(1.05); }
     100% { transform: translateY(0) scale(0.95); }
   }
-  
+
   @keyframes sway {
     0%, 100% { transform: rotate(-2deg); }
     50% { transform: rotate(2deg); }
   }
-  
+
   @keyframes fly {
     0% {
       transform: translateX(-50px) translateY(0);
@@ -162,7 +162,7 @@
       left: 100%;
     }
   }
-  
+
   @keyframes floating-cloud {
     0% {
       transform: translateX(-200px) translateY(0);
@@ -176,69 +176,69 @@
       left: 100%;
     }
   }
-  
+
   /* Floating bubbles animation */
   @keyframes bubble-float {
-    0%, 100% { 
-      transform: translateY(0) translateX(0); 
+    0%, 100% {
+      transform: translateY(0) translateX(0);
       opacity: 0.7;
     }
     25% {
       transform: translateY(-15px) translateX(7px);
       opacity: 0.9;
     }
-    50% { 
-      transform: translateY(-30px) translateX(0); 
+    50% {
+      transform: translateY(-30px) translateX(0);
       opacity: 0.7;
     }
-    75% { 
-      transform: translateY(-15px) translateX(-7px); 
+    75% {
+      transform: translateY(-15px) translateX(-7px);
       opacity: 0.5;
     }
   }
-  
+
   .floating-bubble {
     position: absolute;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 35%, 
-      rgba(255, 255, 255, 0.8) 0%, 
-      rgba(163, 218, 255, 0.7) 40%, 
+    background: radial-gradient(circle at 30% 35%,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(163, 218, 255, 0.7) 40%,
       rgba(163, 218, 255, 0.4) 80%);
     box-shadow: 0 0 10px rgba(163, 218, 255, 0.5);
     backdrop-filter: blur(4px);
     pointer-events: none;
   }
-  
+
   .bubble-xs {
     width: 20px;
     height: 20px;
     animation: bubble-float 6s ease-in-out infinite;
   }
-  
+
   .bubble-sm {
     width: 30px;
     height: 30px;
     animation: bubble-float 8s ease-in-out infinite 1s;
   }
-  
+
   .bubble-md {
     width: 50px;
     height: 50px;
     animation: bubble-float 10s ease-in-out infinite 2s;
   }
-  
+
   .bubble-lg {
     width: 70px;
     height: 70px;
     animation: bubble-float 12s ease-in-out infinite 1.5s;
   }
-  
+
   .bubble-xl {
     width: 90px;
     height: 90px;
     animation: bubble-float 15s ease-in-out infinite 0.5s;
   }
-  
+
   @keyframes glow {
     0%, 100% {
       filter: brightness(1) blur(0);
@@ -249,7 +249,7 @@
       box-shadow: 0 0 20px rgba(255, 255, 255, 0.9);
     }
   }
-  
+
   @keyframes flicker {
     0%, 100% {
       filter: brightness(1);
@@ -268,7 +268,7 @@
       transform: scale(1.02);
     }
   }
-  
+
   @keyframes equalize {
     0%, 100% { height: 8px; }
     50% { height: 16px; }
@@ -326,7 +326,7 @@
     border-radius: 3px;
     background-color: rgba(255, 255, 255, 0.6); /* As per design spec */
   }
-  
+
   /* Input placeholder styling */
   /* Light hint text for the inputs on dark glass; light inputs (the account
      dialog) set their own with placeholder-gray-500, so no !important here */
@@ -351,30 +351,30 @@
     border-color: #A3DAFF;
     box-shadow: 0 0 15px rgba(163, 218, 255, 0.6);
   }
-  
+
   /* Environment animations and styling */
   .animated-forest {
     @apply bg-cover bg-center relative overflow-hidden;
     animation: scene-transition 1s ease-out;
   }
-  
+
   .animated-ocean {
     @apply bg-cover bg-center relative overflow-hidden;
     animation: scene-transition 1s ease-out;
   }
-  
+
   .animated-cafe {
     @apply bg-cover bg-center relative overflow-hidden;
     animation: scene-transition 1s ease-out;
   }
-  
+
   .animated-bedroom {
     @apply bg-cover bg-center relative overflow-hidden;
     animation: scene-transition 1s ease-out;
   }
-  
+
   /* Animated element containers */
-  .forest-elements, .ocean-elements, 
+  .forest-elements, .ocean-elements,
   .cafe-elements, .bedroom-elements {
     @apply absolute inset-0 pointer-events-none;
   }
@@ -390,7 +390,7 @@
     transform-origin: bottom center;
     animation: sway 8s ease-in-out infinite;
   }
-  
+
   .swaying-tree-2 {
     position: absolute;
     width: 120px;
@@ -401,7 +401,7 @@
     transform-origin: bottom center;
     animation: sway 7s ease-in-out infinite reverse;
   }
-  
+
   .flying-bird-1 {
     position: absolute;
     width: 20px;
@@ -431,7 +431,7 @@
     z-index: 1;
     animation: wave 10s ease-in-out infinite;
   }
-  
+
   .moving-wave-2 {
     position: absolute;
     width: 100%;
@@ -442,7 +442,7 @@
     z-index: 2;
     animation: wave 8s ease-in-out infinite reverse;
   }
-  
+
   .floating-cloud-1 {
     position: absolute;
     width: 150px;
@@ -451,7 +451,7 @@
     top: 15%;
     animation: floating-cloud 60s linear infinite;
   }
-  
+
   .floating-cloud-2 {
     position: absolute;
     width: 120px;
@@ -463,12 +463,12 @@
 
   /* Cafe elements */
 @keyframes steam {
-  0%, 100% { 
-    transform: translateY(0) scaleY(1); 
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
     opacity: 0.8;
   }
-  50% { 
-    transform: translateY(-15px) scaleY(1.2); 
+  50% {
+    transform: translateY(-15px) scaleY(1.2);
     opacity: 0.3;
   }
 }
@@ -541,10 +541,10 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to bottom, 
-    rgba(255,255,255,0) 0%, 
-    rgba(255,255,255,0.2) 20%, 
-    rgba(255,255,255,0.1) 80%, 
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.2) 20%,
+    rgba(255,255,255,0.1) 80%,
     rgba(255,255,255,0) 100%),
     repeating-linear-gradient(
       to right,
@@ -696,7 +696,7 @@
     transform: translateX(-50%);
     animation: glow 5s ease-in-out infinite;
   }
-  
+
   .floating-cloud-sunset-1 {
     position: absolute;
     width: 180px;
@@ -705,7 +705,7 @@
     top: 20%;
     animation: floating-cloud 90s linear infinite;
   }
-  
+
   .floating-cloud-sunset-2 {
     position: absolute;
     width: 140px;
@@ -725,7 +725,7 @@
     left: 20%;
     animation: flicker 3s ease-in-out infinite;
   }
-  
+
   .flickering-candle-1 {
     position: absolute;
     width: 20px;
@@ -735,7 +735,7 @@
     right: 30%;
     animation: flicker 2s ease-in-out infinite 0.5s;
   }
-  
+
   .flickering-candle-2 {
     position: absolute;
     width: 16px;
@@ -745,14 +745,14 @@
     right: 15%;
     animation: flicker 3s ease-in-out infinite;
   }
-  
+
   /* Breathing exercise animation styles */
   @keyframes breathing-pulse {
-    0%, 100% { 
+    0%, 100% {
       transform: scale(1);
       box-shadow: 0 0 5px rgba(80, 200, 255, 0.5);
     }
-    50% { 
+    50% {
       transform: scale(1.1);
       box-shadow: 0 0 30px rgba(80, 200, 255, 0.8);
     }
@@ -783,53 +783,52 @@
     right: -20px;
     bottom: -20px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(80, 200, 255, 0.4) 0%, rgba(80, 200, 255, 0) 70%);
+    border: 2px solid rgb(255 255 255 / 0.35);
     z-index: -1;
-    opacity: 0.7;
   }
 
   /* Mood-based chat glow effects */
   .glow-happy {
     box-shadow: 0 0 15px 2px var(--bubble-happy);
   }
-  
+
   .glow-calm {
     box-shadow: 0 0 15px 2px var(--bubble-calm);
   }
-  
+
   .glow-sad {
     box-shadow: 0 0 15px 2px var(--bubble-sad);
   }
-  
+
   .glow-anxious {
     box-shadow: 0 0 15px 2px var(--bubble-anxious);
   }
-  
+
   .glow-stressed {
     box-shadow: 0 0 15px 2px var(--bubble-stressed);
   }
-  
+
   .glow-improved {
     box-shadow: 0 0 15px 2px var(--bubble-improved);
   }
-  
+
   .glow-neutral {
     box-shadow: 0 0 15px 2px var(--bubble-neutral);
   }
-  
+
   /* Equalizer animation classes */
   .animate-eq-1 {
     animation: equalize 0.8s ease-in-out infinite;
   }
-  
+
   .animate-eq-2 {
     animation: equalize 0.8s ease-in-out infinite 0.1s;
   }
-  
+
   .animate-eq-3 {
     animation: equalize 0.8s ease-in-out infinite 0.2s;
   }
-  
+
   .animate-eq-4 {
     animation: equalize 0.8s ease-in-out infinite 0.3s;
   }

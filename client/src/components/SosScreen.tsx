@@ -27,7 +27,7 @@ export default function SosScreen({ onBreathe }: SosScreenProps) {
             <a
               key={line.phone}
               href={`tel:${line.phone.replace(/\s/g, '')}`}
-              className="flex min-h-[64px] items-center gap-4 rounded-2xl bg-[#0b5394] px-4 py-3 text-white shadow-md focus:outline-none focus:ring-4 focus:ring-[#0b5394]/40"
+              className="flex min-h-[64px] items-center gap-4 rounded-2xl bg-[#0b5394] px-4 py-3 text-white focus:outline-none focus:ring-4 focus:ring-[#0b5394]/40"
             >
               <Phone className="h-6 w-6 shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1">
@@ -54,7 +54,7 @@ export default function SosScreen({ onBreathe }: SosScreenProps) {
           </ul>
           <button
             onClick={onBreathe}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 font-semibold text-[#0b5394] shadow-sm focus:outline-none focus:ring-4 focus:ring-[#0b5394]/30"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 font-semibold text-[#0b5394] focus:outline-none focus:ring-4 focus:ring-[#0b5394]/30"
           >
             <Wind className="h-5 w-5" aria-hidden="true" />
             Breathe with Bubble

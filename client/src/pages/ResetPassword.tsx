@@ -45,7 +45,7 @@ export default function ResetPassword() {
       className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#1a6fc4] to-[#0b5394] dark:from-[#0b1d3a] dark:to-[#050d1a] p-4"
       style={{ minHeight: '100dvh' }}
     >
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 text-gray-900 shadow-xl">
+      <div className="w-full max-w-md rounded-3xl bg-white p-6 text-gray-900">
         <div className="mb-4 flex items-center gap-2">
           <KeyRound className="h-6 w-6 text-[#0b5394]" aria-hidden="true" />
           <h1 className="text-2xl font-bold">

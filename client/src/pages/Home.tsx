@@ -37,10 +37,10 @@ const MOOD_LINES: Record<Mood, string> = {
   happy: "I'm feeling cheerful!",
   calm: "I'm feeling peaceful",
   sad: "I'm here for you",
-  anxious: "Let's take deep breaths",
+  anxious: "Let's breathe slowly",
   stressed: 'One step at a time',
   neutral: 'How are you feeling?',
-  improved: 'Things are looking up!',
+  improved: 'Things look brighter',
 };
 
 export default function Home() {
@@ -128,6 +128,17 @@ export default function Home() {
               >
                 What can Bubble do?
               </button>
+              {!session && (
+                <p className="mt-6 max-w-xs text-sm text-white/90">
+                  Want to keep a journal and track your mood?{' '}
+                  <button
+                    onClick={openAccount}
+                    className="font-semibold text-white underline underline-offset-4 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 rounded"
+                  >
+                    Create a free account
+                  </button>
+                </p>
+              )}
             </div>
           </motion.div>
         );
@@ -138,20 +149,30 @@ export default function Home() {
   const isActive = (panel: ActivePanel) =>
     panel === 'home' ? activePanel === 'home' || activePanel === 'welcome' : activePanel === panel;
 
-  // Signed in: a person icon with a small dot. Signed out: a sign-in icon
-  const accountButton = (
-    <button
-      onClick={openAccount}
-      aria-label={session ? `Your account (${session.user.name})` : 'Sign in'}
-      title={session ? 'Your account' : 'Sign in'}
-      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-    >
-      {session ? <UserRound size={20} aria-hidden="true" /> : <LogIn size={19} aria-hidden="true" />}
-      {session && (
-        <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0b1d33]" aria-hidden="true" />
-      )}
-    </button>
-  );
+  // Signed out it says "Sign in" in words, so it can't be missed; signed in it's
+  // the account icon
+  const accountButton = (compact: boolean) =>
+    session ? (
+      <button
+        onClick={openAccount}
+        aria-label={`Your account (${session.user.name})`}
+        title="Your account"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+      >
+        <UserRound size={20} aria-hidden="true" />
+      </button>
+    ) : (
+      <button
+        onClick={openAccount}
+        className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
+          compact ? 'h-auto w-12 flex-col gap-0.5 rounded-2xl py-2 text-[11px]' : 'px-3 py-2 text-sm'
+        }`}
+      >
+        {/* No icon in the phone header, where every pixel goes to the mood line */}
+        {compact && <LogIn size={18} aria-hidden="true" />}
+        Sign in
+      </button>
+    );
 
   return (
     // 100dvh so mobile browser toolbars don't hide the tab bar; h-screen is the fallback
@@ -163,7 +184,7 @@ export default function Home() {
       <button
         onClick={openSos}
         aria-haspopup="dialog"
-        className="fixed top-4 right-4 z-40 hidden md:flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#b42318] shadow-lg focus:outline-none focus:ring-4 focus:ring-white/60"
+        className="fixed top-4 right-4 z-40 hidden md:flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#b42318] focus:outline-none focus:ring-4 focus:ring-white/60"
       >
         <LifeBuoy size={18} aria-hidden="true" />
         Get help now
@@ -205,7 +226,7 @@ export default function Home() {
       </motion.button>
 
       {/* Phone header: small Bubble, its mood line, SOS and account */}
-      <header className="md:hidden z-10 flex items-center gap-3 px-4 pb-2 pt-[max(env(safe-area-inset-top),0.75rem)]">
+      <header className="md:hidden z-10 flex items-center gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),0.75rem)]">
         {/* The face is drawn for the larger sizes, so shrink a medium avatar instead of using "sm" */}
         <div className="relative h-14 w-11 shrink-0" aria-hidden="true">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 scale-[0.52]">
@@ -220,12 +241,12 @@ export default function Home() {
           onClick={openSos}
           aria-haspopup="dialog"
           aria-label="Get help now"
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-sm font-bold text-[#b42318] shadow-lg focus:outline-none focus:ring-4 focus:ring-white/60"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-sm font-bold text-[#b42318] focus:outline-none focus:ring-4 focus:ring-white/60"
         >
           <LifeBuoy size={18} aria-hidden="true" />
           SOS
         </button>
-        {accountButton}
+        {accountButton(false)}
       </header>
 
       {/* Desktop sidebar with persistent navigation */}
@@ -251,7 +272,7 @@ export default function Home() {
         </div>
 
         {/* Account: initial when signed in, sign-in icon when not */}
-        <div className="mt-4">{accountButton}</div>
+        <div className="mt-4">{accountButton(true)}</div>
       </nav>
 
       {/* Avatar area (desktop) */}

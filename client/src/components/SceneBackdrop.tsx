@@ -201,21 +201,21 @@ function Sunset({ id }: { id: string }) {
     <>
       <defs>
         <linearGradient id={`${id}-sky`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2f2560" />
-          <stop offset="0.35" stopColor="#5a3474" />
-          <stop offset="0.6" stopColor="#88406f" />
-          <stop offset="0.75" stopColor="#a84a62" />
-          <stop offset="0.9" stopColor="#c0603f" />
+          <stop offset="0" stopColor="#1c2f4f" />
+          <stop offset="0.35" stopColor="#334866" />
+          <stop offset="0.6" stopColor="#85565a" />
+          <stop offset="0.75" stopColor="#a4594b" />
+          <stop offset="0.9" stopColor="#bd6a3c" />
         </linearGradient>
         <radialGradient id={`${id}-glow`}>
-          <stop offset="0" stopColor="#ffb86b" stopOpacity="0.6" />
+          <stop offset="0" stopColor="#ffb86b" stopOpacity="0.35" />
           <stop offset="1" stopColor="#ffb86b" stopOpacity="0" />
         </radialGradient>
       </defs>
       <rect width={W} height={H} fill={`url(#${id}-sky)`} />
       <Stars count={40} maxY={300} />
-      <circle className="scene-glow" cx="720" cy="700" r="380" fill={`url(#${id}-glow)`} />
-      <circle cx="720" cy="700" r="92" fill="#ffc97a" />
+      <circle className="scene-glow" cx="720" cy="760" r="340" fill={`url(#${id}-glow)`} />
+      <circle cx="720" cy="760" r="92" fill="#ffc97a" />
       {[
         [300, 330, 220, -30],
         [980, 280, 300, -90],
@@ -226,13 +226,13 @@ function Sunset({ id }: { id: string }) {
           <rect x={x + 40} y={y + 16} width={w * 0.6} height="7" rx="3.5" fill="#f2a08a" opacity="0.2" />
         </g>
       ))}
-      <g className="text-[#3a1f46]">
+      <g className="text-[#2a1b1a]">
         <Bird x={480} y={480} delay={-5} />
         <Bird x={515} y={500} delay={-12} />
       </g>
-      <path d={hills(760, [70, 120, 60, 40, 100, 150, 80])} fill="#6b2f5e" />
-      <path d={hills(830, [110, 60, 90, 30, 70, 50, 120])} fill="#4a2350" />
-      <path d={hills(900, [60, 90, 40, 20, 50, 80, 40])} fill="#2c1838" />
+      <path d={hills(760, [70, 120, 60, 40, 100, 150, 80])} fill="#5e3b33" />
+      <path d={hills(830, [110, 60, 90, 30, 70, 50, 120])} fill="#432a27" />
+      <path d={hills(900, [60, 90, 40, 20, 50, 80, 40])} fill="#2a1b1a" />
     </>
   );
 }

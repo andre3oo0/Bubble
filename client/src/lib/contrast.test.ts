@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MOOD_TONES } from './moods';
 
 // Guards the colours white text sits on, so they keep meeting WCAG AA (4.5:1)
 
@@ -24,9 +25,17 @@ describe('white text contrast', () => {
     // stop above the horizon. Night only darkens them.
     ['#2a74b0', 'ocean sky'],
     ['#3d7a62', 'forest sky'],
-    ['#a84a62', 'sunset sky'],
+    ['#a4594b', 'sunset sky'],
     ['#4a3026', 'cozy room wall'],
   ])('%s (%s) passes AA', (background) => {
     expect(contrast('#ffffff', background)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// Mood words in the history are drawn in their tone on the dark frosted panel.
+// #1d2b40 is roughly that panel over the lightest scene.
+describe('mood tone contrast', () => {
+  it.each(Object.entries(MOOD_TONES))('%s (%s) passes AA on the panel', (_mood, tone) => {
+    expect(contrast(tone, '#1d2b40')).toBeGreaterThanOrEqual(4.5);
   });
 });

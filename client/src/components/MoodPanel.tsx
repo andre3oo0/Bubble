@@ -7,6 +7,7 @@ import { useSession } from '@/lib/authClient';
 
 import { fetchMoods, queryKeys, saveMoodCheckin } from '@/lib/api';
 import { useAccountDialog } from '@/store/accountStore';
+import { MOOD_LABELS, MOOD_ORDER, MOOD_TONES } from '@/lib/moods';
 
 interface MoodCheckIn {
   id: string;
@@ -29,16 +30,6 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
   const [checkInTimes, setCheckInTimes] = useState<string[]>(['12:00', '18:00']);
   const [newCheckInTime, setNewCheckInTime] = useState('');
   const [isEditingTimes, setIsEditingTimes] = useState(false);
-  
-  const moods: Record<Mood, { label: string, color: string, icon: string }> = {
-    happy: { label: 'Happy', color: 'bg-[#4CAF50]', icon: '😊' },
-    calm: { label: 'Calm', color: 'bg-[#4FACFE]', icon: '😌' },
-    neutral: { label: 'Neutral', color: 'bg-[#9E9E9E]', icon: '😐' },
-    sad: { label: 'Sad', color: 'bg-[#7B68EE]', icon: '😔' },
-    anxious: { label: 'Anxious', color: 'bg-[#FFA500]', icon: '😰' },
-    stressed: { label: 'Stressed', color: 'bg-[#FF6B6B]', icon: '😖' },
-    improved: { label: 'Improved', color: 'bg-[#4CAF50]', icon: '😌' }
-  };
 
   const moodsQuery = useQuery({ queryKey: queryKeys.moods, queryFn: fetchMoods, enabled: !!session });
   const moodHistory: MoodCheckIn[] = (moodsQuery.data ?? []).map((checkin) => {
@@ -100,7 +91,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
   }, {});
 
   return (
-    <motion.div 
+    <motion.div
       className="md:h-full flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -108,38 +99,40 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
     >
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center flex-1">Mood</h1>
-        <button 
-          onClick={() => setShowSettings(!showSettings)} 
-          className="text-white hover:text-sky-100 transition-colors"
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          aria-label={showSettings ? 'Back to check-in' : 'Check-in reminder times'}
+          aria-pressed={showSettings}
+          className="rounded-full p-2 text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
         >
-          <Settings className="w-6 h-6" />
+          <Settings className="w-6 h-6" aria-hidden="true" />
         </button>
       </div>
-      
+
       {showSettings ? (
         // Settings panel
         <div className="surface rounded-3xl p-4 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-white text-lg">Check-in Times</h3>
-            <button 
+            <button
               onClick={() => setIsEditingTimes(!isEditingTimes)}
               className="text-white bg-[#0b6bb8] rounded-full px-3 py-1 text-sm"
             >
               {isEditingTimes ? 'Done' : 'Edit'}
             </button>
           </div>
-          
+
           <div className="mb-4">
             <div className="flex flex-wrap gap-2">
               {checkInTimes.map((time) => (
-                <div 
-                  key={time} 
+                <div
+                  key={time}
                   className="flex items-center surface-soft rounded-full px-3 py-1 text-white"
                 >
                   <Clock className="w-4 h-4 mr-1" />
                   <span>{time}</span>
                   {isEditingTimes && (
-                    <button 
+                    <button
                       onClick={() => removeCheckInTime(time)}
                       className="ml-2 text-white hover:text-red-500"
                     >
@@ -150,14 +143,14 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
               ))}
             </div>
           </div>
-          
+
           {isEditingTimes && (
             <div className="flex gap-2 mb-2">
               <input
                 type="time"
                 value={newCheckInTime}
                 onChange={(e) => setNewCheckInTime(e.target.value)}
-                className="surface-soft text-white border-none rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-[#50c8ff]"
+                className="surface-soft text-white border-none rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-white/60"
               />
               <button
                 onClick={addCheckInTime}
@@ -168,7 +161,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
               </button>
             </div>
           )}
-          
+
           <p className="text-white/90 text-sm">
             Set times for daily mood check-in reminders
           </p>
@@ -176,24 +169,22 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       ) : (
         // Current mood selector
         <div className="surface rounded-3xl p-4 mb-6">
-          <div className="text-white text-lg mb-2">How are you feeling right now?</div>
-          <div className="grid grid-cols-3 gap-3">
-            {Object.entries(moods).map(([moodKey, { label, color, icon }]) => (
-              <motion.button
-                key={moodKey}
-                onClick={() => setSelectedMood(moodKey as Mood)}
-                className={`${color} rounded-full p-3 text-white text-center ${
-                  selectedMood === moodKey ? 'ring-4 ring-white' : ''
+          <h2 className="text-white text-lg mb-3">How are you feeling right now?</h2>
+          <div className="flex flex-wrap gap-2">
+            {MOOD_ORDER.map((mood) => (
+              <button
+                key={mood}
+                onClick={() => setSelectedMood(mood)}
+                aria-pressed={selectedMood === mood}
+                className={`rounded-full px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
+                  selectedMood === mood ? 'bg-white text-[#0b3d66]' : 'surface-soft surface-soft-hover text-white'
                 }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
               >
-                <div className="text-2xl">{icon}</div>
-                <div className="text-sm">{label}</div>
-              </motion.button>
+                {MOOD_LABELS[mood]}
+              </button>
             ))}
           </div>
-          
+
           <div className="mt-4 flex justify-center">
             <motion.button
               onClick={saveMood}
@@ -203,16 +194,16 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
               disabled={!selectedMood}
             >
               <Save className="w-5 h-5 mr-2" />
-              Save Mood
+              Save mood
             </motion.button>
           </div>
         </div>
       )}
-      
+
       {/* Mood history */}
       <div className="md:flex-1 surface rounded-3xl p-4 md:overflow-y-auto">
-        <div className="text-white text-lg mb-4">Your mood history</div>
-        
+        <h2 className="text-white text-lg mb-4">Your mood history</h2>
+
         {!session && !sessionPending ? (
           <div className="text-white text-center py-8">
             <p className="mb-4 text-white/80">Sign in to keep a history of your check-ins and spot patterns over time.</p>
@@ -229,23 +220,24 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
           </div>
         ) : Object.keys(groupedHistory).length === 0 ? (
           <div className="text-white/90 text-center py-8">
-            {moodsQuery.isPending ? 'Loading...' : 'No mood entries yet. Start by saving your current mood!'}
+            {moodsQuery.isPending ? 'Loading your check-ins…' : 'No check-ins yet. Save how you feel above and it will show up here.'}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {Object.entries(groupedHistory).map(([date, checkIns]) => (
-              <div key={date} className="surface-soft rounded-xl p-3">
-                <div className="text-white font-medium mb-2">{date}</div>
-                <div className="space-y-2">
+              <section key={date}>
+                <h3 className="mb-1 text-sm font-semibold text-white/85">{date}</h3>
+                <ul className="divide-y divide-white/10">
                   {checkIns.map((checkIn) => (
-                    <div key={checkIn.id} className="flex items-center space-x-4 text-white p-2">
-                      <div className="w-16 text-sm">{checkIn.time}</div>
-                      <div className={`flex-1 rounded-full h-4 ${moods[checkIn.mood].color} opacity-80`}></div>
-                      <div className="text-xl">{moods[checkIn.mood].icon}</div>
-                    </div>
+                    <li key={checkIn.id} className="flex items-center justify-between gap-4 py-2">
+                      <span className="whitespace-nowrap text-sm text-white/85">{checkIn.time}</span>
+                      <span className="font-medium" style={{ color: MOOD_TONES[checkIn.mood] }}>
+                        {MOOD_LABELS[checkIn.mood]}
+                      </span>
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ul>
+              </section>
             ))}
           </div>
         )}
