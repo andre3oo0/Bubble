@@ -5,13 +5,14 @@ import type { Server } from "http";
 import type { ChatResponse } from "@shared/chat";
 import { CRISIS_REPLY, HELPLINES } from "@shared/safety";
 
-vi.mock("./openaiService", () => ({ generateReply: vi.fn() }));
+vi.mock("./openaiService", () => ({ generateReply: vi.fn(), generateReflection: vi.fn() }));
 
-const { generateReply } = await import("./openaiService");
+const { generateReflection, generateReply } = await import("./openaiService");
 const { registerRoutes } = await import("./routes");
 const { migrateDatabase } = await import("./db");
 const { usageKey } = await import("./usage");
 const mockReply = vi.mocked(generateReply);
+const mockReflection = vi.mocked(generateReflection);
 
 let server: Server;
 let baseUrl: string;
@@ -32,6 +33,7 @@ afterAll(() => {
 
 beforeEach(() => {
   mockReply.mockReset();
+  mockReflection.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -150,6 +152,100 @@ describe("daily chat limit", () => {
     expect(data.reply).toBe(CRISIS_REPLY);
     expect(data.helplines).toEqual(HELPLINES);
     expect(mockReply).not.toHaveBeenCalled();
+  });
+});
+
+async function post(path: string, body: unknown) {
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, data: res.status === 204 ? null : await res.json() };
+}
+
+const transcript = [
+  { role: "user", content: "Exams are making me panic" },
+  { role: "assistant", content: "That sounds stressful. What feels hardest?" },
+  { role: "user", content: "Maths, mostly" },
+];
+
+describe("POST /api/chat/reflect", () => {
+  it("returns the AI reflection without helplines for an ordinary chat", async () => {
+    mockReflection.mockResolvedValue({ title: "Exam nerves", summary: "You talked about maths.", takeaway: "One topic at a time." });
+
+    const { status, data } = await post("/api/chat/reflect", { transcript });
+
+    expect(status).toBe(200);
+    expect(data).toEqual({ title: "Exam nerves", summary: "You talked about maths.", takeaway: "One topic at a time." });
+    expect(mockReflection).toHaveBeenCalledWith(transcript);
+  });
+
+  it("falls back to a written prompt when the AI is down", async () => {
+    mockReflection.mockRejectedValue(new Error("AI unavailable"));
+
+    const { status, data } = await post("/api/chat/reflect", { transcript });
+
+    expect(status).toBe(200);
+    expect(data.fallback).toBe(true);
+    expect(data.summary.length).toBeGreaterThan(0);
+    expect(data.takeaway.length).toBeGreaterThan(0);
+  });
+
+  it("adds helplines if anything the person said suggests a crisis, even with the AI down", async () => {
+    mockReflection.mockRejectedValue(new Error("AI unavailable"));
+
+    const { data } = await post("/api/chat/reflect", {
+      transcript: [...transcript, { role: "user", content: "honestly I want to end it all" }],
+    });
+
+    expect(data.helplines).toEqual(HELPLINES);
+  });
+
+  it("only sends the most recent part of a very long chat", async () => {
+    mockReflection.mockResolvedValue({ title: "t", summary: "s", takeaway: "k" });
+    const long = Array.from({ length: 20 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: `${i} ${"x".repeat(1900)}` }));
+
+    await post("/api/chat/reflect", { transcript: long });
+
+    const sent = mockReflection.mock.calls[0][0];
+    expect(sent.length).toBeLessThan(long.length);
+    expect(sent.at(-1)).toEqual(long.at(-1));
+  });
+
+  it.each([{}, { transcript: [] }, { transcript: [{ role: "system", content: "hi" }] }])("rejects invalid body %#", async (body) => {
+    const { status } = await post("/api/chat/reflect", body);
+    expect(status).toBe(400);
+    expect(mockReflection).not.toHaveBeenCalled();
+  });
+
+  it("doesn't call the AI over the daily limit, but keeps the helplines", async () => {
+    const original = process.env.CHAT_DAILY_LIMIT_GUEST;
+    process.env.CHAT_DAILY_LIMIT_GUEST = "0";
+    try {
+      const { data } = await post("/api/chat/reflect", { transcript: [{ role: "user", content: "I want to die" }] });
+      expect(data.fallback).toBe(true);
+      expect(data.helplines).toEqual(HELPLINES);
+      expect(mockReflection).not.toHaveBeenCalled();
+    } finally {
+      process.env.CHAT_DAILY_LIMIT_GUEST = original;
+    }
+  });
+});
+
+describe("POST /api/chat/end", () => {
+  it("forgets the conversation, so the next message starts fresh", async () => {
+    mockReply.mockResolvedValue({ reply: "noted", mood: "neutral", risk: "none" });
+    const first = await chat({ message: "something private" });
+
+    expect((await post("/api/chat/end", { sessionId: first.data.sessionId })).status).toBe(204);
+
+    await chat({ message: "hello", sessionId: first.data.sessionId });
+    expect(mockReply).toHaveBeenLastCalledWith("hello", []);
+  });
+
+  it("ignores a bad session id", async () => {
+    expect((await post("/api/chat/end", { sessionId: "nope" })).status).toBe(204);
   });
 });
 

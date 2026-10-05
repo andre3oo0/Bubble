@@ -6,8 +6,16 @@ import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "./auth";
 import { registerDataRoutes } from "./dataRoutes";
 import { pruneOldUsage, recordChatMessage, usageKey } from "./usage";
-import { generateReply, type AiReply, type ChatTurn } from "./openaiService";
-import { chatRequestSchema, type ChatResponse, type Mood, type RiskLevel } from "@shared/chat";
+import { generateReflection, generateReply, type AiReflection, type AiReply, type ChatTurn } from "./openaiService";
+import {
+  chatRequestSchema,
+  endChatSchema,
+  reflectRequestSchema,
+  type ChatResponse,
+  type Mood,
+  type ReflectionResponse,
+  type RiskLevel,
+} from "@shared/chat";
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from "@shared/safety";
 
 // Max conversation turns kept per session (user + assistant messages)
@@ -90,6 +98,28 @@ const moodResponses = {
     "Progress is something to celebrate! What's been working well for you?"
   ]
 };
+
+// Used for the reflection when the AI is down or the daily limit is reached
+const FALLBACK_REFLECTION: Omit<ReflectionResponse, 'helplines'> = {
+  title: 'Talking it through',
+  summary: "You took some time to talk through what's on your mind. That's worth doing, even when it's hard.",
+  takeaway: "What's one thing from this chat you'd like to remember?",
+  fallback: true,
+};
+
+// Roughly a few thousand tokens: plenty for a reflection, and keeps the cost down
+const MAX_REFLECTION_CHARS = 12000;
+
+function recentTurns(transcript: ChatTurn[]): ChatTurn[] {
+  const kept: ChatTurn[] = [];
+  let total = 0;
+  for (let i = transcript.length - 1; i >= 0; i--) {
+    total += transcript[i].content.length;
+    if (total > MAX_REFLECTION_CHARS && kept.length > 0) break;
+    kept.unshift(transcript[i]);
+  }
+  return kept;
+}
 
 function getRandomMoodResponse(mood: Mood): string {
   const responses = moodResponses[mood] || moodResponses.neutral;
@@ -175,6 +205,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!ai) response.fallback = true;
 
     res.json(response);
+  });
+
+  // Post-chat debrief: a short reflection on the conversation, for "Reflect" and
+  // "Save to journal". Counts towards the daily limit like a chat message.
+  app.post('/api/chat/reflect', chatBurstLimit, async (req, res) => {
+    const parsed = reflectRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'A conversation is required' });
+    }
+
+    const transcript = recentTurns(parsed.data.transcript);
+    const crisis = transcript.some((turn) => turn.role === 'user' && detectCrisis(turn.content));
+    const withHelplines = (reflection: Omit<ReflectionResponse, 'helplines'>): ReflectionResponse =>
+      crisis ? { ...reflection, helplines: HELPLINES } : reflection;
+
+    const signedIn = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
+    const { key, limit } = usageKey(signedIn?.user.id, req.ip);
+    let used = 0;
+    try {
+      used = await recordChatMessage(key);
+    } catch (error) {
+      console.error('Chat usage count failed:', error instanceof Error ? error.message : error);
+    }
+    if (used > limit) {
+      return res.json(withHelplines(FALLBACK_REFLECTION));
+    }
+
+    let ai: AiReflection | null = null;
+    try {
+      ai = await generateReflection(transcript);
+    } catch (error) {
+      console.error('Reflection AI error:', error instanceof Error ? error.message : error);
+    }
+
+    res.json(withHelplines(ai ? { title: ai.title.slice(0, 200), summary: ai.summary, takeaway: ai.takeaway } : FALLBACK_REFLECTION));
+  });
+
+  // "Let go": forget the conversation context kept for this chat
+  app.post('/api/chat/end', (req, res) => {
+    const parsed = endChatSchema.safeParse(req.body);
+    if (parsed.success) sessions.delete(parsed.data.sessionId);
+    res.status(204).end();
   });
 
   // Environment change API (with ambient sound selection)

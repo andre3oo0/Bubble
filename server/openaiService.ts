@@ -42,6 +42,44 @@ export interface AiReply {
   risk: RiskLevel;
 }
 
+const reflectionSystemMessage = `
+You are Bubble, a warm and calm companion in a mental wellbeing app. The person has just finished a conversation with you and asked for a short reflection on it.
+
+Write to them directly ("you"), in plain, everyday language:
+- title: a gentle title for a journal entry, at most 6 words, no quotation marks.
+- summary: 2 or 3 sentences on what they talked about and how they seemed to feel. Kind and specific, never clinical. Don't diagnose, label or give medical advice.
+- takeaway: one short sentence they can take with them, a small next step or a kind thought, based on what they said.
+If they mentioned suicide, self-harm or being in danger, gently encourage them in the summary to reach out to a crisis line or someone they trust. Never give information about methods.
+`;
+
+const reflectionSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  takeaway: z.string(),
+});
+
+export type AiReflection = z.infer<typeof reflectionSchema>;
+
+// Throws on any failure so the caller can fall back
+export async function generateReflection(transcript: ChatTurn[]): Promise<AiReflection> {
+  const conversation = transcript.map((turn) => `${turn.role === "user" ? "Person" : "Bubble"}: ${turn.content}`).join("\n");
+  const completion = await openai.beta.chat.completions.parse({
+    model: MODEL,
+    messages: [
+      { role: "system", content: reflectionSystemMessage },
+      { role: "user", content: `The conversation:\n${conversation}` },
+    ],
+    response_format: zodResponseFormat(reflectionSchema, "bubble_reflection"),
+    max_completion_tokens: 600,
+  });
+
+  const parsed = completion.choices[0]?.message.parsed;
+  if (!parsed) {
+    throw new Error(completion.choices[0]?.message.refusal ?? "Empty response from model");
+  }
+  return parsed;
+}
+
 // Throws on any failure so the caller can fall back
 export async function generateReply(message: string, history: ChatTurn[]): Promise<AiReply> {
   const completion = await openai.beta.chat.completions.parse({

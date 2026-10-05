@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Wind } from 'lucide-react';
+import { DoorOpen, Phone, Wind } from 'lucide-react';
 import { prefersReducedMotion } from '@/lib/motion';
 import { Message, Mood } from '@/models/types';
 import { useChatStore } from '@/store/chatStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
 import { v4 as uuidv4 } from 'uuid';
-import { sendChatMessage } from '@/lib/chatService';
+import { endChat, sendChatMessage } from '@/lib/chatService';
+import ChatDebrief from './ChatDebrief';
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
 
 interface ChatPanelProps {
@@ -21,6 +22,9 @@ const BREATHING_OFFER_MOODS: Mood[] = ['anxious', 'stressed'];
 // Let Bubble's reply appear before the SOS screen covers it
 const SOS_OPEN_DELAY_MS = 800;
 
+// How long "Let go" lets the messages float away before clearing them
+const LET_GO_MS = 1600;
+
 function openSosForCrisis() {
   setTimeout(() => useSosStore.getState().openForCrisis(), SOS_OPEN_DELAY_MS);
 }
@@ -33,7 +37,10 @@ export default function ChatPanel({
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isBreathingPromptVisible, setIsBreathingPromptVisible] = useState(false);
-  const { messages, addMessage } = useChatStore();
+  const [debriefOpen, setDebriefOpen] = useState(false);
+  const [releasing, setReleasing] = useState(false);
+  const { messages, addMessage, clearMessages } = useChatStore();
+  const hasConversation = messages.some((m) => m.sender === 'user');
   const { currentMood, setCurrentMood } = useMoodStore();
   const previousMoodRef = useRef<Mood>(currentMood);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -194,6 +201,31 @@ export default function ChatPanel({
     }
   };
   
+  // End of the debrief: forget the chat here and on the server, then a fresh start
+  const finishChat = (closing: string) => {
+    endChat();
+    clearMessages();
+    setIsBreathingPromptVisible(false);
+    addMessage({ id: uuidv4(), content: closing, sender: 'bubble', timestamp: new Date() });
+  };
+
+  const letGo = () => {
+    setDebriefOpen(false);
+    setReleasing(true);
+    setTimeout(
+      () => {
+        setReleasing(false);
+        finishChat("It's gone. Take a slow breath. I'm here whenever you want to talk again.");
+      },
+      prefersReducedMotion() ? 0 : LET_GO_MS,
+    );
+  };
+
+  const saved = () => {
+    setDebriefOpen(false);
+    finishChat("Saved to your journal. I'm here whenever you want to talk again.");
+  };
+
   // Function to start breathing exercise
   const startBreathingExercise = () => {
     setShowBreathingExercise(true);
@@ -239,10 +271,13 @@ export default function ChatPanel({
       {/* Chat messages area */}
       <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
         <div className="flex flex-col space-y-3">
-          {messages.map((message) => (
-            <div
+          {messages.map((message, index) => (
+            <motion.div
               key={message.id}
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              // "Let go": each message drifts up and fades, top first
+              animate={releasing ? { y: -140, opacity: 0, scale: 0.92 } : { y: 0, opacity: 1, scale: 1 }}
+              transition={releasing ? { duration: 1.1, delay: Math.min(index * 0.06, 0.5), ease: 'easeIn' } : { duration: 0 }}
             >
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2 ${
@@ -290,22 +325,39 @@ export default function ChatPanel({
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           ))}
           <div ref={messagesEndRef} />
         </div>
       </div>
       
-      {/* Breathing exercise button - more prominent */}
-      <div className="mb-4 flex justify-center">
-        <button 
+      <div className="mb-4 flex flex-wrap justify-center gap-3">
+        <button
           onClick={() => setShowBreathingExercise(true)}
-          className="bg-[#0b6bb8] hover:bg-[#095a9c] text-white px-4 py-2 rounded-full font-medium shadow-lg flex items-center space-x-2"
+          className="flex items-center gap-2 rounded-full bg-[#0b6bb8] px-4 py-2 font-medium text-white hover:bg-[#095a9c] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
         >
           <Wind size={20} aria-hidden="true" />
-          <span>Breathing Exercise</span>
+          Breathe
         </button>
+        {hasConversation && (
+          <button
+            onClick={() => setDebriefOpen(true)}
+            disabled={releasing || isSending}
+            className="flex items-center gap-2 rounded-full px-4 py-2 font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 disabled:opacity-60"
+          >
+            <DoorOpen size={20} aria-hidden="true" />
+            I'm done for now
+          </button>
+        )}
       </div>
+
+      <ChatDebrief
+        open={debriefOpen}
+        messages={messages}
+        onClose={() => setDebriefOpen(false)}
+        onLetGo={letGo}
+        onSaved={saved}
+      />
 
       {/* Input area. The mic button was removed: it did nothing, and browser speech
           recognition sends audio to a third-party service, which needs consent first */}
@@ -314,7 +366,7 @@ export default function ChatPanel({
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+          onKeyDown={(e) => e.key === 'Enter' && !releasing && handleSendMessage()}
           aria-label="Message Bubble"
           className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/80"
           placeholder="Type your message..."
@@ -322,7 +374,7 @@ export default function ChatPanel({
 
         <button
           onClick={handleSendMessage}
-          disabled={!inputMessage.trim() || isSending}
+          disabled={!inputMessage.trim() || isSending || releasing}
           aria-label="Send message"
           className="p-2 text-white rounded-full"
         >

@@ -15,6 +15,28 @@ export const chatRequestSchema = z.object({
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
+// The client sends the conversation it's showing: the server only keeps the last
+// few turns, and nothing at all after an hour or a restart
+export const reflectRequestSchema = z.object({
+  transcript: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().trim().min(1).max(2000) }))
+    .min(1)
+    .max(60),
+});
+export type ReflectRequest = z.infer<typeof reflectRequestSchema>;
+
+export const endChatSchema = z.object({ sessionId: z.string().uuid() });
+
+export interface ReflectionResponse {
+  title: string;
+  summary: string;
+  takeaway: string;
+  // when anything in the conversation suggested crisis
+  helplines?: Helpline[];
+  // true when the AI was unavailable or the daily limit was reached
+  fallback?: boolean;
+}
+
 export interface Helpline {
   name: string;
   phone: string;

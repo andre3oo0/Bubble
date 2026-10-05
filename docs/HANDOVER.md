@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (85 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (95 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -66,6 +66,8 @@ npm run build && npm start
 
 | Route | Notes |
 |---|---|
+| `POST /api/chat/reflect` | `{transcript}` → `{title, summary, takeaway, helplines?, fallback?}`. The debrief's reflection; counts towards the daily limit |
+| `POST /api/chat/end` | `{sessionId}` → 204. "Let go": forgets the server's copy of the chat |
 | `POST /api/chat` | `{message, sessionId?}` → `{reply, mood, risk, sessionId, helplines?, fallback?, limited?}`. Works signed out. |
 | `GET/POST /api/journal`, `PATCH/DELETE /api/journal/:id` | Signed in only, always scoped to the session's user |
 | `GET/POST /api/moods` | Check-ins, last 30 days by default |
@@ -77,6 +79,7 @@ npm run build && npm start
 
 - **Crisis safety never depends on the AI.** A keyword check (`shared/safety.ts`) runs on the server and, if the network fails, in the browser. A crisis message always gets the helplines, even when the AI is down or the user is over the daily limit. The SOS screen opens automatically on the first crisis message of a visit.
 - **Mood comes from the user's words**, classified by the model in the same call as the reply. Bubble's own replies never change the mood.
+- **The post-chat debrief** ("I'm done for now" in chat, `ChatDebrief.tsx`): Let go clears the chat and the server's context; Reflect asks the AI for a short summary; Save to journal stores that reflection, editable first, and asks signed-out people to make an account. The client sends the transcript it shows (capped server-side at the most recent ~12,000 characters) because the server only keeps 10 turns. Crisis words anywhere in what the person said add the helplines, even when the AI is down or over the limit.
 - **Chat history isn't stored.** Only the last 10 messages are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
@@ -130,16 +133,20 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 ## Outstanding work
 
 **Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
-1. Post-chat debrief: Let Go / Reflect / Save to journal
-2. Journaling prompts and an AI reflection on an entry
-3. Dynamic Ambiance Engine: mood drives the background colours and motion
-4. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
-5. Add anger and overwhelm as moods
-6. Mirror Moment: grounding overlay on the model's "concern" risk level
-7. Streaming replies
-8. A rain sound
-9. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
-10. Mood trend chart
+1. Journaling prompts and an AI reflection on an entry
+2. Dynamic Ambiance Engine: mood drives the background colours and motion
+3. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
+4. Add anger and overwhelm as moods
+5. Mirror Moment: grounding overlay on the model's "concern" risk level
+6. Streaming replies
+7. A rain sound
+8. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
+9. Mood trend chart
+
+**From testing the APK (owner, 5 October):**
+- Sign-up is hard to find, and parts of the UI still feel generic. Needs a design pass: a clear sign-up entry point, then the rest of the screens
+- UI cleanup found in an audit against the "vibe-coded" list: emojis as icons (mood pickers in Mood and Journal, the Feedback screen's emoji and star rating), neon mood colours (Mood screen, the rising mood bubbles, the breathing exercise's red Stop button), purple in the sunset scene and the "sad" colour, arbitrary shadows (SOS button, sign-in pages, dialogs), cards inside cards (Settings, Mood history), the account button's green "signed in" dot, and no empty state in a new chat
+- The APK shows a browser bar until `ANDROID_PACKAGE_NAME` and `ANDROID_CERT_SHA256` are set on Render. The owner wants it to feel like a real app later, not the website in a wrapper
 
 **Known loose ends:**
 - `index.css` still has the old scenery styles (cafe, rain, stars, lamp, the CSS trees and clouds). Nothing uses them; they can be deleted
