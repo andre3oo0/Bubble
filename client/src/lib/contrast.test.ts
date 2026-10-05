@@ -19,9 +19,13 @@ describe('white text contrast', () => {
   it.each([
     ['#0b6bb8', 'buttons, user chat bubble, selected options'],
     ['#095a9c', 'button hover'],
-    ['#1a6fc4', 'top of the day background'],
-    ['#0b5394', 'bottom of the day background, tab bar, SOS call buttons'],
-    ['#0b1d3a', 'night background'],
+    ['#0b5394', 'SOS call buttons'],
+    // Scene skies behind headings and the home text (SceneBackdrop.tsx), lightest
+    // stop above the horizon. Night only darkens them.
+    ['#2a74b0', 'ocean sky'],
+    ['#3d7a62', 'forest sky'],
+    ['#a84a62', 'sunset sky'],
+    ['#4a3026', 'cozy room wall'],
   ])('%s (%s) passes AA', (background) => {
     expect(contrast('#ffffff', background)).toBeGreaterThanOrEqual(4.5);
   });

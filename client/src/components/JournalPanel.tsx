@@ -135,7 +135,7 @@ export default function JournalPanel() {
       transition={{ duration: 0.3 }}
     >
       <div className="flex justify-between items-center mb-4">
-        <div className="text-white text-3xl md:text-4xl font-bold text-center">JOURNAL</div>
+        <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center">Journal</h1>
         {session && !isViewingEntry && !showNewEntry && (
           <button 
             onClick={() => setShowNewEntry(true)}
@@ -161,7 +161,7 @@ export default function JournalPanel() {
       
       {showNewEntry ? (
         // New entry form
-        <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-4 glassmorphism flex flex-col">
+        <div className="flex-1 surface rounded-3xl p-4 flex flex-col">
           <input
             type="text"
             value={newEntryTitle}
@@ -187,7 +187,7 @@ export default function JournalPanel() {
                   className={`rounded-full py-1 px-3 flex items-center ${
                     selectedMood === moodKey 
                       ? 'bg-[#0b6bb8] text-white' 
-                      : 'bg-[#9AD9EA]/50 text-white/90'
+                      : 'surface-soft text-white/90'
                   }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -225,7 +225,7 @@ export default function JournalPanel() {
         </div>
       ) : isViewingEntry && currentEntry ? (
         // View specific entry
-        <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-6 glassmorphism overflow-y-auto">
+        <div className="flex-1 surface rounded-3xl p-6 overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-white text-2xl font-bold">{currentEntry.title}</h2>
             <div className="flex space-x-2">
@@ -299,7 +299,7 @@ export default function JournalPanel() {
               {journalEntries.map((entry) => (
                 <motion.div 
                   key={entry.id}
-                  className="bg-[#3498db]/30 rounded-3xl p-4 text-white glassmorphism cursor-pointer"
+                  className="surface rounded-3xl p-4 text-white cursor-pointer"
                   whileHover={{ scale: 1.02 }}
                   onClick={() => viewEntry(entry)}
                 >

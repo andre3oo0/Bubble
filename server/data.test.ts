@@ -268,6 +268,31 @@ describe("password reset", () => {
   });
 });
 
+describe("change password", () => {
+  it("needs the current password, then signs out other sessions", async () => {
+    const { email, cookie } = await signUp();
+    const other = cookieFrom(await request("POST", "/api/auth/sign-in/email", { body: { email, password: PASSWORD } }));
+
+    const wrong = await request("POST", "/api/auth/change-password", {
+      cookie,
+      body: { currentPassword: "not-my-password", newPassword: "a-brand-new-password", revokeOtherSessions: true },
+    });
+    expect(wrong.status).not.toBe(200);
+
+    const changed = await request("POST", "/api/auth/change-password", {
+      cookie,
+      body: { currentPassword: PASSWORD, newPassword: "a-brand-new-password", revokeOtherSessions: true },
+    });
+    expect(changed.status).toBe(200);
+
+    expect((await request("GET", "/api/journal", { cookie: other })).status).toBe(401);
+    const oldPassword = await request("POST", "/api/auth/sign-in/email", { body: { email, password: PASSWORD } });
+    expect(oldPassword.status).not.toBe(200);
+    const newPassword = await request("POST", "/api/auth/sign-in/email", { body: { email, password: "a-brand-new-password" } });
+    expect(newPassword.status).toBe(200);
+  });
+});
+
 describe("export and delete", () => {
   it("exports only your own data", async () => {
     const alice = await signUp();

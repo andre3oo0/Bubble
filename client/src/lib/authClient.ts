@@ -10,6 +10,7 @@ export const {
   signOut,
   requestPasswordReset,
   resetPassword,
+  changePassword,
   sendVerificationEmail,
   deleteUser,
 } = authClient;

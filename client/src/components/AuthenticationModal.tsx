@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Download, LogIn, LogOut, MailCheck, Trash2, UserPlus } from 'lucide-react';
+import { Download, KeyRound, LogIn, LogOut, MailCheck, Trash2, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
+  changePassword,
   deleteUser,
   requestPasswordReset,
   sendVerificationEmail,
@@ -39,13 +40,17 @@ export default function AuthenticationModal() {
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
 
   const resetForm = () => {
     setPassword('');
+    setNewPassword('');
     setErrorMessage('');
     setNotice('');
     setIsLoading(false);
     setConfirmingDelete(false);
+    setChangingPassword(false);
   };
 
   const switchMode = (next: Mode) => {
@@ -110,6 +115,34 @@ export default function AuthenticationModal() {
     const { error } = await sendVerificationEmail({ email: session.user.email, callbackURL: '/' });
     setIsLoading(false);
     setNotice(error ? "Couldn't send the email. Please try again later." : 'Sent. Check your inbox and spam folder.');
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setNotice('');
+    setIsLoading(true);
+    // Signs out every other device, same as a reset
+    const { error } = await changePassword({ currentPassword: password, newPassword, revokeOtherSessions: true });
+    setIsLoading(false);
+    if (error) {
+      setErrorMessage(error.message || "Couldn't change your password. Check your current one and try again.");
+      return;
+    }
+    resetForm();
+    toast({ title: 'Password changed', description: "You're still signed in here and signed out everywhere else." });
+  };
+
+  const handleEmailResetLink = async () => {
+    if (!session) return;
+    setErrorMessage('');
+    setIsLoading(true);
+    const { error } = await requestPasswordReset({
+      email: session.user.email,
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setIsLoading(false);
+    setNotice(error ? "Couldn't send the email. Please try again later." : `We've sent a reset link to ${session.user.email}.`);
   };
 
   const handleDelete = async (e: React.FormEvent) => {
@@ -184,6 +217,78 @@ export default function AuthenticationModal() {
       );
     }
 
+    if (changingPassword) {
+      return (
+        <>
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-2xl font-bold">Change your password</DialogTitle>
+            <DialogDescription className="text-base text-gray-700">
+              Other devices signed in to this account will be signed out.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label htmlFor="current-password" className="mb-1 block text-sm font-medium text-gray-800">
+                Current password
+              </label>
+              <input
+                type="password"
+                id="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="current-password"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-gray-800">
+                New password
+              </label>
+              <input
+                type="password"
+                id="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="new-password"
+                minLength={8}
+                required
+                disabled={isLoading}
+              />
+              <p className="mt-1 text-xs text-gray-600">At least 8 characters</p>
+            </div>
+            {errorMessage && (
+              <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+                {errorMessage}
+              </p>
+            )}
+            {notice && (
+              <p role="status" className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-900">
+                {notice}
+              </p>
+            )}
+            <button type="submit" className={primaryButtonClass} disabled={isLoading}>
+              <KeyRound size={18} aria-hidden="true" />
+              Change password
+            </button>
+            <button
+              type="button"
+              onClick={handleEmailResetLink}
+              disabled={isLoading}
+              className="w-full text-sm font-medium text-[#0b5394] underline underline-offset-2"
+            >
+              Forgot your current password? Email me a reset link
+            </button>
+            <button type="button" onClick={resetForm} className={secondaryButtonClass} disabled={isLoading}>
+              Back
+            </button>
+          </form>
+        </>
+      );
+    }
+
     return (
       <>
         <DialogHeader className="text-left">
@@ -214,6 +319,18 @@ export default function AuthenticationModal() {
             <Download size={18} aria-hidden="true" />
             Download my data
           </a>
+          <button
+            onClick={() => {
+              setChangingPassword(true);
+              setPassword('');
+              setErrorMessage('');
+              setNotice('');
+            }}
+            className={secondaryButtonClass}
+          >
+            <KeyRound size={18} aria-hidden="true" />
+            Change password
+          </button>
           <button onClick={handleSignOut} disabled={isLoading} className={secondaryButtonClass}>
             <LogOut size={18} aria-hidden="true" />
             Sign out
@@ -287,20 +404,9 @@ export default function AuthenticationModal() {
 
         {mode !== 'forgot' && (
           <div>
-            <div className="mb-1 flex items-baseline justify-between">
-              <label htmlFor="auth-password" className="block text-sm font-medium text-gray-800">
-                Password
-              </label>
-              {mode === 'login' && (
-                <button
-                  type="button"
-                  onClick={() => switchMode('forgot')}
-                  className="text-sm text-[#0b5394] underline-offset-2 hover:underline"
-                >
-                  Forgot password?
-                </button>
-              )}
-            </div>
+            <label htmlFor="auth-password" className="mb-1 block text-sm font-medium text-gray-800">
+              Password
+            </label>
             <input
               type="password"
               id="auth-password"
@@ -313,6 +419,15 @@ export default function AuthenticationModal() {
               disabled={isLoading}
             />
             {mode === 'register' && <p className="mt-1 text-xs text-gray-600">At least 8 characters</p>}
+            {mode === 'login' && (
+              <button
+                type="button"
+                onClick={() => switchMode('forgot')}
+                className="mt-2 text-sm font-medium text-[#0b5394] underline underline-offset-2"
+              >
+                Forgot your password?
+              </button>
+            )}
           </div>
         )}
 

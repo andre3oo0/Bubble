@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Pause, Play, Volume2 } from 'lucide-react';
 import BubbleAvatar from './BubbleAvatar';
+import SceneBackdrop from './SceneBackdrop';
 import { Mood } from '@/models/types';
 import { SCENES, type SceneId } from './scenes';
 import { useSoundStore } from '@/store/soundStore';
@@ -9,8 +10,8 @@ import { usePreferences, type ThemePreference } from '@/store/preferencesStore';
 interface AvatarPanelProps {
   currentMood: Mood;
   setCurrentMood: (mood: Mood) => void;
-  selectedEnvironment?: string;
-  setSelectedEnvironment?: (env: string) => void;
+  selectedEnvironment?: SceneId;
+  setSelectedEnvironment?: (env: SceneId) => void;
 }
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -19,7 +20,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'night', label: 'Night' },
 ];
 
-const cardClass = 'bg-[#3498db]/30 rounded-3xl p-4 mb-6 glassmorphism';
+const cardClass = 'surface rounded-3xl p-4 mb-6';
 
 export default function AvatarPanel({
   currentMood,
@@ -46,7 +47,7 @@ export default function AvatarPanel({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-white text-3xl md:text-4xl font-bold mb-4 text-center">SETTINGS</div>
+      <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">Settings</h1>
 
       {/* Preview section */}
       <div className={`${cardClass} p-6 flex flex-col items-center`}>
@@ -68,7 +69,7 @@ export default function AvatarPanel({
               className={`rounded-full py-2 px-4 text-white ${
                 currentMood === moodOption
                   ? 'bg-[#0b6bb8]'
-                  : 'bg-[#0b5394]/50'
+                  : 'surface-soft'
               }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -83,19 +84,20 @@ export default function AvatarPanel({
       <div className={cardClass}>
         <h3 className="text-white text-lg mb-3">Scene</h3>
         <div className="grid grid-cols-2 gap-3 mb-4">
-          {SCENES.map(({ id, name, description, icon: Icon, thumbnail }) => (
+          {SCENES.map(({ id, name, description, icon: Icon }) => (
             <motion.button
               key={id}
               onClick={() => handleEnvironmentChange(id)}
               aria-pressed={selectedEnvironment === id}
-              className={`text-left bg-[#0b5394]/40 rounded-2xl p-3 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
+              className={`text-left surface-soft rounded-2xl p-3 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
                 selectedEnvironment === id ? 'ring-2 ring-white' : ''
               }`}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >
-              <div className={`h-24 rounded-xl mb-2 bg-gradient-to-br ${thumbnail} flex items-center justify-center`}>
-                <Icon className="h-9 w-9 text-white/90 drop-shadow" aria-hidden="true" />
+              <div className="relative h-24 overflow-hidden rounded-xl mb-2 flex items-center justify-center">
+                <SceneBackdrop scene={id} still />
+                <Icon className="relative h-8 w-8 text-white/90 drop-shadow" aria-hidden="true" />
               </div>
               <span className="block text-white font-medium">{name}</span>
               <span className="block text-white/90 text-sm">{description}</span>
@@ -103,7 +105,7 @@ export default function AvatarPanel({
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-[#0b5394]/40 p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl surface-soft p-3">
           <button
             onClick={() => (sceneSoundPlaying ? stop() : play(scene.id))}
             aria-pressed={sceneSoundPlaying}
@@ -154,7 +156,7 @@ export default function AvatarPanel({
               <label
                 key={option.value}
                 className={`cursor-pointer rounded-full py-2 text-center text-white focus-within:ring-4 focus-within:ring-white/60 ${
-                  theme === option.value ? 'bg-[#0b6bb8] ring-2 ring-white' : 'bg-[#0b5394]/50'
+                  theme === option.value ? 'bg-[#0b6bb8] ring-2 ring-white' : 'surface-soft'
                 }`}
               >
                 <input

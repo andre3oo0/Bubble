@@ -328,8 +328,10 @@
   }
   
   /* Input placeholder styling */
+  /* Light hint text for the inputs on dark glass; light inputs (the account
+     dialog) set their own with placeholder-gray-500, so no !important here */
   ::placeholder {
-    color: #B8DFFC !important;
+    color: #B8DFFC;
     opacity: 1;
   }
 
@@ -903,7 +905,119 @@ html.reduce-motion [class*="animated-"] {
   transition: none !important;
 }
 
-/* Night: dim the scenery so it doesn't glow at 2am */
-html.dark .scene-layer {
-  opacity: 0.45;
+/* Scenery (SceneBackdrop.tsx). SVG units: px in these transforms are viewBox units. */
+.scene-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-wave {
+  animation: scene-wave linear infinite;
+}
+@keyframes scene-wave {
+  to { transform: translateX(calc(var(--period) * -1)); }
+}
+
+.scene-drift {
+  animation: scene-drift 160s linear infinite;
+}
+.scene-drift-slow {
+  animation-duration: 240s;
+}
+@keyframes scene-drift {
+  from { transform: translateX(-500px); }
+  to { transform: translateX(1700px); }
+}
+
+.scene-sway {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: scene-sway 9s ease-in-out infinite;
+}
+.scene-sway-slow {
+  animation-duration: 13s;
+}
+@keyframes scene-sway {
+  /* skew, not rotate: tops lean while the bases stay planted */
+  0%, 100% { transform: skewX(-1.2deg); }
+  50% { transform: skewX(1.2deg); }
+}
+
+.scene-glow {
+  animation: scene-glow 7s ease-in-out infinite;
+}
+@keyframes scene-glow {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+.scene-flicker {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: scene-flicker 1.8s ease-in-out infinite;
+}
+.scene-flicker-alt {
+  animation-duration: 1.3s;
+  animation-direction: reverse;
+}
+@keyframes scene-flicker {
+  0%, 100% { transform: scaleY(1) skewX(0deg); opacity: 0.95; }
+  30% { transform: scaleY(1.08) skewX(2deg); opacity: 1; }
+  60% { transform: scaleY(0.94) skewX(-2deg); opacity: 0.85; }
+}
+
+.scene-twinkle {
+  animation: scene-twinkle 5s ease-in-out infinite;
+}
+@keyframes scene-twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.95; }
+}
+
+.scene-bird {
+  animation: scene-bird 70s linear infinite;
+}
+@keyframes scene-bird {
+  from { transform: translate(-700px, 0); }
+  50% { transform: translate(300px, -30px); }
+  to { transform: translate(1300px, 10px); }
+}
+
+.scene-still * {
+  animation: none !important;
+}
+
+/* Night: moon and stars instead of the sun, and dimmer colours */
+.scene-night {
+  display: none;
+}
+html.dark .scene-night {
+  display: inline;
+}
+html.dark .scene-day {
+  display: none;
+}
+html.dark .scene-art {
+  filter: brightness(0.62) saturate(0.85);
+}
+
+/* Frosted panels that read on every scene, day or night */
+.surface {
+  background-color: rgb(8 18 36 / 0.34);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.surface-soft {
+  background-color: rgb(255 255 255 / 0.1);
+}
+.surface-soft-hover:hover {
+  background-color: rgb(255 255 255 / 0.18);
+}
+.surface-bar {
+  background-color: rgb(8 18 36 / 0.55);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }

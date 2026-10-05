@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind, LifeBuoy, UserRound } from 'lucide-react';
+import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind, LifeBuoy, LogIn, UserRound } from 'lucide-react';
 import BubbleAvatar from '@/components/BubbleAvatar';
+import BubbleLogo from '@/components/BubbleLogo';
+import SceneBackdrop from '@/components/SceneBackdrop';
 import ChatInterface from '@/components/ChatInterface';
 import JournalPanel from '@/components/JournalPanel';
 import MoodPanel from '@/components/MoodPanel';
@@ -10,7 +12,7 @@ import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
-import { isSceneId } from '@/components/scenes';
+import { isSceneId, type SceneId } from '@/components/scenes';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
@@ -43,7 +45,7 @@ export default function Home() {
   const [activePanel, setActivePanel] = useState<ActivePanel>('welcome');
   const [isTyping, setIsTyping] = useState(false);
   const { currentMood, setCurrentMood } = useMoodStore();
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string>('ocean');
+  const [selectedEnvironment, setSelectedEnvironment] = useState<SceneId>('ocean');
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
   const { open: openSos, close: closeSos } = useSosStore();
   const { open: openAccount } = useAccountDialog();
@@ -76,21 +78,6 @@ export default function Home() {
     localStorage.setItem('selectedEnvironment', selectedEnvironment);
   }, [selectedEnvironment]);
 
-  // Get the background class based on selected environment
-  const getEnvironmentClass = () => {
-    switch(selectedEnvironment) {
-      case 'forest':
-        return 'animated-forest';
-      case 'ocean':
-        return 'animated-ocean';
-      case 'sunset':
-        return 'animated-sunset';
-      case 'bedroom':
-        return 'animated-bedroom';
-      default:
-        return 'animated-ocean';
-    }
-  };
 
   // Get panel component based on active panel
   const getPanelComponent = () => {
@@ -143,21 +130,25 @@ export default function Home() {
   const isActive = (panel: ActivePanel) =>
     panel === 'home' ? activePanel === 'home' || activePanel === 'welcome' : activePanel === panel;
 
+  // Signed in: a person icon with a small dot. Signed out: a sign-in icon
   const accountButton = (
     <button
       onClick={openAccount}
-      aria-label={session ? `Account: ${session.user.name}` : 'Sign in'}
-      title={session ? session.user.name : 'Sign in'}
-      className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-white/90 text-[#0b5394] font-bold shadow focus:outline-none focus:ring-4 focus:ring-white/60"
+      aria-label={session ? `Your account (${session.user.name})` : 'Sign in'}
+      title={session ? 'Your account' : 'Sign in'}
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
     >
-      {session ? session.user.name.charAt(0).toUpperCase() : <UserRound size={20} aria-hidden="true" />}
+      {session ? <UserRound size={20} aria-hidden="true" /> : <LogIn size={19} aria-hidden="true" />}
+      {session && (
+        <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0b1d33]" aria-hidden="true" />
+      )}
     </button>
   );
 
   return (
     // 100dvh so mobile browser toolbars don't hide the tab bar; h-screen is the fallback
     <div
-      className={`relative flex flex-col md:flex-row h-screen overflow-hidden bg-gradient-to-br from-[#1a6fc4] to-[#0b5394] dark:from-[#0b1d3a] dark:to-[#050d1a] ${getEnvironmentClass()}`}
+      className="relative flex flex-col md:flex-row h-screen overflow-hidden bg-[#0b2a4a]"
       style={{ height: '100dvh' }}
     >
       {/* Always reachable in one tap, on every panel (phones get it in the header) */}
@@ -230,10 +221,11 @@ export default function Home() {
       {/* Desktop sidebar with persistent navigation */}
       <nav
         aria-label="Main"
-        className="hidden md:flex w-16 min-w-[4rem] h-full bg-[#3498db]/30 backdrop-blur-md flex-col items-center py-6 border-r border-[#B8DFFC]/40 z-10"
+        className="hidden md:flex w-16 min-w-[4rem] h-full surface-bar flex-col items-center py-6 border-r border-white/10 z-10"
       >
-        {/* Bubble logo */}
-        <div className="text-white font-bold text-xl mb-12">B</div>
+        <div className="mb-10">
+          <BubbleLogo size={34} />
+        </div>
 
         {/* Navigation icons */}
         <div className="flex-1 flex flex-col items-center gap-8">
@@ -254,8 +246,9 @@ export default function Home() {
 
       {/* Avatar area (desktop) */}
       <div className="hidden md:flex w-1/4 h-full flex-col items-center pt-8 pb-4 z-10">
-        {/* Bubble logo */}
-        <div className="text-white font-bold text-2xl mb-8">BUBBLE</div>
+        <div className="mb-8">
+          <BubbleLogo size={30} withName />
+        </div>
 
         {/* Bubble avatar */}
         <div className="flex-1 flex items-center justify-center mb-4">
@@ -297,7 +290,7 @@ export default function Home() {
       {/* Phone tab bar */}
       <nav
         aria-label="Main"
-        className="md:hidden z-20 grid grid-cols-6 border-t border-white/25 bg-[#0b5394]/90 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden z-20 grid grid-cols-6 border-t border-white/10 surface-bar pb-[env(safe-area-inset-bottom)]"
       >
         {NAV_ITEMS.map(({ panel, label, icon: Icon }) => (
           <button
@@ -308,7 +301,7 @@ export default function Home() {
               isActive(panel) ? 'text-white' : 'text-white/75'
             }`}
           >
-            <span className={`flex h-7 w-12 items-center justify-center rounded-full ${isActive(panel) ? 'bg-white/25' : ''}`}>
+            <span className={`flex h-7 w-12 items-center justify-center rounded-full ${isActive(panel) ? 'bg-white/20' : ''}`}>
               <Icon size={20} aria-hidden="true" />
             </span>
             {label}
@@ -316,39 +309,9 @@ export default function Home() {
         ))}
       </nav>
 
-      {/* Environment elements based on selection */}
-      {/* overflow-hidden: the drifting clouds/waves otherwise make the page scroll sideways */}
-      <div className={`scene-layer absolute inset-0 overflow-hidden pointer-events-none ${selectedEnvironment}-elements`}>
-        {selectedEnvironment === 'forest' && (
-          <>
-            <div className="swaying-tree-1"></div>
-            <div className="swaying-tree-2"></div>
-            <div className="flying-bird-1"></div>
-            <div className="flying-bird-2"></div>
-          </>
-        )}
-        {selectedEnvironment === 'ocean' && (
-          <>
-            <div className="moving-wave-1"></div>
-            <div className="moving-wave-2"></div>
-            <div className="floating-cloud-1"></div>
-            <div className="floating-cloud-2"></div>
-          </>
-        )}
-        {selectedEnvironment === 'sunset' && (
-          <>
-            <div className="glowing-sun"></div>
-            <div className="floating-cloud-sunset-1"></div>
-            <div className="floating-cloud-sunset-2"></div>
-          </>
-        )}
-        {selectedEnvironment === 'bedroom' && (
-          <>
-            <div className="flickering-fire"></div>
-            <div className="flickering-candle-1"></div>
-            <div className="flickering-candle-2"></div>
-          </>
-        )}
+      {/* The scene sits behind everything; calm visuals stops its movement */}
+      <div className="scene-layer absolute inset-0 overflow-hidden pointer-events-none">
+        <SceneBackdrop scene={selectedEnvironment} />
       </div>
     </div>
   );
@@ -367,8 +330,8 @@ function NavIcon({ icon, label, isActive, onClick }: NavIconProps) {
       onClick={onClick}
       className={`w-10 h-10 rounded-full flex items-center justify-center text-center transition-all ${
         isActive
-          ? 'bg-[#0b6bb8] text-white'
-          : 'bg-[#9AD9EA]/30 text-white/90 hover:bg-[#9AD9EA]/50'
+          ? 'bg-white/20 text-white ring-1 ring-white/40'
+          : 'text-white/80 hover:bg-white/10 hover:text-white'
       }`}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}

@@ -21,10 +21,10 @@ export default function FeedbackPanel() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-white text-3xl md:text-4xl font-bold mb-4 text-center">FEEDBACK</div>
+      <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">Feedback</h1>
       
       {submitted ? (
-        <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-8 flex flex-col items-center justify-center text-white">
+        <div className="flex-1 surface rounded-3xl p-8 flex flex-col items-center justify-center text-white">
           <div className="text-6xl mb-4">🙏</div>
           <h2 className="text-2xl font-bold mb-2">Thank You!</h2>
           <p className="text-center">
@@ -32,7 +32,7 @@ export default function FeedbackPanel() {
           </p>
         </div>
       ) : (
-        <div className="flex-1 bg-[#3498db]/30 rounded-3xl p-6">
+        <div className="flex-1 surface rounded-3xl p-6">
           <div className="mb-6">
             <h3 className="text-white text-lg mb-3">Rate your experience</h3>
             <div className="flex justify-between">
@@ -64,7 +64,7 @@ export default function FeedbackPanel() {
             onClick={handleSubmit}
             disabled={rating === null}
             className={`w-full py-3 rounded-full text-white font-medium ${
-              rating === null ? 'bg-[#9AD9EA]/50 cursor-not-allowed' : 'bg-[#0b6bb8] hover:bg-[#095a9c]'
+              rating === null ? 'surface-soft cursor-not-allowed' : 'bg-[#0b6bb8] hover:bg-[#095a9c]'
             }`}
           >
             Submit Feedback

@@ -232,12 +232,12 @@ export default function ChatPanel({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-white text-3xl md:text-4xl font-bold mb-4 text-center">CHAT</div>
+      <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">Chat</h1>
       
       {/* Breathing Exercise is now handled by the parent component */}
       
       {/* Chat messages area */}
-      <div className="flex-1 overflow-y-auto mb-4 bg-[#3498db]/30 rounded-3xl p-4">
+      <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
         <div className="flex flex-col space-y-3">
           {messages.map((message) => (
             <div
@@ -309,7 +309,7 @@ export default function ChatPanel({
 
       {/* Input area. The mic button was removed: it did nothing, and browser speech
           recognition sends audio to a third-party service, which needs consent first */}
-      <div className="flex items-center space-x-2 bg-[#3498db]/30 rounded-full p-2 pl-4">
+      <div className="flex items-center space-x-2 surface rounded-full p-2 pl-4">
         <input
           type="text"
           value={inputMessage}

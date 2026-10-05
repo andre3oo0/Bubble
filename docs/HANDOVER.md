@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (75 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (78 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -31,7 +31,8 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 client/src/
   pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
   components/   ChatPanel, JournalPanel, MoodPanel, AvatarPanel (= Settings tab), SosScreen,
-                BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, scenes.ts
+                BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
+                SceneBackdrop (the drawn scenes), scenes.ts (scene names)
   store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat
   lib/          api.ts, chatService.ts, authClient.ts, audioHandler.ts (generated ambient sound),
                 breathing.ts, motion.ts
@@ -82,7 +83,9 @@ npm run build && npm start
 - **Daily AI cap** (150 per user, 40 per guest, 20 per minute; all configurable). Guests are counted by a keyed hash of their IP, never the raw IP. A limit of 0 is valid.
 - **Ambient sound is generated with the Web Audio API**, not audio files: no hosting, licensing or data cost. It only plays when the user presses play.
 - **Calm visuals** (reduced motion) follows the device setting or an in-app switch. The breathing circle keeps moving because it is the exercise.
-- **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back.
+- **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back, including the scene skies.
+- **Scenes are drawn as one inline SVG each** (`SceneBackdrop.tsx`): no image files to host. The drawing is cropped to fill and anchored to the bottom, so phones only see the middle; keep the interesting part near the centre. Night swaps the sun for a moon and stars and dims the drawing, instead of covering it in navy.
+- **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean.
 - **Zero-cost hosting until funded**: Groq, Neon, Brevo, Render and UptimeRobot free plans, no card on file. Groq was picked over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations. Going back to OpenAI is a settings change.
 - **The mic button was removed**: it did nothing, and browser speech recognition sends audio to a third party, which needs consent first.
 
@@ -96,6 +99,8 @@ npm run build && npm start
 - **Schema changes:** edit `shared/schema.ts`, run `npm run db:generate`, commit the new migration.
 - **Windows:** npm 11 blocks some install scripts (esbuild's check, bufferutil); nothing needed them.
 - Old saved scene `"cafe"` is mapped back to ocean (`isSceneId` in `scenes.ts`).
+- **Local dev won't start after a killed server** if `.data/pglite/postmaster.pid` is left behind (startup hangs with no output). With no `node` process running, delete that file.
+- **Screenshots with the preview pane hidden:** framer-motion fades freeze part-way, so text looks faded. That's the capture, not the page.
 
 ## Workflow
 
@@ -133,6 +138,7 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 10. Mood trend chart
 
 **Known loose ends:**
+- `index.css` still has the old scenery styles (cafe, rain, stars, lamp, the CSS trees and clouds). Nothing uses them; they can be deleted
 - Feedback form only logs to the browser console
 - Mood check-in reminder times are saved but nothing is sent (needs notifications)
 - `ChatInterface` renders a second `BreathingExercise` alongside the one in Home

@@ -107,7 +107,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       transition={{ duration: 0.3 }}
     >
       <div className="flex justify-between items-center mb-4">
-        <div className="text-white text-3xl md:text-4xl font-bold text-center flex-1">MOOD</div>
+        <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center flex-1">Mood</h1>
         <button 
           onClick={() => setShowSettings(!showSettings)} 
           className="text-white hover:text-sky-100 transition-colors"
@@ -118,7 +118,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       
       {showSettings ? (
         // Settings panel
-        <div className="bg-[#3498db]/30 rounded-3xl p-4 mb-6 glassmorphism">
+        <div className="surface rounded-3xl p-4 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-white text-lg">Check-in Times</h3>
             <button 
@@ -134,7 +134,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
               {checkInTimes.map((time) => (
                 <div 
                   key={time} 
-                  className="flex items-center bg-[#9AD9EA]/50 rounded-full px-3 py-1 text-white"
+                  className="flex items-center surface-soft rounded-full px-3 py-1 text-white"
                 >
                   <Clock className="w-4 h-4 mr-1" />
                   <span>{time}</span>
@@ -157,7 +157,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
                 type="time"
                 value={newCheckInTime}
                 onChange={(e) => setNewCheckInTime(e.target.value)}
-                className="bg-[#9AD9EA]/30 text-white border-none rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-[#50c8ff]"
+                className="surface-soft text-white border-none rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-[#50c8ff]"
               />
               <button
                 onClick={addCheckInTime}
@@ -175,7 +175,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
         </div>
       ) : (
         // Current mood selector
-        <div className="bg-[#3498db]/30 rounded-3xl p-4 mb-6 glassmorphism">
+        <div className="surface rounded-3xl p-4 mb-6">
           <div className="text-white text-lg mb-2">How are you feeling right now?</div>
           <div className="grid grid-cols-3 gap-3">
             {Object.entries(moods).map(([moodKey, { label, color, icon }]) => (
@@ -210,7 +210,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       )}
       
       {/* Mood history */}
-      <div className="md:flex-1 bg-[#3498db]/30 rounded-3xl p-4 md:overflow-y-auto glassmorphism">
+      <div className="md:flex-1 surface rounded-3xl p-4 md:overflow-y-auto">
         <div className="text-white text-lg mb-4">Your mood history</div>
         
         {!session && !sessionPending ? (
@@ -234,7 +234,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedHistory).map(([date, checkIns]) => (
-              <div key={date} className="bg-[#9AD9EA]/20 rounded-xl p-3">
+              <div key={date} className="surface-soft rounded-xl p-3">
                 <div className="text-white font-medium mb-2">{date}</div>
                 <div className="space-y-2">
                   {checkIns.map((checkIn) => (
