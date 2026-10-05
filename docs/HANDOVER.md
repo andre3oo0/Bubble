@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (112 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (115 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -82,6 +82,7 @@ npm run build && npm start
 - **Bubble talks like a friend, not an interviewer** (system prompt in `openaiService.ts`). It answers direct questions with an honest view, gives something back each turn, doesn't parrot ("It sounds like…"), asks a question only when it wants to know more, and offers breathing or journaling only when it fits. Two worked examples in the prompt show the difference. Signed-in people's display name is passed in so Bubble can use it occasionally. Reasoning models (gpt-oss) run with `reasoning_effort: medium`; on low they followed the style rules noticeably worse.
 - **Mood comes from the user's words**, classified by the model in the same call as the reply. Bubble's own replies never change the mood.
 - **The post-chat debrief** ("I'm done for now" in chat, `ChatDebrief.tsx`): Let go clears the chat and the server's context; Reflect asks the AI for a short summary; Save to journal stores that reflection, editable first, and asks signed-out people to make an account. The client sends the transcript it shows (capped server-side at the most recent ~12,000 characters) because the server only keeps 10 turns. Crisis words anywhere in what the person said add the helplines, even when the AI is down or over the limit.
+- **Journal deletes wait 6 seconds** (`journalDeleteStore.ts`): the entry is hidden at once and only deleted on the server when the undo window ends. Closing the app inside that window keeps the entry, which is the safe way round.
 - **Journal prompts and reflections.** A new entry offers a hand-written prompt (`journalPrompts.ts`, no AI). "Reflect with Bubble" on a saved entry sends that entry to the AI only when tapped and keeps the reply only if the person adds it to the entry. Crisis words in the entry add the helplines.
 - **Chat history isn't stored.** Only the last 24 messages (at most about 8,000 characters) are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
@@ -138,10 +139,9 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 
 From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The direction: flat white and pale-blue surfaces with navy text, one orange accent for focus, Montserrat headings, Nunito Sans body, 4 px corners on controls, hairline-divided lists, no blur, glow or decorative motion. Bubble keeps its own name; no Curro logo or name appears.
 
-**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), and the "Bubble is an AI" line on the home screen and in chat (14).
+**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), and an optional journal title plus search (11).
 
 **Ready to build (no open questions):**
-- Journal delete asks first and offers a short undo (10); title optional, defaulting to the date; search above the list (11)
 - Skeleton loading rows, an in-app offline banner that keeps helplines reachable, a proper 404 (16)
 - Desktop: a 240 px labelled sidebar with a permanent "Get help now", content capped at 720 px (05). Phone: five tabs with 12 px labels, a simpler header, breathing moved into chat and the help screen instead of a floating button (06)
 - Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04); remove the rising mood bubbles and keep Bubble's face still (03)

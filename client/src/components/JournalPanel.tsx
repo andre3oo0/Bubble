@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit, Lightbulb, Lock, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Edit, Lightbulb, Lock, Plus, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { JournalEntry } from '@shared/api';
 import { Mood } from '@/models/types';
@@ -17,8 +17,16 @@ import { useAccountDialog } from '@/store/accountStore';
 import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
 import { pickPrompt } from '@/lib/journalPrompts';
 import EntryReflection from './EntryReflection';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
+import { UNDO_MS, useJournalDelete } from '@/store/journalDeleteStore';
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
+
+// Used as the title when someone leaves it blank, e.g. "Sunday 5 October"
+export const dateTitle = (date: Date) =>
+  `${date.toLocaleDateString('en-ZA', { weekday: 'long' })} ${date.getDate()} ${date.toLocaleDateString('en-ZA', { month: 'long' })}`;
 
 export default function JournalPanel() {
   const { data: session, isPending: sessionPending } = useSession();
@@ -33,13 +41,24 @@ export default function JournalPanel() {
   const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
   // A starting point for a blank page; using it fills in the title
   const [prompt, setPrompt] = useState(() => pickPrompt());
+  const [search, setSearch] = useState('');
+  // Kept after the dialog closes so its title doesn't go blank while it fades out
+  const [confirmingDelete, setConfirmingDelete] = useState<JournalEntry | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { hidden, schedule, undo } = useJournalDelete();
+  const { toast } = useToast();
 
   const journal = useQuery({
     queryKey: queryKeys.journal,
     queryFn: fetchJournal,
     enabled: !!session,
   });
-  const journalEntries = journal.data ?? [];
+  // Entries waiting out their undo window are already hidden
+  const journalEntries = (journal.data ?? []).filter((entry) => !hidden.includes(entry.id));
+  const query = search.trim().toLowerCase();
+  const shownEntries = query
+    ? journalEntries.filter((entry) => `${entry.title}\n${entry.content}`.toLowerCase().includes(query))
+    : journalEntries;
 
   const onSaved = () => queryClient.invalidateQueries({ queryKey: queryKeys.journal });
 
@@ -49,18 +68,21 @@ export default function JournalPanel() {
       updateJournalEntry(id, input),
     onSuccess: onSaved,
   });
-  const removeEntry = useMutation({ mutationFn: deleteJournalEntry, onSuccess: onSaved });
 
   const isSaving = createEntry.isPending || updateEntry.isPending;
-  const saveError = createEntry.error || updateEntry.error || removeEntry.error;
+  const saveError = createEntry.error || updateEntry.error;
 
   // Save new journal entry
   const saveJournalEntry = async () => {
-    if (newEntryTitle.trim() === '' || newEntryContent.trim() === '') {
+    if (newEntryContent.trim() === '') {
       return; // Don't save empty entries
     }
 
-    const input = { title: newEntryTitle, content: newEntryContent, mood: selectedMood };
+    // The title is optional: a blank one becomes the entry's date
+    const title =
+      newEntryTitle.trim() ||
+      dateTitle(isEditingEntry && currentEntry ? new Date(currentEntry.createdAt) : new Date());
+    const input = { title, content: newEntryContent, mood: selectedMood };
     try {
       if (isEditingEntry && currentEntry) {
         await updateEntry.mutateAsync({ id: currentEntry.id, ...input });
@@ -80,19 +102,29 @@ export default function JournalPanel() {
     }
   };
 
-  // Delete journal entry
-  const deleteEntry = async (id: string) => {
-    try {
-      await removeEntry.mutateAsync(id);
-    } catch {
-      return;
-    }
-
-    if (isViewingEntry || isEditingEntry) {
-      setIsViewingEntry(false);
-      setIsEditingEntry(false);
-      setCurrentEntry(null);
-    }
+  // Delete after confirming, with a few seconds to undo
+  const deleteEntry = (entry: JournalEntry) => {
+    setDeleteDialogOpen(false);
+    setIsViewingEntry(false);
+    setIsEditingEntry(false);
+    setCurrentEntry(null);
+    schedule(
+      entry.id,
+      async () => {
+        await deleteJournalEntry(entry.id);
+        await onSaved();
+      },
+      () => toast({ title: "Couldn't delete that entry", description: "It's back in your journal. Please try again." }),
+    );
+    toast({
+      title: 'Entry deleted',
+      duration: UNDO_MS,
+      action: (
+        <ToastAction altText="Undo deleting the entry" onClick={() => undo(entry.id)}>
+          Undo
+        </ToastAction>
+      ),
+    });
   };
 
   // View a specific entry
@@ -193,8 +225,8 @@ export default function JournalPanel() {
             type="text"
             value={newEntryTitle}
             onChange={(e) => setNewEntryTitle(e.target.value)}
-            placeholder="Title"
-            aria-label="Title"
+            placeholder="Title (optional)"
+            aria-label="Title, optional"
             className="w-full bg-white/20 border-none outline-none text-white placeholder-white/80 mb-4 p-3 rounded-full"
           />
 
@@ -242,7 +274,7 @@ export default function JournalPanel() {
             <button
               onClick={saveJournalEntry}
               className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
-              disabled={!newEntryTitle.trim() || !newEntryContent.trim() || isSaving}
+              disabled={!newEntryContent.trim() || isSaving}
             >
               <Save className="w-5 h-5 mr-2" />
               Save entry
@@ -263,10 +295,12 @@ export default function JournalPanel() {
                 <Edit className="w-5 h-5" />
               </button>
               <button
-                onClick={() => deleteEntry(currentEntry.id)}
+                onClick={() => {
+                  setConfirmingDelete(currentEntry);
+                  setDeleteDialogOpen(true);
+                }}
                 aria-label="Delete entry"
-                disabled={removeEntry.isPending}
-                className="text-white hover:text-red-500"
+                className="text-white hover:text-red-300"
               >
                 <Trash2 className="w-5 h-5" />
               </button>
@@ -321,8 +355,31 @@ export default function JournalPanel() {
               </button>
             </div>
           ) : (
+            <>
+            <label className="flex items-center gap-2 rounded-full px-4 py-2 text-white surface focus-within:ring-4 focus-within:ring-white/40">
+              <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="sr-only">Search your journal</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search your journal"
+                className="w-full bg-transparent text-white outline-none placeholder-white/80"
+              />
+            </label>
+            {shownEntries.length === 0 && (
+              <div className="py-12 text-center text-white">
+                <p className="mb-3">No entries match "{search.trim()}".</p>
+                <button
+                  onClick={() => setSearch('')}
+                  className="rounded-full px-4 py-2 text-sm font-medium surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                >
+                  Clear search
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {journalEntries.map((entry) => (
+              {shownEntries.map((entry) => (
                 <button
                   key={entry.id}
                   className="surface rounded-3xl p-4 text-left text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
@@ -337,9 +394,36 @@ export default function JournalPanel() {
                 </button>
               ))}
             </div>
+            </>
           )}
         </div>
       )}
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-3xl border-0 bg-white p-6 text-gray-900 sm:rounded-3xl">
+          <DialogHeader className="text-left">
+            <DialogTitle className="pr-6 text-xl font-bold">Delete "{confirmingDelete?.title}"?</DialogTitle>
+            <DialogDescription className="text-base text-gray-700">
+              It will be removed from your journal. You'll have a few seconds to undo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => confirmingDelete && deleteEntry(confirmingDelete)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-700 py-3 font-medium text-white hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-300"
+            >
+              <Trash2 size={18} aria-hidden="true" />
+              Delete entry
+            </button>
+            <button
+              onClick={() => setDeleteDialogOpen(false)}
+              className="w-full rounded-xl bg-gray-100 py-3 font-medium text-gray-800 hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-300"
+            >
+              Keep it
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
