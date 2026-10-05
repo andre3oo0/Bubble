@@ -12,12 +12,14 @@ import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
+import IntroTour from '@/components/IntroTour';
 import { isSceneId, type SceneId } from '@/components/scenes';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
+import { useIntroStore } from '@/store/introStore';
 
 type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'feedback' | 'welcome' | 'home';
 
@@ -49,6 +51,7 @@ export default function Home() {
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
   const { open: openSos, close: closeSos } = useSosStore();
   const { open: openAccount } = useAccountDialog();
+  const { open: openIntro } = useIntroStore();
   const { data: session } = useSession();
 
   // Load the last active panel from localStorage
@@ -111,7 +114,7 @@ export default function Home() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">Hey there! I'm Bubble</h1>
-            <p className="text-lg md:text-xl mb-8 text-white">your personal mental health bot</p>
+            <p className="text-lg md:text-xl mb-8 text-white">A calm place to talk things through</p>
             <div className="flex flex-col items-center">
               <button
                 onClick={() => setActivePanel('chat')}
@@ -119,7 +122,12 @@ export default function Home() {
               >
                 Start chatting
               </button>
-              <p className="text-sm text-white/90">I'm here to help you feel better</p>
+              <button
+                onClick={openIntro}
+                className="text-sm font-medium text-white underline underline-offset-4 decoration-white/60 hover:decoration-white focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 rounded"
+              >
+                What can Bubble do?
+              </button>
             </div>
           </motion.div>
         );
@@ -162,6 +170,8 @@ export default function Home() {
       </button>
 
       <AuthenticationModal />
+
+      <IntroTour onStartChat={() => setActivePanel('chat')} />
 
       <SosScreen
         onBreathe={() => {

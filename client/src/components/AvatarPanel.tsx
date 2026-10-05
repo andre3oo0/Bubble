@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
-import { Pause, Play, Volume2 } from 'lucide-react';
+import { Info, Pause, Play, Volume2 } from 'lucide-react';
 import BubbleAvatar from './BubbleAvatar';
 import SceneBackdrop from './SceneBackdrop';
 import { Mood } from '@/models/types';
 import { SCENES, type SceneId } from './scenes';
 import { useSoundStore } from '@/store/soundStore';
 import { usePreferences, type ThemePreference } from '@/store/preferencesStore';
+import { useIntroStore } from '@/store/introStore';
 
 interface AvatarPanelProps {
   currentMood: Mood;
@@ -30,6 +31,7 @@ export default function AvatarPanel({
 }: AvatarPanelProps) {
   const { playing, volume, play, stop, setVolume } = useSoundStore();
   const { motion: motionPreference, theme, setMotion, setTheme } = usePreferences();
+  const { open: openIntro } = useIntroStore();
 
   const scene = SCENES.find((s) => s.id === selectedEnvironment) ?? SCENES[0];
   const sceneSoundPlaying = playing === scene.id;
@@ -173,6 +175,14 @@ export default function AvatarPanel({
           </div>
           <p className="mt-2 text-sm text-white/90">Night uses darker colours for late evenings. Automatic follows your device.</p>
         </fieldset>
+
+        <button
+          onClick={openIntro}
+          className="mt-5 flex items-center gap-2 rounded-full px-4 py-2 font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+        >
+          <Info size={18} aria-hidden="true" />
+          Show the introduction again
+        </button>
       </div>
     </motion.div>
   );

@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (78 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (80 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -32,7 +32,7 @@ client/src/
   pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
   components/   ChatPanel, JournalPanel, MoodPanel, AvatarPanel (= Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
-                SceneBackdrop (the drawn scenes), scenes.ts (scene names)
+                SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough)
   store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat
   lib/          api.ts, chatService.ts, authClient.ts, audioHandler.ts (generated ambient sound),
                 breathing.ts, motion.ts
@@ -87,6 +87,7 @@ npm run build && npm start
 - **Scenes are drawn as one inline SVG each** (`SceneBackdrop.tsx`): no image files to host. The drawing is cropped to fill and anchored to the bottom, so phones only see the middle; keep the interesting part near the centre. Night swaps the sun for a moon and stars and dims the drawing, instead of covering it in navy.
 - **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean.
 - **Zero-cost hosting until funded**: Groq, Neon, Brevo, Render and UptimeRobot free plans, no card on file. Groq was picked over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations. Going back to OpenAI is a settings change.
+- **The introduction shows once per device** (remembered in local storage, `introStore.ts`) and can be replayed from the home screen or Settings. It has its own SOS button because it covers the header.
 - **The mic button was removed**: it did nothing, and browser speech recognition sends audio to a third party, which needs consent first.
 
 ## Gotchas
@@ -111,12 +112,12 @@ npm run build && npm start
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 October 2026: health check, a normal chat reply from Groq (mood detected) and a crisis message (crisis risk, 3 helplines). Brevo email is on branch `feat/free-stack`.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 October 2026: health check, a normal chat reply from Groq (mood detected) and a crisis message (crisis risk, 3 helplines). Brevo email, the redrawn scenes and the startup fix were live by 10:36 the same day. The first-visit introduction is on branch `feat/intro`. A custom domain (`bubblementalhealth.com`) was started in Render but isn't registered yet.
 
 ## Before launch (owner's tasks)
 
 - [x] Free accounts: Groq, Neon, Brevo, Render, UptimeRobot
-- [ ] After `feat/free-stack` deploys: sign up on the live site, confirm the email arrives, try a password reset
+- [ ] Sign up on the live site, confirm the email arrives, try a password reset
 - [ ] Check Groq's free limits for `openai/gpt-oss-120b` (console.groq.com, Settings → Limits) and lower `CHAT_DAILY_LIMIT_*` if needed
 - [ ] When funded: OpenAI credit, a monthly budget, separate local and production keys
 - [ ] Check SADAG and Lifeline numbers in `shared/safety.ts` against their sites
