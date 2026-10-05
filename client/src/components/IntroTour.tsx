@@ -4,6 +4,8 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { ArrowLeft, ArrowRight, Book, LifeBuoy, Lock, MessageCircle, Palette, BarChart3, Wind } from 'lucide-react';
 import BubbleAvatar from './BubbleAvatar';
 import { useIntroStore } from '@/store/introStore';
+import { helpButtonClass } from './SosScreen';
+import { cn } from '@/lib/utils';
 import { useSosStore } from '@/store/sosStore';
 
 interface IntroTourProps {
@@ -60,9 +62,9 @@ const STEPS: Step[] = [
           one tap away.
         </p>
         <div className="mt-4 flex items-center gap-3 rounded-2xl p-3 text-left text-sm surface-soft">
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-bold text-[#b42318]">
+          <span className={cn(helpButtonClass, 'pointer-events-none')}>
             <LifeBuoy size={16} aria-hidden="true" />
-            SOS
+            Get help
           </span>
           <span>Tap this at the top of any screen for South African helplines, open 24 hours.</span>
         </div>
@@ -137,10 +139,10 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
                   finish();
                   openSos();
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-[#b42318] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className={cn(helpButtonClass, 'py-1')}
               >
                 <LifeBuoy size={15} aria-hidden="true" />
-                SOS
+                Get help
               </button>
               <button
                 onClick={finish}

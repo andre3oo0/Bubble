@@ -8,6 +8,9 @@ export const HELPLINES: Helpline[] = [
   { name: "Emergency (from any mobile)", phone: "112", hours: "24 hours" },
 ];
 
+// Also in HELPLINES; the help screen shows it on its own as the danger line
+export const EMERGENCY_NUMBER = "112";
+
 export const CRISIS_REPLY =
   "It sounds like you're carrying something really painful right now, and I'm glad you told me. " +
   "You don't have to go through this alone. Please reach out to one of the helplines below or someone you trust right now. " +

@@ -34,7 +34,7 @@ client/src/
                 ("Reflect with Bubble"), MoodPanel, AvatarPanel (= Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
                 SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
-                OfflineBanner, Skeleton (loading placeholders)
+                OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones)
   store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat,
                 intro (seen once), journalDelete (6-second undo)
   lib/          api.ts, chatService.ts, online.ts (browser's online flag), authClient.ts, audioHandler.ts (generated ambient sound),
@@ -103,7 +103,9 @@ npm run try-chat   # four test conversations against the live site; prints Bubbl
 - **No "vibe-coded" UI**: no purple, neon accents, decorative glows or arbitrary shadows, cards inside cards, emoji icons or meaningless status dots. Moods are words with muted colours (`client/src/lib/moods.ts`, contrast-tested). Only the floating breathing button and dialogs have shadows.
 - **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean.
 - **Zero-cost hosting until funded**: Groq, Neon, Brevo, Render and UptimeRobot free plans, no card on file. Groq was picked over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations. Going back to OpenAI is a settings change.
-- **The introduction shows once per device** (remembered in local storage, `introStore.ts`) and can be replayed from the home screen or Settings. It has its own SOS button because it covers the header.
+- **The introduction shows once per device** (remembered in local storage, `introStore.ts`) and can be replayed from the home screen, Settings or the phone menu. It has its own help button because it covers the header.
+- **Phones get four tabs** (Home, Chat, Journal, Mood). Settings, Feedback and the account sit behind the menu button in the header, which is just the name, "Get help" and that menu. Nothing floats over the content: breathing is on Home, in Chat and on the help screen. Desktop keeps the full sidebar and the floating breathing button until its own redesign (05).
+- **The help screen is flat and calm**: full screen on phones, the danger line (112) on its own with a red outline, then the helplines as plain rows. The buttons that open it say "Get help" in a quiet outline (`helpButtonClass` in `SosScreen.tsx`); red is only for the danger line.
 - **Installable, with an offline helplines page.** `client/public` has the manifest, icons (drawn from the logo) and `sw.js`. The worker caches only `offline.html`; the app and API always come from the network, so deploys show up straight away. `offline.html` repeats the helplines as plain HTML; `offline.test.ts` fails if it drifts from `shared/safety.ts`.
 - **Android app = the live site in a Trusted Web Activity**, packaged with PWABuilder (free). It updates with every deploy, no new APK needed. `/.well-known/assetlinks.json` proves the APK and the site belong together; without it the app shows a browser bar. It serves the current APK's details (built into `server/app.ts`), overridable with `ANDROID_PACKAGE_NAME` and `ANDROID_CERT_SHA256`. The APK is tied to the address it was built for: moving to a custom domain means rebuilding it. Keep the signing key from PWABuilder's zip safe, since updates to an installed app must be signed with the same key.
 - **Offline, in the app too.** While the device is offline a banner on every screen says Bubble can't reply and gives SADAG's number plus an "All helplines" link to the SOS screen. Chat still lets you send: the message fails with Retry, and a crisis message still gets the helplines from the browser. The browser's online flag can say "online" on a network with no internet, so the banner is an early warning, not the only check.
@@ -159,10 +161,10 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 
 From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The handoff is styled on Curro's design system; the owner chose to keep its flat approach (hairline-divided lists, small corners on controls, no blur, glow or decorative motion) but in Bubble's own colours and fonts, never Curro's.
 
-**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), and loading placeholders, an offline banner and a proper 404 (16). The new screens use 8 px corners; the project's `rounded-lg` is still 24 px until the controls are reworked (04).
+**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), loading placeholders, an offline banner and a proper 404 (16), the phone layout (06: four tabs, a simpler header, no floating button) and a calmer help screen (13). The new screens use 8 px corners; the project's `rounded-lg` is still 24 px until the controls are reworked (04).
 
 **Ready to build (no open questions):**
-- Desktop: a 240 px labelled sidebar with a permanent "Get help now", content capped at 720 px (05). Phone: five tabs with 12 px labels, a simpler header, breathing moved into chat and the help screen instead of a floating button (06)
+- Desktop: a 240 px labelled sidebar with a permanent "Get help now", content capped at 720 px (05)
 - Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04); remove the rising mood bubbles and keep Bubble's face still (03)
 
 **Owner's decisions (5 October 2026):**

@@ -10,13 +10,15 @@ import MoodPanel from '@/components/MoodPanel';
 import AvatarPanel from '@/components/AvatarPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
-import SosScreen from '@/components/SosScreen';
+import SosScreen, { helpButtonClass } from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
 import IntroTour from '@/components/IntroTour';
 import OfflineBanner from '@/components/OfflineBanner';
+import PhoneMenu from '@/components/PhoneMenu';
 import { isSceneId, type SceneId } from '@/components/scenes';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
+import { cn } from '@/lib/utils';
 import { useAccountDialog } from '@/store/accountStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
@@ -24,7 +26,9 @@ import { useIntroStore } from '@/store/introStore';
 
 type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'feedback' | 'welcome' | 'home';
 
-// Shared by the desktop sidebar and the phone tab bar
+// The desktop sidebar shows them all; phones show the first four as tabs and keep
+// Settings and Feedback in the header menu, so the tab bar stays calm
+const PHONE_TABS = 4;
 const NAV_ITEMS: { panel: ActivePanel; label: string; icon: typeof HomeIcon }[] = [
   { panel: 'home', label: 'Home', icon: HomeIcon },
   { panel: 'chat', label: 'Chat', icon: MessageCircle },
@@ -114,6 +118,9 @@ export default function Home() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
+            <div className="mb-6 md:hidden" aria-hidden="true">
+              <BubbleAvatar size="md" animate={false} isTyping={false} mood={currentMood} />
+            </div>
             <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">Hey there! I'm Bubble</h1>
             <p className="text-lg md:text-xl mb-8 text-white">A calm place to talk things through</p>
             <div className="flex flex-col items-center">
@@ -122,6 +129,13 @@ export default function Home() {
                 className="bg-[#0b6bb8] text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-[#095a9c] transition-colors mb-4"
               >
                 Start chatting
+              </button>
+              <button
+                onClick={() => setShowBreathingExercise(true)}
+                className="mb-4 flex items-center gap-2 rounded-full px-5 py-2 font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              >
+                <Wind size={18} aria-hidden="true" />
+                Breathe for a minute
               </button>
               <button
                 onClick={openIntro}
@@ -154,30 +168,26 @@ export default function Home() {
   const isActive = (panel: ActivePanel) =>
     panel === 'home' ? activePanel === 'home' || activePanel === 'welcome' : activePanel === panel;
 
-  // Signed out it says "Sign in" in words, so it can't be missed; signed in it's
-  // the account icon
-  const accountButton = (compact: boolean) =>
-    session ? (
-      <button
-        onClick={openAccount}
-        aria-label={`Your account (${session.user.name})`}
-        title="Your account"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-      >
-        <UserRound size={20} aria-hidden="true" />
-      </button>
-    ) : (
-      <button
-        onClick={openAccount}
-        className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
-          compact ? 'h-auto w-12 flex-col gap-0.5 rounded-2xl py-2 text-[11px]' : 'px-3 py-2 text-sm'
-        }`}
-      >
-        {/* No icon in the phone header, where every pixel goes to the mood line */}
-        {compact && <LogIn size={18} aria-hidden="true" />}
-        Sign in
-      </button>
-    );
+  // Desktop sidebar: signed out it says "Sign in" in words, so it can't be missed;
+  // signed in it's the account icon. Phones have this in the header menu.
+  const accountButton = session ? (
+    <button
+      onClick={openAccount}
+      aria-label={`Your account (${session.user.name})`}
+      title="Your account"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+    >
+      <UserRound size={20} aria-hidden="true" />
+    </button>
+  ) : (
+    <button
+      onClick={openAccount}
+      className="flex h-auto w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-[11px] font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+    >
+      <LogIn size={18} aria-hidden="true" />
+      Sign in
+    </button>
+  );
 
   return (
     // 100dvh so mobile browser toolbars don't hide the tab bar; h-screen is the fallback
@@ -189,7 +199,7 @@ export default function Home() {
       <button
         onClick={openSos}
         aria-haspopup="dialog"
-        className="fixed top-4 right-4 z-40 hidden md:flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#b42318] focus:outline-none focus:ring-4 focus:ring-white/60"
+        className={cn(helpButtonClass, 'fixed right-4 top-4 z-40 hidden md:inline-flex')}
       >
         <LifeBuoy size={18} aria-hidden="true" />
         Get help now
@@ -212,12 +222,10 @@ export default function Home() {
         onClose={() => setShowBreathingExercise(false)}
       />
 
-      {/* Floating breathing button. Sits above the tab bar on phones and is hidden in chat
-          there, where it would cover the send button (chat has its own breathing button) */}
+      {/* Floating breathing button, desktop only. Phones reach breathing from Home, Chat
+          and the help screen, so nothing floats over their content */}
       <motion.button
-        className={`fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-8 md:right-8 bg-[#0b6bb8] text-white rounded-full p-3 shadow-lg z-30 ${
-          activePanel === 'chat' ? 'hidden md:block' : ''
-        }`}
+        className="fixed bottom-8 right-8 z-30 hidden rounded-full bg-[#0b6bb8] p-3 text-white shadow-lg md:block"
         onClick={() => setShowBreathingExercise(true)}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -230,28 +238,20 @@ export default function Home() {
         <Wind size={24} aria-hidden="true" />
       </motion.button>
 
-      {/* Phone header: small Bubble, its mood line, SOS and account */}
+      {/* Phone header: just the name, help and the menu */}
       <header className="md:hidden z-10 flex items-center gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),0.75rem)]">
-        {/* The face is drawn for the larger sizes, so shrink a medium avatar instead of using "sm" */}
-        <div className="relative h-14 w-11 shrink-0" aria-hidden="true">
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 scale-[0.52]">
-            <BubbleAvatar size="md" animate={false} isTyping={isTyping} mood={currentMood} />
-          </div>
-        </div>
         <div className="min-w-0 flex-1">
-          <div className="text-white font-bold text-lg leading-tight">Bubble</div>
-          <div className="text-white/85 text-sm truncate">{moodLine}</div>
+          <BubbleLogo size={28} withName />
         </div>
         <button
           onClick={openSos}
           aria-haspopup="dialog"
-          aria-label="Get help now"
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-sm font-bold text-[#b42318] focus:outline-none focus:ring-4 focus:ring-white/60"
+          className={helpButtonClass}
         >
           <LifeBuoy size={18} aria-hidden="true" />
-          SOS
+          Get help
         </button>
-        {accountButton(false)}
+        <PhoneMenu onOpenPanel={setActivePanel} />
       </header>
 
       {/* Desktop sidebar with persistent navigation */}
@@ -277,7 +277,7 @@ export default function Home() {
         </div>
 
         {/* Account: initial when signed in, sign-in icon when not */}
-        <div className="mt-4">{accountButton(true)}</div>
+        <div className="mt-4">{accountButton}</div>
       </nav>
 
       {/* Avatar area (desktop) */}
@@ -320,9 +320,7 @@ export default function Home() {
         </div>
 
         {/* Main content with scrolling */}
-        {/* Extra bottom padding on phones so the end of a page can scroll clear of the
-            floating breathing button (not needed in chat, where that button is hidden) */}
-        <div className={`flex-1 min-h-0 px-4 md:px-6 md:pb-6 overflow-y-auto ${activePanel === 'chat' ? 'pb-4' : 'pb-24'}`}>
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 md:px-6 md:pb-6">
           {getPanelComponent()}
         </div>
       </main>
@@ -330,14 +328,14 @@ export default function Home() {
       {/* Phone tab bar */}
       <nav
         aria-label="Main"
-        className="md:hidden z-20 grid grid-cols-6 border-t border-white/10 surface-bar pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden z-20 grid grid-cols-4 border-t border-white/10 surface-bar pb-[env(safe-area-inset-bottom)]"
       >
-        {NAV_ITEMS.map(({ panel, label, icon: Icon }) => (
+        {NAV_ITEMS.slice(0, PHONE_TABS).map(({ panel, label, icon: Icon }) => (
           <button
             key={panel}
             onClick={() => setActivePanel(panel)}
             aria-current={isActive(panel) ? 'page' : undefined}
-            className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium focus:outline-none focus-visible:bg-white/20 ${
+            className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-medium focus:outline-none focus-visible:bg-white/20 ${
               isActive(panel) ? 'text-white' : 'text-white/75'
             }`}
           >
