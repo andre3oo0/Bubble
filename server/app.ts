@@ -6,6 +6,12 @@ import { auth, CLIENT_IP_HEADER } from "./auth";
 import { registerRoutes } from "./routes";
 import { log } from "./log";
 
+// The Android app built with PWABuilder for bubble-1-kafq.onrender.com
+const ANDROID_APP = {
+  packageName: "com.onrender.bubble_1_kafq.twa",
+  fingerprints: "26:F9:04:C7:57:CF:E5:F8:E1:53:9A:A9:09:FA:0D:C2:9F:90:B1:0F:FF:1B:78:7C:DE:FC:E1:1B:7E:4E:EF:68",
+};
+
 // Builds the API app. index.ts adds the frontend on top, tests use it as is.
 export async function createApp(): Promise<{ app: express.Express; server: Server }> {
   const app = express();
@@ -59,14 +65,16 @@ export async function createApp(): Promise<{ app: express.Express; server: Serve
   });
 
   // Proves to Android that the APK and this site belong together, so the app opens
-  // full screen with no browser bar. Values come from the APK's signing key.
+  // full screen with no browser bar. The defaults are the current APK's (from
+  // PWABuilder's assetlinks.json); they're public by design. The env vars override
+  // them for a new signing key or domain, and ANDROID_PACKAGE_NAME=none turns it off.
   app.get("/.well-known/assetlinks.json", (_req, res) => {
-    const packageName = process.env.ANDROID_PACKAGE_NAME;
-    const fingerprints = (process.env.ANDROID_CERT_SHA256 ?? "")
+    const packageName = process.env.ANDROID_PACKAGE_NAME ?? ANDROID_APP.packageName;
+    const fingerprints = (process.env.ANDROID_CERT_SHA256 ?? ANDROID_APP.fingerprints)
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);
-    if (!packageName || fingerprints.length === 0) {
+    if (!packageName || packageName === "none" || fingerprints.length === 0) {
       return res.status(404).json({ error: "Not found" });
     }
     res.json([

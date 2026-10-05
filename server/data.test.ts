@@ -283,24 +283,38 @@ describe("chat when signed in", () => {
 });
 
 describe("android asset links", () => {
-  it("is missing until the APK's details are set", async () => {
-    vi.stubEnv("ANDROID_PACKAGE_NAME", "");
-    expect((await request("GET", "/.well-known/assetlinks.json")).status).toBe(404);
-    vi.unstubAllEnvs();
+  const assetLinks = async () => {
+    const res = await request("GET", "/.well-known/assetlinks.json");
+    return { status: res.status, body: res.status === 200 ? await res.json() : null };
+  };
+
+  it("serves the current APK's details by default", async () => {
+    const { status, body } = await assetLinks();
+    expect(status).toBe(200);
+    expect(body[0].relation).toEqual(["delegate_permission/common.handle_all_urls"]);
+    expect(body[0].target.package_name).toBe("com.onrender.bubble_1_kafq.twa");
+    expect(body[0].target.sha256_cert_fingerprints).toHaveLength(1);
   });
 
-  it("lists the package and every fingerprint", async () => {
+  it("lets the settings swap in another package and every fingerprint", async () => {
     vi.stubEnv("ANDROID_PACKAGE_NAME", "app.bubble.test");
     vi.stubEnv("ANDROID_CERT_SHA256", "AA:BB, CC:DD");
-    const res = await request("GET", "/.well-known/assetlinks.json");
+    const { status, body } = await assetLinks();
     vi.unstubAllEnvs();
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([
+    expect(status).toBe(200);
+    expect(body).toEqual([
       {
         relation: ["delegate_permission/common.handle_all_urls"],
         target: { namespace: "android_app", package_name: "app.bubble.test", sha256_cert_fingerprints: ["AA:BB", "CC:DD"] },
       },
     ]);
+  });
+
+  it("can be switched off", async () => {
+    vi.stubEnv("ANDROID_PACKAGE_NAME", "none");
+    const { status } = await assetLinks();
+    vi.unstubAllEnvs();
+    expect(status).toBe(404);
   });
 });
 
