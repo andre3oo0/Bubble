@@ -20,10 +20,10 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Backend | Node (20+, developed on 24), Express 4, one process serving API and frontend |
 | Database | Postgres via Drizzle ORM. Locally and in tests: PGlite (embedded Postgres, nothing to install) |
 | Auth | Better Auth, email and password, sessions in Postgres |
-| AI | OpenAI SDK, `gpt-4.1-mini` by default (`OPENAI_MODEL` to change) |
-| Email | Resend HTTP API (console output when not configured) |
-| Tests | Vitest (69 tests), in-memory database, AI and email mocked |
-| Deploy | Dockerfile, GitHub Actions CI (check, test, build) |
+| AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
+| Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
+| Tests | Vitest (75 tests), in-memory database, AI and email mocked |
+| Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
 
@@ -59,7 +59,7 @@ npm run check      # type-check
 npm run build && npm start
 ```
 
-`.env.example` documents every setting. A local `.env` exists on the owner's machine with a generated `BETTER_AUTH_SECRET`; the OpenAI key still needs adding. Without a key the app still runs and chat uses canned fallback replies.
+`.env.example` documents every setting. The owner's local `.env` has a Groq key and its own `BETTER_AUTH_SECRET`. Without a key the app still runs and chat uses canned fallback replies.
 
 ## API
 
@@ -83,6 +83,7 @@ npm run build && npm start
 - **Ambient sound is generated with the Web Audio API**, not audio files: no hosting, licensing or data cost. It only plays when the user presses play.
 - **Calm visuals** (reduced motion) follows the device setting or an in-app switch. The breathing circle keeps moving because it is the exercise.
 - **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back.
+- **Zero-cost hosting until funded**: Groq, Neon, Brevo, Render and UptimeRobot free plans, no card on file. Groq was picked over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations. Going back to OpenAI is a settings change.
 - **The mic button was removed**: it did nothing, and browser speech recognition sends audio to a third party, which needs consent first.
 
 ## Gotchas
@@ -104,19 +105,17 @@ npm run build && npm start
 
 ## Current state
 
-**On branch `feat/launch-basics`, not yet committed** (waiting for approval):
-password reset + email confirmation, data export, account deletion, daily chat limits, security headers, graceful shutdown, Dockerfile, CI, friendly 404, and a fix that stopped all users sharing one login rate-limit bucket. All 69 tests pass and the production build was checked against a Postgres connection.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 October 2026: health check, a normal chat reply from Groq (mood detected) and a crisis message (crisis risk, 3 helplines). Brevo email is on branch `feat/free-stack`.
 
 ## Before launch (owner's tasks)
 
-- [ ] OpenAI: add credit, set a monthly budget, create separate local and production keys
-- [ ] Try the app locally with the real key (chat replies, a crisis message, mood changes)
-- [ ] Neon free plan (database), region as close to South Africa as offered
-- [ ] Hosting (Render or similar) connected to this repo; production environment variables per the README
-- [ ] Email: Resend needs a verified domain. Without a domain, Gmail through SMTP needs a small code change
+- [x] Free accounts: Groq, Neon, Brevo, Render, UptimeRobot
+- [ ] After `feat/free-stack` deploys: sign up on the live site, confirm the email arrives, try a password reset
+- [ ] Check Groq's free limits for `openai/gpt-oss-120b` (console.groq.com, Settings → Limits) and lower `CHAT_DAILY_LIMIT_*` if needed
+- [ ] When funded: OpenAI credit, a monthly budget, separate local and production keys
 - [ ] Check SADAG and Lifeline numbers in `shared/safety.ts` against their sites
 - [ ] Immanah's OK to launch, including the deeper colours
-- [ ] Privacy notice (POPIA: health-related data)
+- [ ] Privacy notice (POPIA: health-related data, stored in Frankfurt, chat sent to Groq)
 - [ ] On a real phone: breathing circle with calm visuals on
 
 ## Outstanding work

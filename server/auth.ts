@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET) {
 }
 
 if (process.env.NODE_ENV === "production" && !emailConfigured()) {
-  console.warn("RESEND_API_KEY / EMAIL_FROM not set: password reset and verification emails won't be sent");
+  console.warn("BREVO_API_KEY (or RESEND_API_KEY) / EMAIL_FROM not set: password reset and verification emails won't be sent");
 }
 
 export const auth = betterAuth({

@@ -11,10 +11,13 @@ Requires Node.js 20 or newer.
 npm install
 ```
 
-3. Copy `.env.example` to `.env` and add your OpenAI key:
+3. Copy `.env.example` to `.env` and add an AI key. Groq's free tier works through the same settings:
 ```
-OPENAI_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_groq_key
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+OPENAI_MODEL=openai/gpt-oss-120b
 ```
+For OpenAI instead, set only `OPENAI_API_KEY`.
 
 4. Start the development server:
 ```bash
@@ -37,7 +40,8 @@ Set these in the host's environment settings (never in the repo):
 | `BETTER_AUTH_SECRET` | Long random value, different from your local one. Required |
 | `BETTER_AUTH_URL` | The public URL, e.g. `https://bubble.example.com` |
 | `OPENAI_API_KEY` | A separate key from your local one, so either can be revoked |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Password reset and email confirmation. `EMAIL_FROM` must use a domain verified in Resend |
+| `OPENAI_BASE_URL`, `OPENAI_MODEL` | Only when using Groq (or another OpenAI-compatible provider), as in the setup above |
+| `BREVO_API_KEY`, `EMAIL_FROM` | Password reset and email confirmation. `EMAIL_FROM` must be a sender verified in Brevo. `RESEND_API_KEY` works instead, but Resend needs a domain |
 
 Optional ones (chat limits, model, proxy) are described in `.env.example`. Migrations run automatically on startup, and `/api/health` is the health check.
 
@@ -61,4 +65,4 @@ CI (`.github/workflows/ci.yml`) type-checks, tests and builds every push and pul
 - Database: Postgres with Drizzle ORM
 - Auth: Better Auth (email and password)
 - State Management: Zustand, TanStack Query
-- AI: OpenAI GPT
+- AI: OpenAI SDK (Groq free tier or OpenAI)
