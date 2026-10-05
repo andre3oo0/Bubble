@@ -19,6 +19,11 @@ const conversations = {
     "idk maybe I did something but I can't think what",
     "can you just tell me honestly if I'm overreacting",
   ],
+  'Feeling low': [
+    "I've been feeling really low lately and I don't even know why",
+    'everyone else seems to be doing fine',
+    "I don't really want advice, I just needed to say it",
+  ],
   'Good news': [
     'I actually had a really good day today',
     'I finally finished the project I was stressing about for weeks',
