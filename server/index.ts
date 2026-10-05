@@ -4,8 +4,39 @@ import { createApp } from "./app";
 import { closeDatabase, migrateDatabase } from "./db";
 import { log } from "./log";
 
+const MIGRATE_ATTEMPTS = 4;
+const MIGRATE_TIMEOUT_MS = 60_000;
+
+// Free databases (Neon) sleep when idle and can take a moment to wake, so retry
+// a few times. If it still fails, exit with the reason so the deploy log shows it.
+async function migrateWithRetry() {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await Promise.race([
+        migrateDatabase(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`timed out after ${MIGRATE_TIMEOUT_MS / 1000}s`)), MIGRATE_TIMEOUT_MS).unref(),
+        ),
+      ]);
+      return;
+    } catch (error) {
+      // Drizzle wraps the driver error ("Failed query: ..."); the cause says why
+      const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
+      const reason = cause instanceof Error ? cause.message : String(cause);
+      if (attempt >= MIGRATE_ATTEMPTS) {
+        console.error(`Database not ready after ${attempt} attempts (${reason}). Check DATABASE_URL.`);
+        process.exit(1);
+      }
+      log(`database not ready (${reason}), retrying in ${attempt * 5}s`, "startup");
+      await new Promise((resolve) => setTimeout(resolve, attempt * 5_000));
+    }
+  }
+}
+
 (async () => {
-  await migrateDatabase();
+  log(`starting (${process.env.DATABASE_URL ? "postgres" : "embedded database"})`, "startup");
+  await migrateWithRetry();
+  log("database ready", "startup");
 
   const { app, server } = await createApp();
 

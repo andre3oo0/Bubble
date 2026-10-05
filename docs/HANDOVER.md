@@ -99,6 +99,7 @@ npm run build && npm start
 - **Schema changes:** edit `shared/schema.ts`, run `npm run db:generate`, commit the new migration.
 - **Windows:** npm 11 blocks some install scripts (esbuild's check, bufferutil); nothing needed them.
 - Old saved scene `"cafe"` is mapped back to ocean (`isSceneId` in `scenes.ts`).
+- **Startup waits for the database**, with a 15s connect timeout and 4 tries, then exits with the reason (`index.ts`). A deploy that fails with "no open ports" after 15 minutes means something hung before `listen`; the `[startup]` log lines show where.
 - **Local dev won't start after a killed server** if `.data/pglite/postmaster.pid` is left behind (startup hangs with no output). With no `node` process running, delete that file.
 - **Screenshots with the preview pane hidden:** framer-motion fades freeze part-way, so text looks faded. That's the capture, not the page.
 

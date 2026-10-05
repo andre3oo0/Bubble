@@ -20,7 +20,9 @@ function createDatabase() {
   const url = process.env.DATABASE_URL;
 
   if (url) {
-    const pool = new pg.Pool({ connectionString: url, max: 10 });
+    // Without a connect timeout an unreachable database hangs startup forever,
+    // and the host only reports "no open ports" after 15 minutes
+    const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 15_000 });
     const db = drizzlePg(pool, { schema });
     return {
       db: db as unknown as Database,
