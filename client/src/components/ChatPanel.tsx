@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Phone } from 'lucide-react';
+import { Phone, Wind } from 'lucide-react';
+import { prefersReducedMotion } from '@/lib/motion';
 import { Message, Mood } from '@/models/types';
 import { useChatStore } from '@/store/chatStore';
 import { useMoodStore } from '@/store/moodStore';
@@ -39,12 +40,12 @@ export default function ChatPanel({
 
   // Keep the newest message in view, otherwise helplines can end up below the fold
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'end' });
   }, [messages]);
 
   // Rising bubbles when the mood changes; no chat message, that was confusing
   useEffect(() => {
-    if (previousMoodRef.current !== currentMood) {
+    if (previousMoodRef.current !== currentMood && !prefersReducedMotion()) {
       createMoodChangeBubbles(currentMood);
     }
     previousMoodRef.current = currentMood;
@@ -243,7 +244,7 @@ export default function ChatPanel({
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                   message.sender === 'user'
-                    ? 'bg-[#50c8ff] text-white rounded-tr-none'
+                    ? 'bg-[#0b6bb8] text-white rounded-tr-none'
                     : 'bg-[#9AD9EA] text-gray-800 rounded-tl-none'
                 }`}
               >
@@ -273,7 +274,7 @@ export default function ChatPanel({
                   <div className="mt-2 flex space-x-2">
                     <button 
                       onClick={startBreathingExercise}
-                      className="bg-[#50c8ff] text-white px-3 py-1 rounded-full text-sm"
+                      className="bg-[#0b6bb8] text-white px-3 py-1 rounded-full text-sm"
                     >
                       Try it now
                     </button>
@@ -296,41 +297,30 @@ export default function ChatPanel({
       <div className="mb-4 flex justify-center">
         <button 
           onClick={() => setShowBreathingExercise(true)}
-          className="bg-[#50c8ff] hover:bg-[#38b6ff] text-white px-4 py-2 rounded-full font-medium shadow-lg flex items-center space-x-2"
+          className="bg-[#0b6bb8] hover:bg-[#095a9c] text-white px-4 py-2 rounded-full font-medium shadow-lg flex items-center space-x-2"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
-          </svg>
+          <Wind size={20} aria-hidden="true" />
           <span>Breathing Exercise</span>
         </button>
       </div>
-      
-      {/* Input area */}
-      <div className="flex items-center space-x-2 bg-[#3498db]/30 rounded-full p-2">
-        <button className="p-2 text-white rounded-full">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
-          </svg>
-        </button>
-        
+
+      {/* Input area. The mic button was removed: it did nothing, and browser speech
+          recognition sends audio to a third-party service, which needs consent first */}
+      <div className="flex items-center space-x-2 bg-[#3498db]/30 rounded-full p-2 pl-4">
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/70"
+          aria-label="Message Bubble"
+          className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/80"
           placeholder="Type your message..."
         />
-        
-        <button 
+
+        <button
           onClick={handleSendMessage}
           disabled={!inputMessage.trim() || isSending}
+          aria-label="Send message"
           className="p-2 text-white rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

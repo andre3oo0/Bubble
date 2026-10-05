@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { X } from 'lucide-react';
-import audioHandler from '@/lib/audioHandler';
+import { useSoundStore } from '@/store/soundStore';
 import { nextBreathingStep, PHASE_DURATIONS, type BreathingPhase } from '@/lib/breathing';
 
 interface BreathingExerciseProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+// Only stop the breathing tone, not scenery sounds someone started in the Avatar tab
+function stopBreathingSound() {
+  const sound = useSoundStore.getState();
+  if (sound.playing === 'breathing') sound.stop();
 }
 
 export default function BreathingExercise({ isOpen, onClose }: BreathingExerciseProps) {
@@ -62,8 +68,7 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
     setTotalTime(0);
     
     // Play breathing ambient sound
-    audioHandler.playBackgroundSound('feature_breathing');
-    audioHandler.setBackgroundVolume(0.4); // Lower volume for background
+    useSoundStore.getState().play('breathing');
     
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -90,7 +95,7 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
     }
     
     // Stop the ambient sound
-    audioHandler.stopBackgroundSound();
+    stopBreathingSound();
   };
 
   // Format time as MM:SS
@@ -107,7 +112,7 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
         clearInterval(intervalRef.current);
       }
       // Make sure we stop any sounds when unmounting
-      audioHandler.stopBackgroundSound();
+      stopBreathingSound();
     };
   }, []);
 
@@ -151,13 +156,17 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
               {/* Fixed-size stage so the circle (scaled 1.5x on inhale, plus its glow)
                   never spills over the title or the instruction text */}
               <div className="flex h-[19rem] w-full items-center justify-center">
-                <motion.div
-                  className="w-40 h-40 bg-[#D4F1FF]/70 rounded-full flex items-center justify-center breathe-circle"
-                  variants={circleVariants}
-                  animate={phase}
-                >
-                  <div className="text-[#2980b9] text-5xl font-bold">{count}</div>
-                </motion.div>
+                {/* The slow growing/shrinking circle is the guide itself, so it keeps
+                    moving even with calm visuals on */}
+                <MotionConfig reducedMotion="never">
+                  <motion.div
+                    className="w-40 h-40 bg-[#D4F1FF]/70 rounded-full flex items-center justify-center breathe-circle"
+                    variants={circleVariants}
+                    animate={phase}
+                  >
+                    <div className="text-[#2980b9] text-5xl font-bold">{count}</div>
+                  </motion.div>
+                </MotionConfig>
               </div>
               
               <p className="text-white text-xl mb-4">{getInstructions()}</p>
@@ -176,7 +185,7 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
               {!isActive ? (
                 <button
                   onClick={startExercise}
-                  className="bg-[#50c8ff] hover:bg-[#38b6ff] text-white px-6 py-3 rounded-full font-medium"
+                  className="bg-[#0b6bb8] hover:bg-[#095a9c] text-white px-6 py-3 rounded-full font-medium"
                 >
                   Start Breathing
                 </button>

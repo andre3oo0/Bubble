@@ -55,7 +55,7 @@ export default function FeedbackPanel() {
             <textarea
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
-              className="w-full h-40 bg-white/20 border-none outline-none text-white placeholder-white/70 p-4 rounded-2xl resize-none"
+              className="w-full h-40 bg-white/20 border-none outline-none text-white placeholder-white/80 p-4 rounded-2xl resize-none"
               placeholder="What did you like? How can we improve?"
             />
           </div>
@@ -64,7 +64,7 @@ export default function FeedbackPanel() {
             onClick={handleSubmit}
             disabled={rating === null}
             className={`w-full py-3 rounded-full text-white font-medium ${
-              rating === null ? 'bg-[#9AD9EA]/50 cursor-not-allowed' : 'bg-[#50c8ff] hover:bg-[#3498db]'
+              rating === null ? 'bg-[#9AD9EA]/50 cursor-not-allowed' : 'bg-[#0b6bb8] hover:bg-[#095a9c]'
             }`}
           >
             Submit Feedback

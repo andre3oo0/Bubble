@@ -10,6 +10,7 @@ import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
+import { isSceneId } from '@/components/scenes';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
@@ -24,7 +25,7 @@ const NAV_ITEMS: { panel: ActivePanel; label: string; icon: typeof HomeIcon }[] 
   { panel: 'chat', label: 'Chat', icon: MessageCircle },
   { panel: 'journal', label: 'Journal', icon: Book },
   { panel: 'mood', label: 'Mood', icon: BarChart3 },
-  { panel: 'avatar', label: 'Avatar', icon: Settings },
+  { panel: 'avatar', label: 'Settings', icon: Settings },
   { panel: 'feedback', label: 'Feedback', icon: Heart },
 ];
 
@@ -63,8 +64,9 @@ export default function Home() {
 
   // Load selected environment from localStorage
   useEffect(() => {
+    // Older saves can hold "cafe", which no longer exists
     const savedEnvironment = localStorage.getItem('selectedEnvironment');
-    if (savedEnvironment) {
+    if (isSceneId(savedEnvironment)) {
       setSelectedEnvironment(savedEnvironment);
     }
   }, []);
@@ -126,11 +128,11 @@ export default function Home() {
             <div className="flex flex-col items-center">
               <button
                 onClick={() => setActivePanel('chat')}
-                className="bg-[#50c8ff] text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-[#3498db] transition-colors mb-4"
+                className="bg-[#0b6bb8] text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-[#095a9c] transition-colors mb-4"
               >
                 Start chatting
               </button>
-              <p className="text-sm opacity-75 text-white">I'm here to help you feel better</p>
+              <p className="text-sm text-white/90">I'm here to help you feel better</p>
             </div>
           </motion.div>
         );
@@ -155,7 +157,7 @@ export default function Home() {
   return (
     // 100dvh so mobile browser toolbars don't hide the tab bar; h-screen is the fallback
     <div
-      className={`relative flex flex-col md:flex-row h-screen overflow-hidden bg-gradient-to-br from-[#1e90ff] to-[#0077b6] ${getEnvironmentClass()}`}
+      className={`relative flex flex-col md:flex-row h-screen overflow-hidden bg-gradient-to-br from-[#1a6fc4] to-[#0b5394] dark:from-[#0b1d3a] dark:to-[#050d1a] ${getEnvironmentClass()}`}
       style={{ height: '100dvh' }}
     >
       {/* Always reachable in one tap, on every panel (phones get it in the header) */}
@@ -186,7 +188,7 @@ export default function Home() {
       {/* Floating breathing button. Sits above the tab bar on phones and is hidden in chat
           there, where it would cover the send button (chat has its own breathing button) */}
       <motion.button
-        className={`fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-8 md:right-8 bg-[#50c8ff] text-white rounded-full p-3 shadow-lg z-30 ${
+        className={`fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-8 md:right-8 bg-[#0b6bb8] text-white rounded-full p-3 shadow-lg z-30 ${
           activePanel === 'chat' ? 'hidden md:block' : ''
         }`}
         onClick={() => setShowBreathingExercise(true)}
@@ -266,7 +268,7 @@ export default function Home() {
         </div>
 
         {/* Mood indicator text */}
-        <div className="text-white text-sm opacity-80 mb-8">{moodLine}</div>
+        <div className="text-white/90 text-sm mb-8">{moodLine}</div>
       </div>
 
       {/* Main content area: full width on phones */}
@@ -276,7 +278,7 @@ export default function Home() {
           {activePanel !== 'home' && activePanel !== 'welcome' && (
             <button
               onClick={() => setActivePanel('home')}
-              className="flex items-center text-white hover:text-[#50c8ff] transition-colors"
+              className="flex items-center text-white hover:text-sky-100 transition-colors"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />
               <span>Back to home</span>
@@ -316,7 +318,7 @@ export default function Home() {
 
       {/* Environment elements based on selection */}
       {/* overflow-hidden: the drifting clouds/waves otherwise make the page scroll sideways */}
-      <div className={`absolute inset-0 overflow-hidden pointer-events-none ${selectedEnvironment}-elements`}>
+      <div className={`scene-layer absolute inset-0 overflow-hidden pointer-events-none ${selectedEnvironment}-elements`}>
         {selectedEnvironment === 'forest' && (
           <>
             <div className="swaying-tree-1"></div>
@@ -365,7 +367,7 @@ function NavIcon({ icon, label, isActive, onClick }: NavIconProps) {
       onClick={onClick}
       className={`w-10 h-10 rounded-full flex items-center justify-center text-center transition-all ${
         isActive
-          ? 'bg-[#50c8ff] text-white'
+          ? 'bg-[#0b6bb8] text-white'
           : 'bg-[#9AD9EA]/30 text-white/90 hover:bg-[#9AD9EA]/50'
       }`}
       whileHover={{ scale: 1.1 }}

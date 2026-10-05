@@ -9,9 +9,6 @@ declare global {
     // Web Audio API
     AudioContext?: typeof AudioContext;
     webkitAudioContext?: typeof AudioContext;
-
-    // Three.js global
-    THREE?: any;
   }
 }
 

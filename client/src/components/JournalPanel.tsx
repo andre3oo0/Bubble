@@ -139,7 +139,7 @@ export default function JournalPanel() {
         {session && !isViewingEntry && !showNewEntry && (
           <button 
             onClick={() => setShowNewEntry(true)}
-            className="bg-[#50c8ff] rounded-full w-10 h-10 flex items-center justify-center text-white"
+            className="bg-[#0b6bb8] rounded-full w-10 h-10 flex items-center justify-center text-white"
           >
             <span className="text-2xl font-bold">+</span>
           </button>
@@ -152,7 +152,7 @@ export default function JournalPanel() {
               setIsEditingEntry(false);
               setCurrentEntry(null);
             }}
-            className="text-white hover:text-[#50c8ff] transition-colors"
+            className="text-white hover:text-sky-100 transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
@@ -167,14 +167,14 @@ export default function JournalPanel() {
             value={newEntryTitle}
             onChange={(e) => setNewEntryTitle(e.target.value)}
             placeholder="Title"
-            className="w-full bg-white/20 border-none outline-none text-white placeholder-white/70 mb-4 p-3 rounded-full"
+            className="w-full bg-white/20 border-none outline-none text-white placeholder-white/80 mb-4 p-3 rounded-full"
           />
           
           <textarea
             value={newEntryContent}
             onChange={(e) => setNewEntryContent(e.target.value)}
             placeholder="Write your thoughts here..."
-            className="flex-1 w-full bg-white/20 border-none outline-none text-white placeholder-white/70 p-4 rounded-3xl resize-none mb-4"
+            className="flex-1 w-full bg-white/20 border-none outline-none text-white placeholder-white/80 p-4 rounded-3xl resize-none mb-4"
           />
           
           <div className="mb-4">
@@ -186,7 +186,7 @@ export default function JournalPanel() {
                   onClick={() => setSelectedMood(moodKey as Mood)}
                   className={`rounded-full py-1 px-3 flex items-center ${
                     selectedMood === moodKey 
-                      ? 'bg-[#50c8ff] text-white' 
+                      ? 'bg-[#0b6bb8] text-white' 
                       : 'bg-[#9AD9EA]/50 text-white/90'
                   }`}
                   whileHover={{ scale: 1.05 }}
@@ -215,7 +215,7 @@ export default function JournalPanel() {
             </button>
             <button
               onClick={saveJournalEntry}
-              className="bg-[#50c8ff] text-white rounded-full px-6 py-2 flex items-center"
+              className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
               disabled={!newEntryTitle.trim() || !newEntryContent.trim() || isSaving}
             >
               <Save className="w-5 h-5 mr-2" />
@@ -232,7 +232,7 @@ export default function JournalPanel() {
               <button
                 onClick={() => editEntry(currentEntry)}
                 aria-label="Edit entry"
-                className="text-white hover:text-[#50c8ff]"
+                className="text-white hover:text-sky-100"
               >
                 <Edit className="w-5 h-5" />
               </button>
@@ -247,7 +247,7 @@ export default function JournalPanel() {
             </div>
           </div>
           
-          <div className="flex items-center text-white/70 text-sm mb-4">
+          <div className="flex items-center text-white/90 text-sm mb-4">
             <span>{formatDate(currentEntry.createdAt)}</span>
             <span className="mx-2">•</span>
             <span className="flex items-center">
@@ -275,7 +275,7 @@ export default function JournalPanel() {
               </button>
             </div>
           ) : journal.isPending ? (
-            <p className="text-white/70 text-center py-20">Loading your journal...</p>
+            <p className="text-white/90 text-center py-20">Loading your journal...</p>
           ) : journal.isError ? (
             <div className="text-white text-center py-20">
               <p className="mb-4">Couldn't load your journal.</p>
@@ -284,11 +284,11 @@ export default function JournalPanel() {
               </button>
             </div>
           ) : journalEntries.length === 0 ? (
-            <div className="text-white/70 text-center py-20">
+            <div className="text-white/90 text-center py-20">
               <p className="mb-4">No journal entries yet</p>
               <button
                 onClick={() => setShowNewEntry(true)}
-                className="bg-[#50c8ff] text-white rounded-full px-6 py-2 inline-flex items-center"
+                className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 inline-flex items-center"
               >
                 <span className="mr-2">+</span>
                 Write your first entry
@@ -304,10 +304,10 @@ export default function JournalPanel() {
                   onClick={() => viewEntry(entry)}
                 >
                   <h3 className="font-bold mb-2 truncate">{entry.title}</h3>
-                  <p className="text-sm opacity-80 mb-4 line-clamp-2">{entry.content}</p>
+                  <p className="text-sm text-white/90 mb-4 line-clamp-2">{entry.content}</p>
                   <div className="flex justify-between items-center">
                     <span className="text-lg">{moods[entry.mood].icon}</span>
-                    <p className="text-xs opacity-60">{formatDate(entry.createdAt)}</p>
+                    <p className="text-xs text-white/90">{formatDate(entry.createdAt)}</p>
                   </div>
                 </motion.div>
               ))}

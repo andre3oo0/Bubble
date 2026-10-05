@@ -110,7 +110,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
         <div className="text-white text-3xl md:text-4xl font-bold text-center flex-1">MOOD</div>
         <button 
           onClick={() => setShowSettings(!showSettings)} 
-          className="text-white hover:text-[#50c8ff] transition-colors"
+          className="text-white hover:text-sky-100 transition-colors"
         >
           <Settings className="w-6 h-6" />
         </button>
@@ -123,7 +123,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
             <h3 className="text-white text-lg">Check-in Times</h3>
             <button 
               onClick={() => setIsEditingTimes(!isEditingTimes)}
-              className="text-white bg-[#50c8ff] rounded-full px-3 py-1 text-sm"
+              className="text-white bg-[#0b6bb8] rounded-full px-3 py-1 text-sm"
             >
               {isEditingTimes ? 'Done' : 'Edit'}
             </button>
@@ -161,7 +161,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
               />
               <button
                 onClick={addCheckInTime}
-                className="bg-[#50c8ff] text-white rounded-full p-1"
+                className="bg-[#0b6bb8] text-white rounded-full p-1"
                 disabled={!newCheckInTime}
               >
                 <Plus className="w-5 h-5" />
@@ -169,7 +169,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
             </div>
           )}
           
-          <p className="text-white/70 text-sm">
+          <p className="text-white/90 text-sm">
             Set times for daily mood check-in reminders
           </p>
         </div>
@@ -197,7 +197,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
           <div className="mt-4 flex justify-center">
             <motion.button
               onClick={saveMood}
-              className="bg-[#50c8ff] text-white rounded-full px-6 py-2 flex items-center"
+              className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               disabled={!selectedMood}
@@ -228,7 +228,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
             </button>
           </div>
         ) : Object.keys(groupedHistory).length === 0 ? (
-          <div className="text-white/70 text-center py-8">
+          <div className="text-white/90 text-center py-8">
             {moodsQuery.isPending ? 'Loading...' : 'No mood entries yet. Start by saving your current mood!'}
           </div>
         ) : (

@@ -884,3 +884,26 @@
     background-color: var(--bubble-stressed);
   }
 }
+
+/* Calm visuals: stop the decorative scenery (waves, clouds, birds, fire) and the rising
+   mood bubbles when the OS asks for less motion or the in-app switch is on. The breathing
+   guide is exempt in BreathingExercise.tsx because it's the point of the exercise. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-layer *,
+  .floating-bubble,
+  [class*="animated-"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+html.reduce-motion .scene-layer *,
+html.reduce-motion .floating-bubble,
+html.reduce-motion [class*="animated-"] {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Night: dim the scenery so it doesn't glow at 2am */
+html.dark .scene-layer {
+  opacity: 0.45;
+}
