@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit, Lock, Plus, Save, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Edit, Lightbulb, Lock, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { JournalEntry } from '@shared/api';
 import { Mood } from '@/models/types';
@@ -15,6 +15,8 @@ import {
 } from '@/lib/api';
 import { useAccountDialog } from '@/store/accountStore';
 import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
+import { pickPrompt } from '@/lib/journalPrompts';
+import EntryReflection from './EntryReflection';
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
@@ -29,6 +31,8 @@ export default function JournalPanel() {
   const [newEntryContent, setNewEntryContent] = useState('');
   const [selectedMood, setSelectedMood] = useState<Mood>('neutral');
   const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
+  // A starting point for a blank page; using it fills in the title
+  const [prompt, setPrompt] = useState(() => pickPrompt());
 
   const journal = useQuery({
     queryKey: queryKeys.journal,
@@ -109,6 +113,11 @@ export default function JournalPanel() {
     setIsViewingEntry(false);
   };
 
+  const applyPrompt = () => {
+    setNewEntryTitle(prompt);
+    document.getElementById('journal-entry-text')?.focus();
+  };
+
   const resetForm = () => {
     setNewEntryTitle('');
     setNewEntryContent('');
@@ -116,6 +125,7 @@ export default function JournalPanel() {
     setIsEditingEntry(false);
     setCurrentEntry(null);
     setShowNewEntry(false);
+    setPrompt(pickPrompt(prompt));
   };
 
   return (
@@ -155,15 +165,42 @@ export default function JournalPanel() {
       {showNewEntry ? (
         // New entry form
         <div className="flex-1 surface rounded-3xl p-4 flex flex-col">
+          {!isEditingEntry && !newEntryTitle && !newEntryContent && (
+            <div className="mb-4 flex items-start gap-3 text-white">
+              <Lightbulb className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-white/85">Not sure where to start?</p>
+                <p className="font-medium">{prompt}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={applyPrompt}
+                    className="rounded-full bg-white px-3 py-1 text-sm font-medium text-[#0b3d66] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                  >
+                    Use this
+                  </button>
+                  <button
+                    onClick={() => setPrompt(pickPrompt(prompt))}
+                    className="flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    Another one
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <input
             type="text"
             value={newEntryTitle}
             onChange={(e) => setNewEntryTitle(e.target.value)}
             placeholder="Title"
+            aria-label="Title"
             className="w-full bg-white/20 border-none outline-none text-white placeholder-white/80 mb-4 p-3 rounded-full"
           />
 
           <textarea
+            id="journal-entry-text"
+            aria-label="Entry"
             value={newEntryContent}
             onChange={(e) => setNewEntryContent(e.target.value)}
             placeholder="Write your thoughts here..."
@@ -245,6 +282,8 @@ export default function JournalPanel() {
           <div className="text-white whitespace-pre-wrap">
             {currentEntry.content}
           </div>
+
+          <EntryReflection key={currentEntry.id} entry={currentEntry} onEntryUpdated={setCurrentEntry} />
         </div>
       ) : (
         // Journal entries list

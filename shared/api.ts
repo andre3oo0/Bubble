@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { moodSchema, type Mood } from "./chat";
+import { moodSchema, type Helpline, type Mood } from "./chat";
 
 // Request validation and response shapes shared by client and server
 
@@ -30,4 +30,14 @@ export interface MoodCheckin {
   id: string;
   mood: Mood;
   createdAt: string;
+}
+
+// "Reflect with Bubble" on a journal entry. Not stored unless the person adds it.
+export interface EntryReflection {
+  reflection: string;
+  // something to write about next
+  question: string;
+  helplines?: Helpline[];
+  // true when the AI was unavailable or the daily limit was reached
+  fallback?: boolean;
 }

@@ -4,6 +4,7 @@ import type { Server } from "http";
 import { eq } from "drizzle-orm";
 import type { JournalEntry, MoodCheckin } from "@shared/api";
 import { account, journalEntries, moodCheckins, user } from "@shared/schema";
+import { HELPLINES } from "@shared/safety";
 
 // Capture outgoing email instead of sending or printing it
 vi.mock("./email", async (importOriginal) => ({
@@ -12,10 +13,11 @@ vi.mock("./email", async (importOriginal) => ({
 }));
 
 // The AI is never called for real; the chat test below checks what it's given
-vi.mock("./openaiService", () => ({ generateReply: vi.fn(), generateReflection: vi.fn() }));
+vi.mock("./openaiService", () => ({ generateReply: vi.fn(), generateReflection: vi.fn(), generateEntryReflection: vi.fn() }));
 
 const { sendEmail } = await import("./email");
-const { generateReply } = await import("./openaiService");
+const { generateEntryReflection, generateReply } = await import("./openaiService");
+const mockEntryReflection = vi.mocked(generateEntryReflection);
 const { createApp } = await import("./app");
 const { db, migrateDatabase } = await import("./db");
 const sentEmails = vi.mocked(sendEmail);
@@ -207,6 +209,65 @@ it("answers unknown API routes with JSON 404", async () => {
   const res = await request("POST", "/api/reminders/add");
   expect(res.status).toBe(404);
   expect(await res.json()).toEqual({ error: "Not found" });
+});
+
+describe("reflect on a journal entry", () => {
+  beforeEach(() => {
+    mockEntryReflection.mockReset();
+    // The route logs the AI failure; keep the test output clean, as routes.test does
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("reflects on your own entry", async () => {
+    mockEntryReflection.mockResolvedValue({ reflection: "You stayed with it.", question: "What helped most?" });
+    const { cookie } = await signUp();
+    const entry = await addEntry(cookie);
+
+    const res = await request("POST", `/api/journal/${entry.id}/reflect`, { cookie });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ reflection: "You stayed with it.", question: "What helped most?" });
+    expect(mockEntryReflection).toHaveBeenCalledWith({ title: entry.title, content: entry.content, mood: entry.mood });
+  });
+
+  it("never reads someone else's entry", async () => {
+    const owner = await signUp();
+    const other = await signUp();
+    const entry = await addEntry(owner.cookie, "Mine only");
+
+    const res = await request("POST", `/api/journal/${entry.id}/reflect`, { cookie: other.cookie });
+
+    expect(res.status).toBe(404);
+    expect(mockEntryReflection).not.toHaveBeenCalled();
+  });
+
+  it("needs a session", async () => {
+    const { cookie } = await signUp();
+    const entry = await addEntry(cookie);
+    expect((await request("POST", `/api/journal/${entry.id}/reflect`)).status).toBe(401);
+  });
+
+  it("falls back, and still shows helplines for crisis words, when the AI is down", async () => {
+    const { cookie } = await signUp();
+    const res = await request("POST", "/api/journal", {
+      cookie,
+      body: { title: "Tonight", content: "Some nights I want to die.", mood: "sad" },
+    });
+    const entry = (await res.json()) as JournalEntry;
+    mockEntryReflection.mockRejectedValue(new Error("AI unavailable"));
+
+    const reflected = await request("POST", `/api/journal/${entry.id}/reflect`, { cookie });
+    const data = await reflected.json();
+
+    expect(reflected.status).toBe(200);
+    expect(data.fallback).toBe(true);
+    expect(data.helplines).toEqual(HELPLINES);
+  });
+
+  it("returns 404 for a malformed id", async () => {
+    const { cookie } = await signUp();
+    expect((await request("POST", "/api/journal/not-an-id/reflect", { cookie })).status).toBe(404);
+  });
 });
 
 describe("chat when signed in", () => {

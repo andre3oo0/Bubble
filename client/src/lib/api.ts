@@ -1,4 +1,4 @@
-import type { JournalEntry, JournalEntryInput, MoodCheckin } from '@shared/api';
+import type { EntryReflection, JournalEntry, JournalEntryInput, MoodCheckin } from '@shared/api';
 import type { Mood } from '@shared/chat';
 import { apiRequest } from './queryClient';
 
@@ -17,6 +17,10 @@ export async function createJournalEntry(input: JournalEntryInput): Promise<Jour
 
 export async function updateJournalEntry(id: string, input: Partial<JournalEntryInput>): Promise<JournalEntry> {
   return (await apiRequest('PATCH', `/api/journal/${id}`, input)).json();
+}
+
+export async function reflectOnEntry(id: string): Promise<EntryReflection> {
+  return (await apiRequest('POST', `/api/journal/${id}/reflect`)).json();
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {

@@ -91,6 +91,42 @@ const reflectionSchema = z.object({
 
 export type AiReflection = z.infer<typeof reflectionSchema>;
 
+const entryReflectionSystemMessage = `
+You are Bubble, a warm companion in a mental wellbeing app. Someone has asked you to read one of their private journal entries and reflect on it.
+
+Write like a thoughtful friend who just read it, in plain words and South African English spelling:
+- reflection: 2 or 3 sentences that notice something specific in what they wrote: a strength, a pattern, something they handled, or a kinder way to see it. Don't summarise the entry back to them, don't list advice, don't diagnose or give medical advice. Never start with "It sounds like" or "I hear".
+- question: one gentle, open question they could write about next, based on what they wrote.
+If the entry mentions suicide, self-harm or being in danger, gently encourage them in the reflection to reach out to a crisis line or someone they trust right now. Never give information about methods.
+`;
+
+const entryReflectionSchema = z.object({
+  reflection: z.string(),
+  question: z.string(),
+});
+
+export type AiEntryReflection = z.infer<typeof entryReflectionSchema>;
+
+// Throws on any failure so the caller can fall back
+export async function generateEntryReflection(entry: { title: string; content: string; mood: Mood }): Promise<AiEntryReflection> {
+  const completion = await openai.beta.chat.completions.parse({
+    model: MODEL,
+    messages: [
+      { role: "system", content: entryReflectionSystemMessage },
+      { role: "user", content: `Title: ${entry.title}\nMood they picked: ${entry.mood}\n\n${entry.content}` },
+    ],
+    response_format: zodResponseFormat(entryReflectionSchema, "bubble_entry_reflection"),
+    max_completion_tokens: 1400,
+    ...reasoning,
+  });
+
+  const parsed = completion.choices[0]?.message.parsed;
+  if (!parsed) {
+    throw new Error(completion.choices[0]?.message.refusal ?? "Empty response from model");
+  }
+  return parsed;
+}
+
 // Throws on any failure so the caller can fall back
 export async function generateReflection(transcript: ChatTurn[]): Promise<AiReflection> {
   const conversation = transcript.map((turn) => `${turn.role === "user" ? "Person" : "Bubble"}: ${turn.content}`).join("\n");

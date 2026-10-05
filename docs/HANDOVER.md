@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (105 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (110 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -70,6 +70,7 @@ npm run build && npm start
 | `POST /api/chat/end` | `{sessionId}` → 204. "Let go": forgets the server's copy of the chat |
 | `POST /api/chat` | `{message, sessionId?}` → `{reply, mood, risk, sessionId, helplines?, fallback?, limited?}`. Works signed out. |
 | `GET/POST /api/journal`, `PATCH/DELETE /api/journal/:id` | Signed in only, always scoped to the session's user |
+| `POST /api/journal/:id/reflect` | → `{reflection, question, helplines?, fallback?}`. "Reflect with Bubble" on one of your own entries; counts towards the daily limit, nothing stored |
 | `GET/POST /api/moods` | Check-ins, last 30 days by default |
 | `GET /api/me/export` | JSON download of everything stored for the user |
 | `/api/auth/*` | Better Auth: sign up/in/out, request-password-reset, reset-password, verify-email, delete-user |
@@ -81,6 +82,7 @@ npm run build && npm start
 - **Bubble talks like a friend, not an interviewer** (system prompt in `openaiService.ts`). It answers direct questions with an honest view, gives something back each turn, doesn't parrot ("It sounds like…"), asks a question only when it wants to know more, and offers breathing or journaling only when it fits. Two worked examples in the prompt show the difference. Signed-in people's display name is passed in so Bubble can use it occasionally. Reasoning models (gpt-oss) run with `reasoning_effort: medium`; on low they followed the style rules noticeably worse.
 - **Mood comes from the user's words**, classified by the model in the same call as the reply. Bubble's own replies never change the mood.
 - **The post-chat debrief** ("I'm done for now" in chat, `ChatDebrief.tsx`): Let go clears the chat and the server's context; Reflect asks the AI for a short summary; Save to journal stores that reflection, editable first, and asks signed-out people to make an account. The client sends the transcript it shows (capped server-side at the most recent ~12,000 characters) because the server only keeps 10 turns. Crisis words anywhere in what the person said add the helplines, even when the AI is down or over the limit.
+- **Journal prompts and reflections.** A new entry offers a hand-written prompt (`journalPrompts.ts`, no AI). "Reflect with Bubble" on a saved entry sends that entry to the AI only when tapped and keeps the reply only if the person adds it to the entry. Crisis words in the entry add the helplines.
 - **Chat history isn't stored.** Only the last 24 messages (at most about 8,000 characters) are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
@@ -135,15 +137,14 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 ## Outstanding work
 
 **Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
-1. Journaling prompts and an AI reflection on an entry
-2. Dynamic Ambiance Engine: mood drives the background colours and motion
-3. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
-4. Add anger and overwhelm as moods
-5. Mirror Moment: grounding overlay on the model's "concern" risk level
-6. Streaming replies
-7. A rain sound
-8. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
-9. Mood trend chart
+1. Dynamic Ambiance Engine: mood drives the background colours and motion
+2. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
+3. Add anger and overwhelm as moods
+4. Mirror Moment: grounding overlay on the model's "concern" risk level
+5. Streaming replies
+6. A rain sound
+7. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
+8. Mood trend chart
 
 **From testing the APK (owner, 5 October):**
 - Sign-up was hard to find: now a labelled "Sign in" button in the header and sidebar, plus "Create a free account" on the home screen. Worth asking testers whether it's clear enough now
