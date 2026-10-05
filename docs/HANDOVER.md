@@ -33,10 +33,11 @@ client/src/
   components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
                 ("Reflect with Bubble"), MoodPanel, AvatarPanel (= Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
-                SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough)
+                SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
+                OfflineBanner, Skeleton (loading placeholders)
   store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat,
                 intro (seen once), journalDelete (6-second undo)
-  lib/          api.ts, chatService.ts, authClient.ts, audioHandler.ts (generated ambient sound),
+  lib/          api.ts, chatService.ts, online.ts (browser's online flag), authClient.ts, audioHandler.ts (generated ambient sound),
                 breathing.ts, motion.ts, moods.ts (labels and muted colours), journalPrompts.ts
 client/public/  manifest, icons, sw.js (service worker) and offline.html (helplines with no connection)
 server/
@@ -105,6 +106,9 @@ npm run try-chat   # four test conversations against the live site; prints Bubbl
 - **The introduction shows once per device** (remembered in local storage, `introStore.ts`) and can be replayed from the home screen or Settings. It has its own SOS button because it covers the header.
 - **Installable, with an offline helplines page.** `client/public` has the manifest, icons (drawn from the logo) and `sw.js`. The worker caches only `offline.html`; the app and API always come from the network, so deploys show up straight away. `offline.html` repeats the helplines as plain HTML; `offline.test.ts` fails if it drifts from `shared/safety.ts`.
 - **Android app = the live site in a Trusted Web Activity**, packaged with PWABuilder (free). It updates with every deploy, no new APK needed. `/.well-known/assetlinks.json` proves the APK and the site belong together; without it the app shows a browser bar. It serves the current APK's details (built into `server/app.ts`), overridable with `ANDROID_PACKAGE_NAME` and `ANDROID_CERT_SHA256`. The APK is tied to the address it was built for: moving to a custom domain means rebuilding it. Keep the signing key from PWABuilder's zip safe, since updates to an installed app must be signed with the same key.
+- **Offline, in the app too.** While the device is offline a banner on every screen says Bubble can't reply and gives SADAG's number plus an "All helplines" link to the SOS screen. Chat still lets you send: the message fails with Retry, and a crisis message still gets the helplines from the browser. The browser's online flag can say "online" on a network with no internet, so the banner is an early warning, not the only check.
+- **Loading shows placeholder rows** shaped like the content (journal and mood history). Their pulse uses an `animated-` class, so calm visuals stops it.
+- **The 404 page** has a way back and lists the helplines, so help is reachable even from a wrong link.
 - **The mic button was removed**: it did nothing, and browser speech recognition sends audio to a third party, which needs consent first.
 
 ## Gotchas
@@ -155,10 +159,9 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 
 From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The handoff is styled on Curro's design system; the owner chose to keep its flat approach (hairline-divided lists, small corners on controls, no blur, glow or decorative motion) but in Bubble's own colours and fonts, never Curro's.
 
-**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), and an optional journal title plus search (11).
+**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), and loading placeholders, an offline banner and a proper 404 (16). The new screens use 8 px corners; the project's `rounded-lg` is still 24 px until the controls are reworked (04).
 
 **Ready to build (no open questions):**
-- Skeleton loading rows, an in-app offline banner that keeps helplines reachable, a proper 404 (16)
 - Desktop: a 240 px labelled sidebar with a permanent "Get help now", content capped at 720 px (05). Phone: five tabs with 12 px labels, a simpler header, breathing moved into chat and the help screen instead of a floating button (06)
 - Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04); remove the rising mood bubbles and keep Bubble's face still (03)
 

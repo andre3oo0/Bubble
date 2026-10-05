@@ -13,6 +13,7 @@ import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
 import IntroTour from '@/components/IntroTour';
+import OfflineBanner from '@/components/OfflineBanner';
 import { isSceneId, type SceneId } from '@/components/scenes';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
@@ -312,6 +313,10 @@ export default function Home() {
               <span>Back to home</span>
             </button>
           )}
+        </div>
+
+        <div className="px-4 md:px-6">
+          <OfflineBanner />
         </div>
 
         {/* Main content with scrolling */}

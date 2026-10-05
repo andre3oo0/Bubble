@@ -8,6 +8,7 @@ import { useSession } from '@/lib/authClient';
 import { fetchMoods, queryKeys, saveMoodCheckin } from '@/lib/api';
 import { useAccountDialog } from '@/store/accountStore';
 import { MOOD_LABELS, MOOD_ORDER, MOOD_TONES } from '@/lib/moods';
+import { MoodHistorySkeleton } from './Skeleton';
 
 interface MoodCheckIn {
   id: string;
@@ -218,9 +219,11 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
               Try again
             </button>
           </div>
+        ) : moodsQuery.isPending ? (
+          <MoodHistorySkeleton />
         ) : Object.keys(groupedHistory).length === 0 ? (
           <div className="text-white/90 text-center py-8">
-            {moodsQuery.isPending ? 'Loading your check-ins…' : 'No check-ins yet. Save how you feel above and it will show up here.'}
+            No check-ins yet. Save how you feel above and it will show up here.
           </div>
         ) : (
           <div className="space-y-5">

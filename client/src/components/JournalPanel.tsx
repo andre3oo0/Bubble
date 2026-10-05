@@ -17,6 +17,7 @@ import { useAccountDialog } from '@/store/accountStore';
 import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
 import { pickPrompt } from '@/lib/journalPrompts';
 import EntryReflection from './EntryReflection';
+import { JournalSkeleton } from './Skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
@@ -335,7 +336,7 @@ export default function JournalPanel() {
               </button>
             </div>
           ) : journal.isPending ? (
-            <p className="text-white/90 text-center py-20">Loading your journal...</p>
+            <JournalSkeleton />
           ) : journal.isError ? (
             <div className="text-white text-center py-20">
               <p className="mb-4">Couldn't load your journal.</p>
