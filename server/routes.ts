@@ -1,7 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { randomUUID } from "crypto";
+import rateLimit from "express-rate-limit";
+import { fromNodeHeaders } from "better-auth/node";
+import { auth } from "./auth";
 import { registerDataRoutes } from "./dataRoutes";
+import { pruneOldUsage, recordChatMessage, usageKey } from "./usage";
 import { generateReply, type AiReply, type ChatTurn } from "./openaiService";
 import { chatRequestSchema, type ChatResponse, type Mood, type RiskLevel } from "@shared/chat";
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from "@shared/safety";
@@ -35,6 +39,25 @@ setInterval(() => {
     if (session.lastActive < cutoff) sessions.delete(id);
   });
 }, 10 * 60 * 1000).unref();
+
+setInterval(() => {
+  pruneOldUsage().catch((error) => console.error('Usage prune failed:', error));
+}, 60 * 60 * 1000).unref();
+
+const LIMIT_REPLY =
+  "We've reached today's limit for chatting, so I can't reply properly until tomorrow. " +
+  "You can still write in your journal or try a breathing exercise, and SOS is always there if you need someone right now.";
+const GUEST_LIMIT_REPLY =
+  LIMIT_REPLY + " Creating a free account gives you more messages each day.";
+
+// Stops scripts and accidental floods; the daily cap below handles cost
+const chatBurstLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: Number(process.env.CHAT_PER_MINUTE_LIMIT) || 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: "You're sending messages very quickly. Take a breath and try again in a minute." },
+});
 
 // Canned replies used when the AI is unavailable
 const moodResponses = {
@@ -102,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: 'ok' });
   });
 
-  app.post('/api/chat', async (req, res) => {
+  app.post('/api/chat', chatBurstLimit, async (req, res) => {
     const parsed = chatRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Message is required (max 2000 characters)' });
@@ -111,6 +134,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { message } = parsed.data;
     const sessionId = parsed.data.sessionId ?? randomUUID();
     const session = getSession(sessionId);
+
+    // Daily cap on AI calls. Crisis messages always get helplines, even over the cap,
+    // and if the counter itself fails we let the message through rather than block support.
+    const signedIn = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
+    const { key, limit } = usageKey(signedIn?.user.id, req.ip);
+    let used = 0;
+    try {
+      used = await recordChatMessage(key);
+    } catch (error) {
+      console.error('Chat usage count failed:', error instanceof Error ? error.message : error);
+    }
+    if (used > limit) {
+      const crisis = detectCrisis(message);
+      const limited: ChatResponse = crisis
+        ? { reply: CRISIS_REPLY, mood: analyzeMood(message), risk: 'crisis', sessionId, helplines: HELPLINES, limited: true }
+        : { reply: signedIn ? LIMIT_REPLY : GUEST_LIMIT_REPLY, mood: analyzeMood(message), risk: 'none', sessionId, limited: true };
+      return res.json(limited);
+    }
 
     let ai: AiReply | null = null;
     try {

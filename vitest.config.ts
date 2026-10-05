@@ -23,6 +23,10 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "test-secret-not-for-production-0123456789",
       BETTER_AUTH_URL: "http://localhost:5000",
       OPENAI_API_KEY: "test-key",
+      // High so ordinary tests never hit them; the limit tests lower them explicitly
+      CHAT_DAILY_LIMIT_GUEST: "1000",
+      CHAT_DAILY_LIMIT_USER: "1000",
+      CHAT_PER_MINUTE_LIMIT: "1000",
     },
   },
 });

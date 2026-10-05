@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 // Server-only: database tables. The client uses the types in ./api.ts instead.
 
@@ -101,6 +101,18 @@ export const moodCheckins = pgTable(
     createdAt: createdAt(),
   },
   (table) => [index("mood_checkin_user_created_idx").on(table.userId, table.createdAt)],
+);
+
+// Messages sent to the AI per day, for the daily cap. key is "user:<id>" or
+// "ip:<hmac>" for guests (the raw IP is never stored).
+export const chatUsage = pgTable(
+  "chat_usage",
+  {
+    key: text("key").notNull(),
+    day: date("day").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.key, table.day] })],
 );
 
 export const authSchema = { user, session, account, verification };

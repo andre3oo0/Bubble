@@ -1,0 +1,144 @@
+# Bubble handover
+
+Status as of 5 October 2026. Read this before changing anything.
+
+## What Bubble is
+
+An emotional-support web app: an AI chat companion ("Bubble") with crisis safety, a private journal, mood check-ins, a breathing exercise, calming scenes with ambient sound, and an SOS screen with South African helplines. The product vision is in Immanah's design document (the PDD); this repo is at roughly its Phase 1 (MVP).
+
+## Where the code came from
+
+- Original app: **Immanah/BubbleBackend** (Immanah Makitla). Despite the name it's the whole app, frontend and backend. Left untouched.
+- This repo: **andre3oo0/Bubble** (private). Cloned from hers, history kept. Her repo is the `upstream` remote, fetch only; pushing to it is disabled on purpose.
+- An earlier Python/Flask backend (`andre3oo0/Bubble`, first version) was deleted. Everything is TypeScript now.
+
+## Stack
+
+| Layer | What |
+|---|---|
+| Frontend | React 18, Vite, TypeScript, Tailwind, Radix dialog, Zustand, TanStack Query, framer-motion, wouter |
+| Backend | Node (20+, developed on 24), Express 4, one process serving API and frontend |
+| Database | Postgres via Drizzle ORM. Locally and in tests: PGlite (embedded Postgres, nothing to install) |
+| Auth | Better Auth, email and password, sessions in Postgres |
+| AI | OpenAI SDK, `gpt-4.1-mini` by default (`OPENAI_MODEL` to change) |
+| Email | Resend HTTP API (console output when not configured) |
+| Tests | Vitest (69 tests), in-memory database, AI and email mocked |
+| Deploy | Dockerfile, GitHub Actions CI (check, test, build) |
+
+## Layout
+
+```
+client/src/
+  pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
+  components/   ChatPanel, JournalPanel, MoodPanel, AvatarPanel (= Settings tab), SosScreen,
+                BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, scenes.ts
+  store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat
+  lib/          api.ts, chatService.ts, authClient.ts, audioHandler.ts (generated ambient sound),
+                breathing.ts, motion.ts
+server/
+  index.ts      startup: migrations, app, Vite (dev) or static files (prod), graceful shutdown
+  app.ts        Express app: proxy trust, helmet, auth handler, logging, routes, JSON 404
+  routes.ts     /api/chat (+ fallback replies, usage cap), scenes, affirmation
+  dataRoutes.ts journal, moods, data export (all need a session)
+  auth.ts       Better Auth config, requireUser middleware
+  openaiService.ts  the AI call: one structured reply {reply, user_mood, risk}
+  usage.ts      daily chat counter, email.ts transactional email, db.ts database
+shared/
+  schema.ts     Drizzle tables (server only), api.ts / chat.ts request + response types,
+  safety.ts     crisis keyword check, helplines, crisis reply (used by client AND server)
+migrations/     generated SQL, applied automatically on startup
+```
+
+## Running it
+
+```bash
+npm install
+npm run dev        # http://localhost:5000, needs OPENAI_API_KEY in .env
+npm test
+npm run check      # type-check
+npm run build && npm start
+```
+
+`.env.example` documents every setting. A local `.env` exists on the owner's machine with a generated `BETTER_AUTH_SECRET`; the OpenAI key still needs adding. Without a key the app still runs and chat uses canned fallback replies.
+
+## API
+
+| Route | Notes |
+|---|---|
+| `POST /api/chat` | `{message, sessionId?}` → `{reply, mood, risk, sessionId, helplines?, fallback?, limited?}`. Works signed out. |
+| `GET/POST /api/journal`, `PATCH/DELETE /api/journal/:id` | Signed in only, always scoped to the session's user |
+| `GET/POST /api/moods` | Check-ins, last 30 days by default |
+| `GET /api/me/export` | JSON download of everything stored for the user |
+| `/api/auth/*` | Better Auth: sign up/in/out, request-password-reset, reset-password, verify-email, delete-user |
+| `GET /api/health` | Health check |
+
+## Decisions worth knowing (and why)
+
+- **Crisis safety never depends on the AI.** A keyword check (`shared/safety.ts`) runs on the server and, if the network fails, in the browser. A crisis message always gets the helplines, even when the AI is down or the user is over the daily limit. The SOS screen opens automatically on the first crisis message of a visit.
+- **Mood comes from the user's words**, classified by the model in the same call as the reply. Bubble's own replies never change the mood.
+- **Chat history isn't stored.** Only the last 10 messages are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
+- **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
+- **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
+- **Daily AI cap** (150 per user, 40 per guest, 20 per minute; all configurable). Guests are counted by a keyed hash of their IP, never the raw IP. A limit of 0 is valid.
+- **Ambient sound is generated with the Web Audio API**, not audio files: no hosting, licensing or data cost. It only plays when the user presses play.
+- **Calm visuals** (reduced motion) follows the device setting or an in-app switch. The breathing circle keeps moving because it is the exercise.
+- **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back.
+- **The mic button was removed**: it did nothing, and browser speech recognition sends audio to a third party, which needs consent first.
+
+## Gotchas
+
+- **`useQueryClient()` in components**, not the `queryClient` import. (A dev-server cache-buster once loaded the module twice; it's removed, but the hook is the safe pattern.)
+- **Express 4 doesn't catch rejected promises.** Async routes go through the `handle()` wrapper in `dataRoutes.ts`.
+- **Better Auth must be mounted before `express.json()`**, and it gets the client IP from the `x-bubble-client-ip` header that `app.ts` sets from `req.ip`. Without that, login rate limits are one bucket for everyone.
+- **The server bundle is split** (`esbuild --splitting`) so production never loads Vite. Keep the dynamic `import("./vite")` in `index.ts`.
+- **Tests:** the database and password hashing are slow when test files run in parallel, hence the raised timeouts in `vitest.config.ts`. `routes.test.ts` and `data.test.ts` run migrations in `beforeAll`.
+- **Schema changes:** edit `shared/schema.ts`, run `npm run db:generate`, commit the new migration.
+- **Windows:** npm 11 blocks some install scripts (esbuild's check, bufferutil); nothing needed them.
+- Old saved scene `"cafe"` is mapped back to ocean (`isSceneId` in `scenes.ts`).
+
+## Workflow
+
+- One branch per piece of work, merged to `main` with fast-forward only, then pushed.
+- Commit messages: short, lowercase, imperative, no lists or emoji.
+- `main` history so far: startup fixes → chat logic → SOS → database + login → phone layout → polish.
+
+## Current state
+
+**On branch `feat/launch-basics`, not yet committed** (waiting for approval):
+password reset + email confirmation, data export, account deletion, daily chat limits, security headers, graceful shutdown, Dockerfile, CI, friendly 404, and a fix that stopped all users sharing one login rate-limit bucket. All 69 tests pass and the production build was checked against a Postgres connection.
+
+## Before launch (owner's tasks)
+
+- [ ] OpenAI: add credit, set a monthly budget, create separate local and production keys
+- [ ] Try the app locally with the real key (chat replies, a crisis message, mood changes)
+- [ ] Neon free plan (database), region as close to South Africa as offered
+- [ ] Hosting (Render or similar) connected to this repo; production environment variables per the README
+- [ ] Email: Resend needs a verified domain. Without a domain, Gmail through SMTP needs a small code change
+- [ ] Check SADAG and Lifeline numbers in `shared/safety.ts` against their sites
+- [ ] Immanah's OK to launch, including the deeper colours
+- [ ] Privacy notice (POPIA: health-related data)
+- [ ] On a real phone: breathing circle with calm visuals on
+
+## Outstanding work
+
+**Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
+1. Post-chat debrief: Let Go / Reflect / Save to journal
+2. Journaling prompts and an AI reflection on an entry
+3. Dynamic Ambiance Engine: mood drives the background colours and motion
+4. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
+5. Add anger and overwhelm as moods
+6. Mirror Moment: grounding overlay on the model's "concern" risk level
+7. Streaming replies
+8. A rain sound
+9. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
+10. Mood trend chart
+
+**Known loose ends:**
+- Feedback form only logs to the browser console
+- Mood check-in reminder times are saved but nothing is sent (needs notifications)
+- `ChatInterface` renders a second `BreathingExercise` alongside the one in Home
+- `POST /api/environment/change` is unused
+- Google sign-in needs OAuth credentials
+- Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed
+
+**Later phases (not started):** community, wearables, sleep system, AR, Orrery, Chronicle, smart home, Teams, therapist portal, monetisation, analytics and safety metrics.

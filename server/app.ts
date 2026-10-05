@@ -1,13 +1,43 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Server } from "http";
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "./auth";
+import helmet from "helmet";
+import { auth, CLIENT_IP_HEADER } from "./auth";
 import { registerRoutes } from "./routes";
 import { log } from "./log";
 
 // Builds the API app. index.ts adds the frontend on top, tests use it as is.
 export async function createApp(): Promise<{ app: express.Express; server: Server }> {
   const app = express();
+  const production = process.env.NODE_ENV === "production";
+
+  // Hosts like Render, Railway and Fly sit behind one proxy. Without this every guest
+  // shares the proxy's IP, so they'd all share one daily chat limit.
+  // Set TRUST_PROXY=0 if the app is ever exposed directly to the internet.
+  const trustProxy = process.env.TRUST_PROXY ?? (production ? "1" : "0");
+  app.set("trust proxy", Number(trustProxy) || false);
+
+  // Security headers (CSP, no sniffing, HSTS...). Only in production: Vite's dev
+  // server injects inline scripts that a strict CSP would block.
+  if (production) {
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            // style attributes are set by React/framer; no inline <script> is ever needed
+            "style-src": ["'self'", "'unsafe-inline'"],
+          },
+        },
+      }),
+    );
+  }
+
+  // Hand Better Auth the IP Express resolved. Always overwritten, so a client can't
+  // set this header itself to dodge login rate limits.
+  app.use("/api/auth", (req, _res, next) => {
+    req.headers[CLIENT_IP_HEADER] = req.ip ?? "";
+    next();
+  });
 
   // Better Auth reads the raw body itself, so it must come before express.json()
   app.all("/api/auth/*", toNodeHandler(auth));

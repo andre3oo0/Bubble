@@ -30,4 +30,6 @@ export interface ChatResponse {
   helplines?: Helpline[];
   // true when the AI was unavailable and a canned reply was used
   fallback?: boolean;
+  // true when today's message limit was reached and the AI wasn't called
+  limited?: boolean;
 }

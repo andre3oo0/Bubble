@@ -1,11 +1,20 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AddressInfo } from "net";
 import type { Server } from "http";
 import { eq } from "drizzle-orm";
 import type { JournalEntry, MoodCheckin } from "@shared/api";
-import { account, user } from "@shared/schema";
-import { createApp } from "./app";
-import { db, migrateDatabase } from "./db";
+import { account, journalEntries, moodCheckins, user } from "@shared/schema";
+
+// Capture outgoing email instead of sending or printing it
+vi.mock("./email", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./email")>()),
+  sendEmail: vi.fn(),
+}));
+
+const { sendEmail } = await import("./email");
+const { createApp } = await import("./app");
+const { db, migrateDatabase } = await import("./db");
+const sentEmails = vi.mocked(sendEmail);
 
 const ORIGIN = process.env.BETTER_AUTH_URL!;
 const PASSWORD = "correct-horse-battery";
@@ -194,4 +203,114 @@ it("answers unknown API routes with JSON 404", async () => {
   const res = await request("POST", "/api/reminders/add");
   expect(res.status).toBe(404);
   expect(await res.json()).toEqual({ error: "Not found" });
+});
+
+function linkIn(text: string) {
+  return text.match(/https?:\/\/\S+/)![0];
+}
+
+describe("email verification", () => {
+  beforeEach(() => sentEmails.mockClear());
+
+  it("sends a confirmation email on sign up", async () => {
+    const { email } = await signUp();
+    await vi.waitFor(() => expect(sentEmails).toHaveBeenCalled());
+    const [message] = sentEmails.mock.calls.at(-1)!;
+    expect(message.to).toBe(email);
+    expect(message.subject).toMatch(/confirm your email/i);
+    expect(linkIn(message.text)).toContain("/api/auth/verify-email");
+  });
+});
+
+describe("password reset", () => {
+  beforeEach(() => sentEmails.mockClear());
+
+  it("resets the password from the emailed link and signs out other sessions", async () => {
+    const { email, cookie } = await signUp();
+    sentEmails.mockClear();
+
+    const requested = await request("POST", "/api/auth/request-password-reset", {
+      body: { email, redirectTo: `${ORIGIN}/reset-password` },
+    });
+    expect(requested.status).toBe(200);
+    await vi.waitFor(() => expect(sentEmails).toHaveBeenCalled());
+    const [message] = sentEmails.mock.calls.at(-1)!;
+    expect(message.to).toBe(email);
+
+    // The link points at the auth server, which redirects to our page with the token
+    const link = new URL(linkIn(message.text));
+    const redirect = await fetch(`${baseUrl}${link.pathname}${link.search}`, { redirect: "manual", headers: { Origin: ORIGIN } });
+    expect(redirect.status).toBe(302);
+    const token = new URL(redirect.headers.get("location")!).searchParams.get("token");
+    expect(token).toBeTruthy();
+
+    const reset = await request("POST", "/api/auth/reset-password", { body: { newPassword: "a-brand-new-password", token } });
+    expect(reset.status).toBe(200);
+
+    expect((await request("GET", "/api/journal", { cookie })).status).toBe(401);
+    const oldPassword = await request("POST", "/api/auth/sign-in/email", { body: { email, password: PASSWORD } });
+    expect(oldPassword.status).not.toBe(200);
+    const newPassword = await request("POST", "/api/auth/sign-in/email", { body: { email, password: "a-brand-new-password" } });
+    expect(newPassword.status).toBe(200);
+  });
+
+  it("doesn't reveal whether an email has an account", async () => {
+    const res = await request("POST", "/api/auth/request-password-reset", {
+      body: { email: "nobody-here@example.com", redirectTo: `${ORIGIN}/reset-password` },
+    });
+    expect(res.status).toBe(200);
+    expect(sentEmails).not.toHaveBeenCalled();
+  });
+
+  it("rejects a made-up token", async () => {
+    const res = await request("POST", "/api/auth/reset-password", { body: { newPassword: "whatever-password", token: "fake" } });
+    expect(res.status).not.toBe(200);
+  });
+});
+
+describe("export and delete", () => {
+  it("exports only your own data", async () => {
+    const alice = await signUp();
+    const bob = await signUp();
+    await addEntry(alice.cookie, "alice's entry");
+    await addEntry(bob.cookie, "bob's entry");
+    await request("POST", "/api/moods", { cookie: alice.cookie, body: { mood: "calm" } });
+
+    const res = await request("GET", "/api/me/export", { cookie: alice.cookie });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toMatch(/attachment; filename="bubble-data-/);
+    const data = await res.json();
+    expect(data.account.email).toBe(alice.email);
+    expect(data.journalEntries.map((e: JournalEntry) => e.title)).toEqual(["alice's entry"]);
+    expect(data.moodCheckins).toHaveLength(1);
+    expect(JSON.stringify(data)).not.toContain("password");
+  });
+
+  it("needs a session to export", async () => {
+    expect((await request("GET", "/api/me/export")).status).toBe(401);
+  });
+
+  it("deletes the account and everything in it, and nobody else's", async () => {
+    const alice = await signUp();
+    const bob = await signUp();
+    await addEntry(alice.cookie);
+    await request("POST", "/api/moods", { cookie: alice.cookie, body: { mood: "sad" } });
+    await addEntry(bob.cookie);
+
+    const wrong = await request("POST", "/api/auth/delete-user", { cookie: alice.cookie, body: { password: "not-my-password" } });
+    expect(wrong.status).not.toBe(200);
+
+    const deleted = await request("POST", "/api/auth/delete-user", { cookie: alice.cookie, body: { password: PASSWORD } });
+    expect(deleted.status).toBe(200);
+
+    const [aliceRow] = await db.select().from(user).where(eq(user.email, alice.email));
+    expect(aliceRow).toBeUndefined();
+    const [bobRow] = await db.select().from(user).where(eq(user.email, bob.email));
+    const leftover = await db.select().from(journalEntries).where(eq(journalEntries.userId, bobRow.id));
+    expect(leftover).toHaveLength(1);
+    const orphanMoods = await db.select().from(moodCheckins).where(eq(moodCheckins.mood, "sad"));
+    expect(orphanMoods).toHaveLength(0);
+
+    expect((await request("GET", "/api/journal", { cookie: alice.cookie })).status).toBe(401);
+  });
 });

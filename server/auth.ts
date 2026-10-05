@@ -4,9 +4,17 @@ import { fromNodeHeaders } from "better-auth/node";
 import type { NextFunction, Request, Response } from "express";
 import { authSchema } from "@shared/schema";
 import { db } from "./db";
+import { emailConfigured, resetPasswordEmail, sendEmail, verifyEmail } from "./email";
+
+// Internal header carrying the client IP to Better Auth; app.ts always overwrites it
+export const CLIENT_IP_HEADER = "x-bubble-client-ip";
 
 if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET) {
   throw new Error("BETTER_AUTH_SECRET must be set in production");
+}
+
+if (process.env.NODE_ENV === "production" && !emailConfigured()) {
+  console.warn("RESEND_API_KEY / EMAIL_FROM not set: password reset and verification emails won't be sent");
 }
 
 export const auth = betterAuth({
@@ -17,6 +25,29 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     autoSignIn: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmail(resetPasswordEmail(user.email, user.name, url));
+    },
+    // A reset usually means the password may be known to someone else
+    revokeSessionsOnPasswordReset: true,
+  },
+  // Sent so typos in the address get noticed (otherwise reset emails go nowhere),
+  // but not required: nobody should be locked out of support waiting for an email
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail(verifyEmail(user.email, user.name, url));
+    },
+  },
+  user: {
+    // Account and everything in it (journal, moods, sessions) is removed via ON DELETE CASCADE
+    deleteUser: { enabled: true },
+  },
+  advanced: {
+    // app.ts sets this header from Express's req.ip (which honours TRUST_PROXY), so login
+    // rate limits are per visitor instead of one bucket shared by everyone
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
 });
 

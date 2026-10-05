@@ -22,7 +22,11 @@ function createDatabase() {
   if (url) {
     const pool = new pg.Pool({ connectionString: url, max: 10 });
     const db = drizzlePg(pool, { schema });
-    return { db: db as unknown as Database, migrate: () => migratePg(db, { migrationsFolder }) };
+    return {
+      db: db as unknown as Database,
+      migrate: () => migratePg(db, { migrationsFolder }),
+      close: () => pool.end(),
+    };
   }
 
   if (process.env.NODE_ENV === "production") {
@@ -35,10 +39,15 @@ function createDatabase() {
   if (!dataDir.startsWith("memory://")) mkdirSync(dataDir, { recursive: true });
   const client = new PGlite(dataDir);
   const db = drizzlePglite(client, { schema });
-  return { db: db as unknown as Database, migrate: () => migratePglite(db, { migrationsFolder }) };
+  return {
+    db: db as unknown as Database,
+    migrate: () => migratePglite(db, { migrationsFolder }),
+    close: () => client.close(),
+  };
 }
 
 const database = createDatabase();
 
 export const db = database.db;
 export const migrateDatabase = database.migrate;
+export const closeDatabase = database.close;

@@ -1,7 +1,7 @@
 import type { Express, NextFunction, Request, RequestHandler, Response } from "express";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
-import { journalEntries, moodCheckins } from "@shared/schema";
+import { journalEntries, moodCheckins, user } from "@shared/schema";
 import {
   journalEntryInputSchema,
   journalEntryUpdateSchema,
@@ -42,7 +42,37 @@ function toMoodCheckin(row: typeof moodCheckins.$inferSelect): MoodCheckin {
 }
 
 export function registerDataRoutes(app: Express) {
-  app.use(["/api/journal", "/api/moods"], requireUser);
+  app.use(["/api/journal", "/api/moods", "/api/me"], requireUser);
+
+  // Everything we hold about the signed-in user, as a JSON download (POPIA access request).
+  // Chat isn't stored, so there's nothing to export for it.
+  app.get("/api/me/export", handle(async (_req, res) => {
+    const userId = res.locals.userId;
+    const [account] = await db
+      .select({ name: user.name, email: user.email, emailVerified: user.emailVerified, createdAt: user.createdAt })
+      .from(user)
+      .where(eq(user.id, userId));
+    const journal = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.userId, userId))
+      .orderBy(desc(journalEntries.createdAt));
+    const moods = await db
+      .select()
+      .from(moodCheckins)
+      .where(eq(moodCheckins.userId, userId))
+      .orderBy(desc(moodCheckins.createdAt));
+
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Disposition", `attachment; filename="bubble-data-${date}.json"`);
+    res.json({
+      exportedAt: new Date().toISOString(),
+      account: { ...account, createdAt: account.createdAt.toISOString() },
+      journalEntries: journal.map(toJournalEntry),
+      moodCheckins: moods.map(toMoodCheckin),
+      chat: "Bubble doesn't store your chat messages.",
+    });
+  }));
 
   app.get("/api/journal", handle(async (_req, res) => {
     const rows = await db

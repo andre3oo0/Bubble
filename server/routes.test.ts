@@ -9,12 +9,16 @@ vi.mock("./openaiService", () => ({ generateReply: vi.fn() }));
 
 const { generateReply } = await import("./openaiService");
 const { registerRoutes } = await import("./routes");
+const { migrateDatabase } = await import("./db");
+const { usageKey } = await import("./usage");
 const mockReply = vi.mocked(generateReply);
 
 let server: Server;
 let baseUrl: string;
 
 beforeAll(async () => {
+  // chat counts usage in the database
+  await migrateDatabase();
   const app = express();
   app.use(express.json());
   server = await registerRoutes(app);
@@ -115,4 +119,50 @@ describe("POST /api/chat", () => {
       expect(mockReply).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("daily chat limit", () => {
+  const original = process.env.CHAT_DAILY_LIMIT_GUEST;
+  afterAll(() => {
+    process.env.CHAT_DAILY_LIMIT_GUEST = original;
+  });
+
+  it("stops calling the AI once the guest limit is used up", async () => {
+    process.env.CHAT_DAILY_LIMIT_GUEST = "0";
+    mockReply.mockResolvedValue({ reply: "should not be used", mood: "neutral", risk: "none" });
+
+    const { status, data } = await chat({ message: "hello again" });
+
+    expect(status).toBe(200);
+    expect(data.limited).toBe(true);
+    expect(data.reply).toMatch(/today's limit/);
+    expect(data.reply).toMatch(/free account/);
+    expect(mockReply).not.toHaveBeenCalled();
+  });
+
+  it("still answers a crisis with helplines over the limit", async () => {
+    process.env.CHAT_DAILY_LIMIT_GUEST = "0";
+
+    const { data } = await chat({ message: "I want to end it all" });
+
+    expect(data.limited).toBe(true);
+    expect(data.risk).toBe("crisis");
+    expect(data.reply).toBe(CRISIS_REPLY);
+    expect(data.helplines).toEqual(HELPLINES);
+    expect(mockReply).not.toHaveBeenCalled();
+  });
+});
+
+describe("usageKey", () => {
+  it("keys signed-in users by id with the user limit", () => {
+    expect(usageKey("abc123", "10.0.0.1")).toEqual({ key: "user:abc123", limit: 1000 });
+  });
+
+  it("never stores a guest's raw IP", () => {
+    const { key } = usageKey(undefined, "203.0.113.7");
+    expect(key).toMatch(/^ip:[0-9a-f]{32}$/);
+    expect(key).not.toContain("203.0.113.7");
+    expect(usageKey(undefined, "203.0.113.7").key).toBe(key);
+    expect(usageKey(undefined, "203.0.113.8").key).not.toBe(key);
+  });
 });

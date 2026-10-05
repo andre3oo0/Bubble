@@ -27,7 +27,21 @@ Locally you don't need a database server. Without `DATABASE_URL` the app uses an
 
 ## Production
 
-Set `DATABASE_URL` (any Postgres, e.g. Neon or Supabase), `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`. The server refuses to start without the first two.
+The app ships as one Docker container (see `Dockerfile`) that serves both the API and the frontend. Any host that runs containers works: Render, Railway, Fly.io, Google Cloud Run.
+
+Set these in the host's environment settings (never in the repo):
+
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | Managed Postgres (Neon, Supabase). Required, the server won't start without it |
+| `BETTER_AUTH_SECRET` | Long random value, different from your local one. Required |
+| `BETTER_AUTH_URL` | The public URL, e.g. `https://bubble.example.com` |
+| `OPENAI_API_KEY` | A separate key from your local one, so either can be revoked |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Password reset and email confirmation. `EMAIL_FROM` must use a domain verified in Resend |
+
+Optional ones (chat limits, model, proxy) are described in `.env.example`. Migrations run automatically on startup, and `/api/health` is the health check.
+
+CI (`.github/workflows/ci.yml`) type-checks, tests and builds every push and pull request. It needs no secrets.
 
 ## Scripts
 

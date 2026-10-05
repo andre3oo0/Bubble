@@ -1,7 +1,7 @@
 // Load .env before any other module reads process.env (e.g. the OpenAI client)
 import "dotenv/config";
 import { createApp } from "./app";
-import { migrateDatabase } from "./db";
+import { closeDatabase, migrateDatabase } from "./db";
 import { log } from "./log";
 
 (async () => {
@@ -25,4 +25,17 @@ import { log } from "./log";
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
+
+  // Hosts send SIGTERM before replacing the app on deploy: finish in-flight
+  // requests, close the database, then exit. Force-exit if that takes too long.
+  const shutdown = (signal: string) => {
+    log(`${signal} received, shutting down`);
+    setTimeout(() => process.exit(1), 10_000).unref();
+    server.close(async () => {
+      await closeDatabase().catch(() => {});
+      process.exit(0);
+    });
+  };
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 })();

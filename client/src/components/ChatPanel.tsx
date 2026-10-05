@@ -173,13 +173,16 @@ export default function ChatPanel({
     } catch (error) {
       console.error('Error sending message:', error);
 
-      // Can't reach the server: still show helplines if the message needs them
+      // Can't reach the server (or sending too fast): still show helplines if the message needs them
       const crisis = detectCrisis(text);
+      const tooFast = error instanceof Error && error.message.startsWith('429');
       addMessage({
         id: uuidv4(),
         content: crisis
           ? CRISIS_REPLY
-          : "I'm having trouble connecting right now, but I'm still here. Could you try sending that again in a moment?",
+          : tooFast
+            ? "You're sending messages very quickly. Take a slow breath with me, then try again in a minute."
+            : "I'm having trouble connecting right now, but I'm still here. Could you try sending that again in a moment?",
         sender: 'bubble',
         timestamp: new Date(),
         helplines: crisis ? HELPLINES : undefined
