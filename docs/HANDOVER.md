@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (110 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (112 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -138,11 +138,10 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 
 From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The direction: flat white and pale-blue surfaces with navy text, one orange accent for focus, Montserrat headings, Nunito Sans body, 4 px corners on controls, hairline-divided lists, no blur, glow or decorative motion. Bubble keeps its own name; no Curro logo or name appears.
 
+**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), and the "Bubble is an AI" line on the home screen and in chat (14).
+
 **Ready to build (no open questions):**
-- Chat errors and rate limits shown as system notices, not in Bubble's voice; an unsent message is marked "Not sent" with Retry (08)
-- Auto-growing message box, Shift + Enter for a new line, "typing" shown in the thread, a time label per group of messages (09)
 - Journal delete asks first and offers a short undo (10); title optional, defaulting to the date; search above the list (11)
-- A plain "Bubble is an AI, not a therapist or a crisis service" line on the landing screen and at the top of each chat (14)
 - Skeleton loading rows, an in-app offline banner that keeps helplines reachable, a proper 404 (16)
 - Desktop: a 240 px labelled sidebar with a permanent "Get help now", content capped at 720 px (05). Phone: five tabs with 12 px labels, a simpler header, breathing moved into chat and the help screen instead of a floating button (06)
 - Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04); remove the rising mood bubbles and keep Bubble's face still (03)

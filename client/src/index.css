@@ -1002,6 +1002,16 @@ html.dark .scene-art {
   filter: brightness(0.62) saturate(0.85);
 }
 
+/* "Bubble is typing": three dots fading in turn. Calm visuals stops them, since
+   the class matches [class*="animated-"] above */
+.animated-typing {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+@keyframes typing-dot {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
 /* Frosted panels that read on every scene, day or night */
 .surface {
   background-color: rgb(8 18 36 / 0.34);

@@ -128,8 +128,12 @@ export default function Home() {
               >
                 What can Bubble do?
               </button>
+              <p className="mt-6 max-w-sm text-sm text-white/90">
+                Bubble is an AI. It isn't a therapist and can't respond to emergencies. If you're in danger, call 112 or use
+                the help button at the top.
+              </p>
               {!session && (
-                <p className="mt-6 max-w-xs text-sm text-white/90">
+                <p className="mt-4 max-w-xs text-sm text-white/90">
                   Want to keep a journal and track your mood?{' '}
                   <button
                     onClick={openAccount}

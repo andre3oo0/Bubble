@@ -15,7 +15,7 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
 // The conversation as the person saw it, minus the breathing offer prompts
 export async function reflectOnChat(messages: Message[]): Promise<ReflectionResponse> {
   const transcript = messages
-    .filter((message) => !message.kind && message.content.trim())
+    .filter((message) => !message.kind && message.status !== 'failed' && message.content.trim())
     .slice(-60)
     .map((message) => ({
       role: message.sender === 'user' ? ('user' as const) : ('assistant' as const),

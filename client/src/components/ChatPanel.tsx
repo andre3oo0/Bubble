@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { DoorOpen, Phone, Wind } from 'lucide-react';
+import { DoorOpen, Phone, RotateCcw, SendHorizontal, Wind } from 'lucide-react';
 import { prefersReducedMotion } from '@/lib/motion';
 import { Message, Mood } from '@/models/types';
 import { useChatStore } from '@/store/chatStore';
@@ -28,6 +28,19 @@ const SOS_OPEN_DELAY_MS = 800;
 // How long "Let go" lets the messages float away before clearing them
 const LET_GO_MS = 1600;
 
+// A time label goes above a message when this much time has passed since the last one
+const TIME_GAP_MS = 10 * 60 * 1000;
+
+function timeLabel(date: Date) {
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return `Today, ${time}`;
+  return `${date.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}, ${time}`;
+}
+
+// On touch keyboards Enter makes a new line and the button sends; elsewhere Enter sends
+const touchKeyboard = () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 function openSosForCrisis() {
   setTimeout(() => useSosStore.getState().openForCrisis(), SOS_OPEN_DELAY_MS);
 }
@@ -42,7 +55,8 @@ export default function ChatPanel({
   const [isBreathingPromptVisible, setIsBreathingPromptVisible] = useState(false);
   const [debriefOpen, setDebriefOpen] = useState(false);
   const [releasing, setReleasing] = useState(false);
-  const { messages, addMessage, clearMessages } = useChatStore();
+  const { messages, addMessage, updateMessage, clearMessages } = useChatStore();
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const hasConversation = messages.some((m) => m.sender === 'user');
   const { currentMood, setCurrentMood } = useMoodStore();
   const previousMoodRef = useRef<Mood>(currentMood);
@@ -51,7 +65,7 @@ export default function ChatPanel({
   // Keep the newest message in view, otherwise helplines can end up below the fold
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'end' });
-  }, [messages]);
+  }, [messages, isSending]);
 
   // Rising bubbles when the mood changes; no chat message, that was confusing
   useEffect(() => {
@@ -128,22 +142,28 @@ export default function ChatPanel({
     });
   };
 
-  const handleSendMessage = async (preset?: string) => {
-    const text = (preset ?? inputMessage).trim();
+  // Sends a new message, or resends one that failed (retryId). Problems with the
+  // connection are shown on your message, not put in Bubble's mouth.
+  const sendMessage = async (text: string, retryId?: string) => {
     if (!text || isSending) return;
 
-    addMessage({
-      id: uuidv4(),
-      content: text,
-      sender: 'user',
-      timestamp: new Date()
-    });
-    if (!preset) setInputMessage('');
+    const id = retryId ?? uuidv4();
+    if (retryId) {
+      updateMessage(retryId, { status: undefined, failure: undefined });
+    } else {
+      addMessage({ id, content: text, sender: 'user', timestamp: new Date() });
+    }
     setIsSending(true);
     setIsTyping(true);
 
     try {
       const response = await sendChatMessage(text);
+
+      // The daily limit is the app talking, so it's a notice, unless there's a crisis
+      if (response.limited && response.risk !== 'crisis') {
+        addMessage({ id: uuidv4(), content: response.reply, sender: 'bubble', timestamp: new Date(), kind: 'notice' });
+        return;
+      }
 
       addMessage({
         id: uuidv4(),
@@ -164,27 +184,43 @@ export default function ChatPanel({
         offerBreathingOnce();
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-
-      // Can't reach the server (or sending too fast): still show helplines if the message needs them
-      const crisis = detectCrisis(text);
+      console.error('Error sending message:', error instanceof Error ? error.message : error);
       const tooFast = error instanceof Error && error.message.startsWith('429');
-      addMessage({
-        id: uuidv4(),
-        content: crisis
-          ? CRISIS_REPLY
-          : tooFast
-            ? "You're sending messages very quickly. Take a slow breath with me, then try again in a minute."
-            : "I'm having trouble connecting right now, but I'm still here. Could you try sending that again in a moment?",
-        sender: 'bubble',
-        timestamp: new Date(),
-        helplines: crisis ? HELPLINES : undefined
-      });
-      if (crisis) openSosForCrisis();
+      updateMessage(id, { status: 'failed', failure: tooFast ? 'too-fast' : 'connection' });
+
+      // Even with no connection, a message that needs helplines gets them
+      if (detectCrisis(text)) {
+        addMessage({ id: uuidv4(), content: CRISIS_REPLY, sender: 'bubble', timestamp: new Date(), helplines: HELPLINES });
+        openSosForCrisis();
+      } else if (tooFast) {
+        addMessage({
+          id: uuidv4(),
+          content: "You're sending messages quickly. You can send again in about a minute.",
+          sender: 'bubble',
+          timestamp: new Date(),
+          kind: 'notice',
+        });
+      }
     } finally {
       setIsSending(false);
       setIsTyping(false);
     }
+  };
+
+  const handleSendMessage = (preset?: string) => {
+    const text = (preset ?? inputMessage).trim();
+    if (!text || isSending || releasing) return;
+    if (!preset) {
+      setInputMessage('');
+      if (composerRef.current) composerRef.current.style.height = '';
+    }
+    sendMessage(text);
+  };
+
+  // Grows with the text up to about six lines, then scrolls
+  const resizeComposer = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   };
 
   // End of the debrief: forget the chat here and on the server, then a fresh start
@@ -256,8 +292,11 @@ export default function ChatPanel({
 
       {/* Chat messages area */}
       <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
+        <p className="mb-4 border-b border-white/15 pb-3 text-center text-xs text-white/85">
+          Bubble is an AI and can get things wrong. It isn't a crisis service: if you're in danger, use the help button at the top.
+        </p>
         {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center px-2 text-center text-white">
+          <div className="flex min-h-[70%] flex-col items-center justify-center px-2 text-center text-white">
             <p className="mb-1 text-lg font-semibold">This is your space</p>
             <p className="mb-5 max-w-sm text-white/90">
               Say whatever's on your mind, in your own words. There's no wrong way to start.
@@ -277,14 +316,27 @@ export default function ChatPanel({
           </div>
         )}
         <div className="flex flex-col space-y-3">
-          {messages.map((message, index) => (
+          {messages.map((message, index) => {
+            const previous = messages[index - 1];
+            const showTime =
+              !previous || message.timestamp.getTime() - previous.timestamp.getTime() > TIME_GAP_MS;
+            return (
             <motion.div
               key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className="flex flex-col"
               // "Let go": each message drifts up and fades, top first
               animate={releasing ? { y: -140, opacity: 0, scale: 0.92 } : { y: 0, opacity: 1, scale: 1 }}
               transition={releasing ? { duration: 1.1, delay: Math.min(index * 0.06, 0.5), ease: 'easeIn' } : { duration: 0 }}
             >
+              {showTime && (
+                <p className="mb-2 text-center text-xs text-white/80">{timeLabel(message.timestamp)}</p>
+              )}
+              {message.kind === 'notice' ? (
+                <p role="status" className="mx-auto max-w-[90%] text-center text-sm text-white/90">
+                  {message.content}
+                </p>
+              ) : (
+              <div className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                   message.sender === 'user'
@@ -292,7 +344,7 @@ export default function ChatPanel({
                     : 'bg-[#9AD9EA] text-gray-800 rounded-tl-none'
                 }`}
               >
-                {message.content}
+                <span className="whitespace-pre-wrap">{message.content}</span>
 
                 {/* Breathing exercise prompt buttons */}
                 {message.helplines && (
@@ -331,8 +383,33 @@ export default function ChatPanel({
                   </div>
                 )}
               </div>
+              {message.status === 'failed' && (
+                <p className="mt-1 flex items-center gap-2 text-xs text-white/90" role="alert">
+                  {message.failure === 'too-fast' ? 'Not sent yet.' : 'Not sent. Check your connection.'}
+                  <button
+                    onClick={() => sendMessage(message.content, message.id)}
+                    disabled={isSending}
+                    className="flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                  >
+                    <RotateCcw size={12} aria-hidden="true" />
+                    Retry
+                  </button>
+                </p>
+              )}
+              </div>
+              )}
             </motion.div>
-          ))}
+            );
+          })}
+          {isSending && (
+            <div className="flex justify-start" role="status" aria-label="Bubble is typing">
+              <div className="flex items-center gap-1 rounded-2xl rounded-tl-none bg-[#9AD9EA] px-4 py-3" aria-hidden="true">
+                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700" />
+                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700 [animation-delay:150ms]" />
+                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700 [animation-delay:300ms]" />
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -367,29 +444,36 @@ export default function ChatPanel({
 
       {/* Input area. The mic button was removed: it did nothing, and browser speech
           recognition sends audio to a third-party service, which needs consent first */}
-      <div className="flex items-center space-x-2 surface rounded-full p-2 pl-4">
-        <input
-          type="text"
+      <div className="flex items-end gap-2 surface rounded-3xl p-2 pl-4">
+        <textarea
+          ref={composerRef}
+          rows={1}
           value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !releasing && handleSendMessage()}
+          onChange={(e) => {
+            setInputMessage(e.target.value);
+            resizeComposer(e.target);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !touchKeyboard()) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
           aria-label="Message Bubble"
-          className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/80"
-          placeholder="Type your message..."
+          className="max-h-40 flex-1 resize-none bg-transparent py-2 leading-relaxed text-white outline-none placeholder-white/80"
+          placeholder="Write to Bubble…"
         />
 
         <button
           onClick={() => handleSendMessage()}
           disabled={!inputMessage.trim() || isSending || releasing}
           aria-label="Send message"
-          className="p-2 text-white rounded-full"
+          className="shrink-0 rounded-full bg-[#0b6bb8] p-2.5 text-white hover:bg-[#095a9c] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 disabled:bg-white/15 disabled:text-white/70"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
+          <SendHorizontal size={20} aria-hidden="true" />
         </button>
       </div>
+      <p className="mt-1 hidden text-center text-xs text-white/80 md:block">Enter to send · Shift + Enter for a new line</p>
     </motion.div>
   );
 }

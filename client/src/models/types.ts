@@ -13,7 +13,11 @@ export interface Message {
   sender: 'user' | 'bubble';
   timestamp: Date;
   mood?: Mood;
-  kind?: 'breathing-offer';
+  // 'notice' is the app speaking (rate limits, daily limit), shown apart from Bubble's voice
+  kind?: 'breathing-offer' | 'notice';
+  // a message of yours that didn't reach Bubble; shown with Retry
+  status?: 'failed';
+  failure?: 'connection' | 'too-fast';
   // shown as a call card under the message when the user may be in crisis
   helplines?: Helpline[];
 }
