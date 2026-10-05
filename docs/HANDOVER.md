@@ -134,6 +134,26 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 - [ ] Privacy notice (POPIA: health-related data, stored in Frankfurt, chat sent to Groq)
 - [ ] On a real phone: breathing circle with calm visuals on
 
+## UI/UX redesign plan
+
+From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The direction: flat white and pale-blue surfaces with navy text, one orange accent for focus, Montserrat headings, Nunito Sans body, 4 px corners on controls, hairline-divided lists, no blur, glow or decorative motion. Bubble keeps its own name; no Curro logo or name appears.
+
+**Ready to build (no open questions):**
+- Chat errors and rate limits shown as system notices, not in Bubble's voice; an unsent message is marked "Not sent" with Retry (08)
+- Auto-growing message box, Shift + Enter for a new line, "typing" shown in the thread, a time label per group of messages (09)
+- Journal delete asks first and offers a short undo (10); title optional, defaulting to the date; search above the list (11)
+- A plain "Bubble is an AI, not a therapist or a crisis service" line on the landing screen and at the top of each chat (14)
+- Skeleton loading rows, an in-app offline banner that keeps helplines reachable, a proper 404 (16)
+- Desktop: a 240 px labelled sidebar with a permanent "Get help now", content capped at 720 px (05). Phone: five tabs with 12 px labels, a simpler header, breathing moved into chat and the help screen instead of a floating button (06)
+- Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04); remove the rising mood bubbles and keep Bubble's face still (03)
+
+**Owner's decisions (5 October 2026):**
+- **Styling:** the same flat style, but in Bubble's own colours, not Curro's palette or fonts
+- **Scenes:** keep the drawn, animated scenes
+- **Past chats:** yes. Optional chat history, off by default, kept 30 days. Needs a privacy-notice update (POPIA, health data), a database table, deletion after 30 days and isolation tests
+- **Helplines:** South Africa only for now. Another country is added only once a person has checked its numbers
+- **Mood:** yes to a five-step scale with optional feeling tags and a 14-day view. Existing check-ins get mapped onto the scale
+
 ## Outstanding work
 
 **Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
