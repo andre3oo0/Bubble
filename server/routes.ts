@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { randomUUID } from "crypto";
 import rateLimit from "express-rate-limit";
 import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "./auth";
+import { auth, googleSignInEnabled } from "./auth";
 import { registerDataRoutes } from "./dataRoutes";
 import { pruneOldUsage, recordChatMessage, usageKey } from "./usage";
 import { generateReflection, generateReply, type AiReflection, type AiReply, type ChatTurn } from "./openaiService";
@@ -156,6 +156,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // REST API routes
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
+  });
+
+  // Which sign-in options to show
+  app.get('/api/auth-options', (_req, res) => {
+    res.json({ google: googleSignInEnabled });
   });
 
   app.post('/api/chat', chatBurstLimit, async (req, res) => {

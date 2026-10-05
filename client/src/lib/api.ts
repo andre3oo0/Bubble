@@ -5,7 +5,16 @@ import { apiRequest } from './queryClient';
 export const queryKeys = {
   journal: ['journal'] as const,
   moods: ['moods'] as const,
+  authOptions: ['auth-options'] as const,
 };
+
+export interface AuthOptions {
+  google: boolean;
+}
+
+export async function fetchAuthOptions(): Promise<AuthOptions> {
+  return (await apiRequest('GET', '/api/auth-options')).json();
+}
 
 export async function fetchJournal(): Promise<JournalEntry[]> {
   return (await apiRequest('GET', '/api/journal')).json();

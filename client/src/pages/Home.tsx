@@ -19,6 +19,7 @@ import { isSceneId, type SceneId } from '@/components/scenes';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
 import { cn } from '@/lib/utils';
+import { clearGoogleReturn, googleSignInProblem } from '@/lib/googleSignIn';
 import { useAccountDialog } from '@/store/accountStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
@@ -58,6 +59,14 @@ export default function Home() {
   const { open: openAccount } = useAccountDialog();
   const { open: openIntro } = useIntroStore();
   const { data: session } = useSession();
+
+  // Back from Google without being signed in: reopen sign-in with the reason, so
+  // they can try again or use their email, and tidy the address bar
+  useEffect(() => {
+    const problem = googleSignInProblem(window.location.search);
+    clearGoogleReturn();
+    if (problem) openAccount('login', { message: problem });
+  }, [openAccount]);
 
   // Load the last active panel from localStorage
   useEffect(() => {
@@ -151,7 +160,7 @@ export default function Home() {
                 <p className="mt-4 max-w-xs text-sm text-white/90">
                   Want to keep a journal and track your mood?{' '}
                   <button
-                    onClick={openAccount}
+                    onClick={() => openAccount('register')}
                     className="font-semibold text-white underline underline-offset-4 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 rounded"
                   >
                     Create a free account
@@ -172,7 +181,7 @@ export default function Home() {
   // signed in it's the account icon. Phones have this in the header menu.
   const accountButton = session ? (
     <button
-      onClick={openAccount}
+      onClick={() => openAccount()}
       aria-label={`Your account (${session.user.name})`}
       title="Your account"
       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
@@ -181,7 +190,7 @@ export default function Home() {
     </button>
   ) : (
     <button
-      onClick={openAccount}
+      onClick={() => openAccount()}
       className="flex h-auto w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-[11px] font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
     >
       <LogIn size={18} aria-hidden="true" />

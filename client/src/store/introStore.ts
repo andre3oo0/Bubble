@@ -6,6 +6,8 @@ interface IntroState {
   seen: boolean;
   isOpen: boolean;
   open: () => void;
+  // Steps aside (e.g. for the sign-up form) without counting as seen
+  pause: () => void;
   finish: () => void;
 }
 
@@ -15,6 +17,7 @@ export const useIntroStore = create<IntroState>()(
       seen: false,
       isOpen: false,
       open: () => set({ isOpen: true }),
+      pause: () => set({ isOpen: false }),
       finish: () => set({ isOpen: false, seen: true }),
     }),
     { name: 'bubble-intro', partialize: (state) => ({ seen: state.seen }) },

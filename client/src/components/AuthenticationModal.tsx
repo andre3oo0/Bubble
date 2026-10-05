@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, KeyRound, LogIn, LogOut, MailCheck, Trash2, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
+  authClient,
   changePassword,
   deleteUser,
   requestPasswordReset,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
 import { useToast } from '@/hooks/use-toast';
+import GoogleButton, { useGoogleSignIn } from './GoogleButton';
 
 const inputClass =
   'w-full rounded-xl bg-[#D4F1FF] p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-[#0b6bb8]/40';
@@ -28,7 +30,8 @@ const PERSONAL_STORAGE_KEYS = ['bubble-mood', 'activePanel', 'checkInTimes', 'jo
 type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthenticationModal() {
-  const { isOpen, close } = useAccountDialog();
+  const { isOpen, close, startMode, allowGoogle, message } = useAccountDialog();
+  const googleEnabled = useGoogleSignIn();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: session } = useSession();
@@ -42,6 +45,24 @@ export default function AuthenticationModal() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  // Someone who only ever used Google has no password to change or confirm with
+  const [needsFreshSignIn, setNeedsFreshSignIn] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setMode(startMode);
+  }, [isOpen, startMode]);
+
+  const accounts = useQuery({
+    queryKey: ['auth-accounts', session?.user.id],
+    queryFn: async () => {
+      const { data, error } = await authClient.listAccounts();
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen && !!session,
+  });
+  // Assume a password until we know otherwise, which is how it worked before Google
+  const hasPassword = accounts.data ? accounts.data.some((account) => account.providerId === 'credential') : true;
 
   const resetForm = () => {
     setPassword('');
@@ -51,6 +72,7 @@ export default function AuthenticationModal() {
     setIsLoading(false);
     setConfirmingDelete(false);
     setChangingPassword(false);
+    setNeedsFreshSignIn(false);
   };
 
   const switchMode = (next: Mode) => {
@@ -149,9 +171,14 @@ export default function AuthenticationModal() {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
-    const { error } = await deleteUser({ password });
+    // Without a password, Better Auth accepts a sign-in from the last 24 hours instead
+    const { error } = await deleteUser(hasPassword ? { password } : {});
     setIsLoading(false);
     if (error) {
+      if (!hasPassword && error.code === 'SESSION_EXPIRED') {
+        setNeedsFreshSignIn(true);
+        return;
+      }
       setErrorMessage(error.message || "Couldn't delete your account. Check your password and try again.");
       return;
     }
@@ -180,7 +207,14 @@ export default function AuthenticationModal() {
               download your data first.
             </DialogDescription>
           </DialogHeader>
+          {needsFreshSignIn && (
+            <div className="space-y-3 rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-900">
+              <p>To keep your account safe, please sign in with Google again first. Then come back here to delete it.</p>
+              <GoogleButton />
+            </div>
+          )}
           <form onSubmit={handleDelete} className="space-y-4">
+            {hasPassword && (
             <div>
               <label htmlFor="delete-password" className="mb-1 block text-sm font-medium text-gray-800">
                 Enter your password to confirm
@@ -196,6 +230,7 @@ export default function AuthenticationModal() {
                 disabled={isLoading}
               />
             </div>
+            )}
             {errorMessage && (
               <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
                 {errorMessage}
@@ -319,18 +354,20 @@ export default function AuthenticationModal() {
             <Download size={18} aria-hidden="true" />
             Download my data
           </a>
-          <button
-            onClick={() => {
-              setChangingPassword(true);
-              setPassword('');
-              setErrorMessage('');
-              setNotice('');
-            }}
-            className={secondaryButtonClass}
-          >
-            <KeyRound size={18} aria-hidden="true" />
-            Change password
-          </button>
+          {hasPassword && (
+            <button
+              onClick={() => {
+                setChangingPassword(true);
+                setPassword('');
+                setErrorMessage('');
+                setNotice('');
+              }}
+              className={secondaryButtonClass}
+            >
+              <KeyRound size={18} aria-hidden="true" />
+              Change password
+            </button>
+          )}
           <button onClick={handleSignOut} disabled={isLoading} className={secondaryButtonClass}>
             <LogOut size={18} aria-hidden="true" />
             Sign out
@@ -366,6 +403,29 @@ export default function AuthenticationModal() {
             : 'Your journal and mood history are saved to your account and only you can see them.'}
         </DialogDescription>
       </DialogHeader>
+
+      {message && mode !== 'forgot' && (
+        <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {message}
+        </p>
+      )}
+
+      {googleEnabled && mode !== 'forgot' && (
+        allowGoogle ? (
+          <>
+            <GoogleButton />
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <span className="h-px flex-1 bg-gray-200" />
+              or use your email
+              <span className="h-px flex-1 bg-gray-200" />
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-gray-600">
+            Google sign-in isn't available here, because leaving the page would clear this reflection.
+          </p>
+        )
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'register' && (
@@ -459,7 +519,11 @@ export default function AuthenticationModal() {
         className="text-sm text-[#0b5394] hover:underline"
         disabled={isLoading}
       >
-        {mode === 'login' ? "Don't have an account? Create one" : 'Back to sign in'}
+        {mode === 'login'
+          ? "Don't have an account? Create one"
+          : mode === 'register'
+            ? 'Already have an account? Sign in'
+            : 'Back to sign in'}
       </button>
     </>
   );

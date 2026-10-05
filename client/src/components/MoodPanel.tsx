@@ -208,7 +208,7 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
         {!session && !sessionPending ? (
           <div className="text-white text-center py-8">
             <p className="mb-4 text-white/80">Sign in to keep a history of your check-ins and spot patterns over time.</p>
-            <button onClick={openAccount} className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2">
+            <button onClick={() => openAccount()} className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2">
               Sign in or create an account
             </button>
           </div>

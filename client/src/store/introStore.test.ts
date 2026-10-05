@@ -23,6 +23,13 @@ describe('useIntroStore', () => {
     expect(useIntroStore.getState()).toMatchObject({ isOpen: false, seen: true });
   });
 
+  it('can step aside for sign-up and still show on the next visit', () => {
+    useIntroStore.getState().open();
+    useIntroStore.getState().pause();
+
+    expect(useIntroStore.getState()).toMatchObject({ isOpen: false, seen: false });
+  });
+
   it('remembers only that it was seen, not that it was open', () => {
     useIntroStore.getState().open();
     useIntroStore.getState().finish();

@@ -291,3 +291,11 @@ describe("usageKey", () => {
     expect(usageKey(undefined, "203.0.113.8").key).not.toBe(key);
   });
 });
+
+describe("GET /api/auth-options", () => {
+  it("hides Google sign-in when it isn't set up", async () => {
+    const res = await fetch(`${baseUrl}/api/auth-options`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ google: false });
+  });
+});

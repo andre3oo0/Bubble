@@ -1,12 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { ArrowLeft, ArrowRight, Book, LifeBuoy, Lock, MessageCircle, Palette, BarChart3, Wind } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Book, LifeBuoy, Lock, Mail, MessageCircle, Palette, BarChart3, Wind } from 'lucide-react';
 import BubbleAvatar from './BubbleAvatar';
 import { useIntroStore } from '@/store/introStore';
 import { helpButtonClass } from './SosScreen';
 import { cn } from '@/lib/utils';
 import { useSosStore } from '@/store/sosStore';
+import { useAccountDialog } from '@/store/accountStore';
+import { useSession } from '@/lib/authClient';
+import GoogleButton, { useGoogleSignIn } from './GoogleButton';
 
 interface IntroTourProps {
   onStartChat: () => void;
@@ -25,16 +28,11 @@ const FEATURES = [
   { icon: Palette, name: 'Scenes', text: 'Choose a calming scene and sound in Settings.' },
 ];
 
+const ABOUT_BUBBLE =
+  "A calm place to talk when your head feels busy. Tell me what's on your mind and I'll listen, help you untangle it, and find a small next step with you.";
+
+// The first page is the welcome (below); these follow it
 const STEPS: Step[] = [
-  {
-    title: "Hi, I'm Bubble",
-    body: (
-      <p>
-        A calm place to talk when your head feels busy. Tell me what's on your mind and I'll listen, help you untangle
-        it, and find a small next step with you.
-      </p>
-    ),
-  },
   {
     title: 'What you can do here',
     body: (
@@ -96,21 +94,57 @@ const buttonBase =
   'flex items-center justify-center gap-2 rounded-full px-5 py-3 font-semibold focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60';
 
 export default function IntroTour({ onStartChat }: IntroTourProps) {
-  const { seen, isOpen, open, finish } = useIntroStore();
+  const { seen, isOpen, open, pause, finish } = useIntroStore();
   const { open: openSos } = useSosStore();
+  const { isOpen: accountOpen, open: openAccount } = useAccountDialog();
+  const { data: session, isPending: sessionPending } = useSession();
+  const googleEnabled = useGoogleSignIn();
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
 
-  // First visit on this device
+  // First visit on this device; also picks up again after "Continue with email" or
+  // a trip to Google, since neither counts as having seen it
   useEffect(() => {
-    if (!seen) open();
-  }, [seen, open]);
+    if (!seen && !accountOpen) open();
+  }, [seen, accountOpen, open]);
+
+  const signedOut = !session && !sessionPending;
+  // Sign-in comes first, but is optional: "Not now" carries on with the tour
+  const welcome: Step = session
+    ? { title: `Hi ${session.user.name.split(' ')[0]}, I'm Bubble`, body: <p>{ABOUT_BUBBLE}</p> }
+    : {
+        title: 'Welcome to Bubble',
+        body: (
+          <>
+            <p>
+              A calm place to talk when your head feels busy. You can start right away, or make a free account to keep
+              a journal and see how your moods change.
+            </p>
+            {signedOut && (
+              <div className="mt-5 flex flex-col gap-3">
+                {googleEnabled && <GoogleButton />}
+                <button
+                  onClick={() => {
+                    pause();
+                    openAccount('register');
+                  }}
+                  className="flex h-12 items-center justify-center gap-3 rounded-[8px] border border-white/40 font-semibold text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                >
+                  <Mail size={18} aria-hidden="true" />
+                  Continue with email
+                </button>
+              </div>
+            )}
+          </>
+        ),
+      };
+  const steps = [welcome, ...STEPS];
 
   useEffect(() => {
     if (isOpen) setStep(0);
   }, [isOpen]);
 
-  const last = step === STEPS.length - 1;
+  const last = step === steps.length - 1;
   const go = (next: number) => {
     setDirection(next > step ? 1 : -1);
     setStep(next);
@@ -130,7 +164,7 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm text-white/80">
-              {step + 1} of {STEPS.length}
+              {step + 1} of {steps.length}
             </span>
             <div className="flex items-center gap-2">
               {/* The intro covers the header, so help stays one tap away here too */}
@@ -170,16 +204,16 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
               className="text-center"
             >
               <DialogPrimitive.Title className="mb-3 text-2xl font-semibold tracking-tight">
-                {STEPS[step].title}
+                {steps[step].title}
               </DialogPrimitive.Title>
               <div id="intro-body" className="text-base leading-relaxed">
-                {STEPS[step].body}
+                {steps[step].body}
               </div>
             </motion.div>
           </AnimatePresence>
 
           <div className="mt-6 flex justify-center gap-2" aria-hidden="true">
-            {STEPS.map((_, i) => (
+            {steps.map((_, i) => (
               <span key={i} className={`h-2 rounded-full transition-all ${i === step ? 'w-6 bg-white' : 'w-2 bg-white/40'}`} />
             ))}
           </div>
@@ -212,13 +246,19 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
                     Back
                   </button>
                 )}
-                <button
-                  onClick={() => go(step + 1)}
-                  className={`${buttonBase} flex-1 bg-[#0b6bb8] text-white hover:bg-[#095a9c]`}
-                >
-                  Next
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
+                {step === 0 && signedOut ? (
+                  <button onClick={() => go(1)} className={`${buttonBase} flex-1 text-white/90 hover:underline`}>
+                    Not now, show me around
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => go(step + 1)}
+                    className={`${buttonBase} flex-1 bg-[#0b6bb8] text-white hover:bg-[#095a9c]`}
+                  >
+                    Next
+                    <ArrowRight size={18} aria-hidden="true" />
+                  </button>
+                )}
               </div>
             )}
           </div>

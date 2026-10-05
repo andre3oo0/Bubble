@@ -329,7 +329,7 @@ export default function JournalPanel() {
               <p className="mb-1 text-lg font-semibold">Your journal is private</p>
               <p className="mb-5 text-white/80">Sign in so your entries are saved to your account and only you can read them.</p>
               <button
-                onClick={openAccount}
+                onClick={() => openAccount()}
                 className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2"
               >
                 Sign in or create an account

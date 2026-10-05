@@ -17,6 +17,10 @@ if (process.env.NODE_ENV === "production" && !emailConfigured()) {
   console.warn("BREVO_API_KEY (or RESEND_API_KEY) / EMAIL_FROM not set: password reset and verification emails won't be sent");
 }
 
+// Google sign-in is on only when both settings exist, so the button never shows
+// without working credentials behind it
+export const googleSignInEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema: authSchema }),
   secret: process.env.BETTER_AUTH_SECRET,
@@ -39,6 +43,22 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail(verifyEmail(user.email, user.name, url));
     },
+  },
+  socialProviders: googleSignInEnabled
+    ? {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          // Shared phones: let people pick which Google account, every time
+          prompt: "select_account",
+        },
+      }
+    : undefined,
+  account: {
+    // Bubble never calls Google with these, but they're stored, so not in plain text
+    encryptOAuthTokens: true,
+    // An email account is linked to Google only once its address is confirmed
+    // (Better Auth's default), so an unconfirmed sign-up can't be taken over
   },
   user: {
     // Account and everything in it (journal, moods, sessions) is removed via ON DELETE CASCADE

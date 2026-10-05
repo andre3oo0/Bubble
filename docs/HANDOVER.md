@@ -19,7 +19,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Frontend | React 18, Vite, TypeScript, Tailwind, Radix dialog, Zustand, TanStack Query, framer-motion, wouter |
 | Backend | Node (20+, developed on 24), Express 4, one process serving API and frontend |
 | Database | Postgres via Drizzle ORM. Locally and in tests: PGlite (embedded Postgres, nothing to install) |
-| Auth | Better Auth, email and password, sessions in Postgres |
+| Auth | Better Auth: email and password, plus Google when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set. Sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
 | Tests | Vitest (116 tests), in-memory database, AI and email mocked |
@@ -34,10 +34,11 @@ client/src/
                 ("Reflect with Bubble"), MoodPanel, AvatarPanel (= Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
                 SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
-                OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones)
+                OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones),
+                GoogleButton
   store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat,
                 intro (seen once), journalDelete (6-second undo)
-  lib/          api.ts, chatService.ts, online.ts (browser's online flag), authClient.ts, audioHandler.ts (generated ambient sound),
+  lib/          api.ts, chatService.ts, online.ts (browser's online flag), googleSignIn.ts, authClient.ts, audioHandler.ts (generated ambient sound),
                 breathing.ts, motion.ts, moods.ts (labels and muted colours), journalPrompts.ts
 client/public/  manifest, icons, sw.js (service worker) and offline.html (helplines with no connection)
 server/
@@ -81,6 +82,7 @@ npm run try-chat   # four test conversations against the live site; prints Bubbl
 | `GET /api/me/export` | JSON download of everything stored for the user |
 | `/api/auth/*` | Better Auth: sign up/in/out, request-password-reset, reset-password, verify-email, delete-user |
 | `GET /api/health` | Health check |
+| `GET /api/auth-options` | `{google}`: whether to show "Continue with Google" |
 
 ## Decisions worth knowing (and why)
 
@@ -94,6 +96,8 @@ npm run try-chat   # four test conversations against the live site; prints Bubbl
 - **Problems aren't put in Bubble's mouth.** A message that can't be sent is marked "Not sent" with Retry; rate limits and the daily limit are plain notices. The one exception is a crisis message with no connection: it still gets Bubble's crisis reply and the helplines, from the browser.
 - **Bubble says it's an AI**, on the home screen and at the top of every chat, and that it isn't a therapist or a crisis service.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
+- **Sign-in comes first, but is optional.** The first page of the first-visit introduction offers "Continue with Google", "Continue with email" and "Not now, show me around". Neither sign-in route counts as finishing the introduction, so it picks up again afterwards ("Hi Sam, I'm Bubble"). Chat never needs an account.
+- **Google sign-in** (free) is switched on by the two `GOOGLE_*` settings; without them the button doesn't show. It always shows Google's account chooser (shared phones), stores Google's tokens encrypted, and asks only for name and email. An existing email account is linked to Google only once its email is confirmed, so an unconfirmed sign-up can't be taken over; the person is told to use their password instead. Google-only accounts have no password, so "Change password" is hidden and deleting needs a sign-in from the last 24 hours instead. Google sign-in leaves the page, so it's hidden in the chat debrief, where it would lose the reflection. Apple (US$99/year) and phone numbers (paid per SMS) are parked until Bubble is funded.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
 - **Daily AI cap** (150 per user, 40 per guest, 20 per minute; all configurable). Guests are counted by a keyed hash of their IP, never the raw IP. A limit of 0 is valid.
 - **Ambient sound is generated with the Web Audio API**, not audio files: no hosting, licensing or data cost. It only plays when the user presses play.
@@ -146,6 +150,8 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 ## Before launch (owner's tasks)
 
 - [x] Free accounts: Groq, Neon, Brevo, Render, UptimeRobot
+- [x] Google sign-in credentials (Google Cloud, project "Bubble"), in Render and the local `.env`
+- [ ] Try "Continue with Google" on the live site and on the phone
 - [ ] Sign up on the live site, confirm the email arrives, try a password reset
 - [ ] Check Groq's free limits for `openai/gpt-oss-120b` (console.groq.com, Settings → Limits) and lower `CHAT_DAILY_LIMIT_*` if needed
 - [ ] When funded: OpenAI credit, a monthly budget, separate local and production keys
@@ -196,7 +202,6 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 - Mood check-in reminder times are saved but nothing is sent (needs notifications)
 - `ChatInterface` renders a second `BreathingExercise` alongside the one in Home
 - `POST /api/environment/change` is unused
-- Google sign-in needs OAuth credentials
 - Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed
 
 **Later phases (not started):** community, wearables, sleep system, AR, Orrery, Chronicle, smart home, Teams, therapist portal, monetisation, analytics and safety metrics.

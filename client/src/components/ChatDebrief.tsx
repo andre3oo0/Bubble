@@ -257,7 +257,7 @@ export default function ChatDebrief({ open, messages, onClose, onLetGo, onSaved 
                     takes a moment, and your reflection will be waiting here.
                   </p>
                   {helplines}
-                  <button onClick={openAccount} className={primaryButton}>
+                  <button onClick={() => openAccount('register', { allowGoogle: false })} className={primaryButton}>
                     Sign in or create a free account
                   </button>
                   <button
