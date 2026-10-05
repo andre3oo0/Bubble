@@ -22,7 +22,7 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 | Auth | Better Auth, email and password, sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `openai/gpt-oss-120b`, via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (102 tests), in-memory database, AI and email mocked |
+| Tests | Vitest (105 tests), in-memory database, AI and email mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -78,9 +78,10 @@ npm run build && npm start
 ## Decisions worth knowing (and why)
 
 - **Crisis safety never depends on the AI.** A keyword check (`shared/safety.ts`) runs on the server and, if the network fails, in the browser. A crisis message always gets the helplines, even when the AI is down or the user is over the daily limit. The SOS screen opens automatically on the first crisis message of a visit.
+- **Bubble talks like a friend, not an interviewer** (system prompt in `openaiService.ts`). It answers direct questions with an honest view, gives something back each turn, doesn't parrot ("It sounds like…"), asks a question only when it wants to know more, and offers breathing or journaling only when it fits. Two worked examples in the prompt show the difference. Signed-in people's display name is passed in so Bubble can use it occasionally. Reasoning models (gpt-oss) run with `reasoning_effort: low`.
 - **Mood comes from the user's words**, classified by the model in the same call as the reply. Bubble's own replies never change the mood.
 - **The post-chat debrief** ("I'm done for now" in chat, `ChatDebrief.tsx`): Let go clears the chat and the server's context; Reflect asks the AI for a short summary; Save to journal stores that reflection, editable first, and asks signed-out people to make an account. The client sends the transcript it shows (capped server-side at the most recent ~12,000 characters) because the server only keeps 10 turns. Crisis words anywhere in what the person said add the helplines, even when the AI is down or over the limit.
-- **Chat history isn't stored.** Only the last 10 messages are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
+- **Chat history isn't stored.** Only the last 24 messages (at most about 8,000 characters) are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
 - **Daily AI cap** (150 per user, 40 per guest, 20 per minute; all configurable). Guests are counted by a keyed hash of their IP, never the raw IP. A limit of 0 is valid.

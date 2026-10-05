@@ -12,6 +12,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "test": "vitest run",
+    "try-chat": "node scripts/try-chat.mjs",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"
   },

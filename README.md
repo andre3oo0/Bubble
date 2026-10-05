@@ -56,6 +56,7 @@ CI (`.github/workflows/ci.yml`) type-checks, tests and builds every push and pul
 | `npm test` | Run the tests (uses an in-memory database) |
 | `npm run build` | Build the frontend and bundle the server into `dist/` |
 | `npm start` | Run the production build from `dist/` |
+| `npm run try-chat` | Run a few test conversations against the live site (or a URL you pass) and print Bubble's replies |
 | `npm run db:generate` | Create a migration after changing `shared/schema.ts` |
 | `npm run db:studio` | Browse the database at `DATABASE_URL` |
 

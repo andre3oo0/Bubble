@@ -11,7 +11,11 @@ vi.mock("./email", async (importOriginal) => ({
   sendEmail: vi.fn(),
 }));
 
+// The AI is never called for real; the chat test below checks what it's given
+vi.mock("./openaiService", () => ({ generateReply: vi.fn(), generateReflection: vi.fn() }));
+
 const { sendEmail } = await import("./email");
+const { generateReply } = await import("./openaiService");
 const { createApp } = await import("./app");
 const { db, migrateDatabase } = await import("./db");
 const sentEmails = vi.mocked(sendEmail);
@@ -203,6 +207,18 @@ it("answers unknown API routes with JSON 404", async () => {
   const res = await request("POST", "/api/reminders/add");
   expect(res.status).toBe(404);
   expect(await res.json()).toEqual({ error: "Not found" });
+});
+
+describe("chat when signed in", () => {
+  it("tells Bubble the person's name", async () => {
+    vi.mocked(generateReply).mockResolvedValue({ reply: "Hey!", mood: "neutral", risk: "none" });
+    const { cookie } = await signUp();
+
+    const res = await request("POST", "/api/chat", { cookie, body: { message: "hi" } });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(generateReply)).toHaveBeenLastCalledWith("hi", [], { name: "Test User" });
+  });
 });
 
 describe("android asset links", () => {

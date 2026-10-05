@@ -107,10 +107,39 @@ describe("POST /api/chat", () => {
     mockReply.mockResolvedValue({ reply: "second reply", mood: "neutral", risk: "none" });
     await chat({ message: "again", sessionId: first.data.sessionId });
 
-    expect(mockReply).toHaveBeenLastCalledWith("again", [
-      { role: "user", content: "hello" },
-      { role: "assistant", content: "first reply" },
-    ]);
+    expect(mockReply).toHaveBeenLastCalledWith(
+      "again",
+      [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: "first reply" },
+      ],
+      { name: undefined },
+    );
+  });
+
+  it("remembers well beyond the last five exchanges", async () => {
+    mockReply.mockResolvedValue({ reply: "ok", mood: "neutral", risk: "none" });
+    let sessionId: string | undefined;
+    for (let i = 0; i < 9; i++) {
+      sessionId = (await chat({ message: `message ${i}`, sessionId })).data.sessionId;
+    }
+
+    const history = mockReply.mock.calls.at(-1)![1];
+    expect(history).toHaveLength(16);
+    expect(history[0]).toEqual({ role: "user", content: "message 0" });
+  });
+
+  it("keeps the context to a character budget when messages are long", async () => {
+    mockReply.mockResolvedValue({ reply: "ok", mood: "neutral", risk: "none" });
+    let sessionId: string | undefined;
+    for (let i = 0; i < 8; i++) {
+      sessionId = (await chat({ message: `${i} ${"x".repeat(1900)}`, sessionId })).data.sessionId;
+    }
+
+    const history = mockReply.mock.calls.at(-1)![1];
+    const chars = history.reduce((total, turn) => total + turn.content.length, 0);
+    expect(chars).toBeLessThanOrEqual(8000);
+    expect(history.at(-1)!.role).toBe("assistant");
   });
 
   it.each([{}, { message: "   " }, { message: "x".repeat(2001) }, { message: "hi", sessionId: "not-a-uuid" }])(
@@ -241,7 +270,7 @@ describe("POST /api/chat/end", () => {
     expect((await post("/api/chat/end", { sessionId: first.data.sessionId })).status).toBe(204);
 
     await chat({ message: "hello", sessionId: first.data.sessionId });
-    expect(mockReply).toHaveBeenLastCalledWith("hello", []);
+    expect(mockReply).toHaveBeenLastCalledWith("hello", [], { name: undefined });
   });
 
   it("ignores a bad session id", async () => {

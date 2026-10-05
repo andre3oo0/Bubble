@@ -18,8 +18,11 @@ import {
 } from "@shared/chat";
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from "@shared/safety";
 
-// Max conversation turns kept per session (user + assistant messages)
-const MAX_HISTORY_LENGTH = 10;
+// Conversation kept per session for context (user + assistant messages). More turns
+// let Bubble remember what was said earlier; the character budget keeps one long
+// chat from costing too much
+const MAX_HISTORY_LENGTH = 24;
+const MAX_HISTORY_CHARS = 8000;
 
 // Sessions live in memory until the database is wired up; drop idle ones
 const SESSION_TTL_MS = 60 * 60 * 1000;
@@ -110,12 +113,12 @@ const FALLBACK_REFLECTION: Omit<ReflectionResponse, 'helplines'> = {
 // Roughly a few thousand tokens: plenty for a reflection, and keeps the cost down
 const MAX_REFLECTION_CHARS = 12000;
 
-function recentTurns(transcript: ChatTurn[]): ChatTurn[] {
+function recentTurns(transcript: ChatTurn[], maxChars = MAX_REFLECTION_CHARS): ChatTurn[] {
   const kept: ChatTurn[] = [];
   let total = 0;
   for (let i = transcript.length - 1; i >= 0; i--) {
     total += transcript[i].content.length;
-    if (total > MAX_REFLECTION_CHARS && kept.length > 0) break;
+    if (total > maxChars && kept.length > 0) break;
     kept.unshift(transcript[i]);
   }
   return kept;
@@ -185,7 +188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     let ai: AiReply | null = null;
     try {
-      ai = await generateReply(message, [...session.history]);
+      ai = await generateReply(message, recentTurns(session.history, MAX_HISTORY_CHARS), {
+        name: signedIn?.user.name,
+      });
     } catch (error) {
       console.error('Chat AI error:', error instanceof Error ? error.message : error);
     }
