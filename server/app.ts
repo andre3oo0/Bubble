@@ -24,8 +24,9 @@ export async function createApp(): Promise<{ app: express.Express; server: Serve
       helmet({
         contentSecurityPolicy: {
           directives: {
-            // style attributes are set by React/framer; no inline <script> is ever needed
-            "style-src": ["'self'", "'unsafe-inline'"],
+            // style attributes are set by React/framer; no inline <script> is ever needed.
+            // Google Fonts serves the Inter stylesheet (the font files load under font-src https:)
+            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           },
         },
       }),
@@ -55,6 +56,25 @@ export async function createApp(): Promise<{ app: express.Express; server: Serve
       }
     });
     next();
+  });
+
+  // Proves to Android that the APK and this site belong together, so the app opens
+  // full screen with no browser bar. Values come from the APK's signing key.
+  app.get("/.well-known/assetlinks.json", (_req, res) => {
+    const packageName = process.env.ANDROID_PACKAGE_NAME;
+    const fingerprints = (process.env.ANDROID_CERT_SHA256 ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (!packageName || fingerprints.length === 0) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    res.json([
+      {
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: { namespace: "android_app", package_name: packageName, sha256_cert_fingerprints: fingerprints },
+      },
+    ]);
   });
 
   const server = await registerRoutes(app);

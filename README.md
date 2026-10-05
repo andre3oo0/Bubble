@@ -43,7 +43,7 @@ Set these in the host's environment settings (never in the repo):
 | `OPENAI_BASE_URL`, `OPENAI_MODEL` | Only when using Groq (or another OpenAI-compatible provider), as in the setup above |
 | `BREVO_API_KEY`, `EMAIL_FROM` | Password reset and email confirmation. `EMAIL_FROM` must be a sender verified in Brevo. `RESEND_API_KEY` works instead, but Resend needs a domain |
 
-Optional ones (chat limits, model, proxy) are described in `.env.example`. Migrations run automatically on startup, and `/api/health` is the health check.
+Optional ones (chat limits, model, proxy, Android app) are described in `.env.example`. Migrations run automatically on startup, and `/api/health` is the health check.
 
 CI (`.github/workflows/ci.yml`) type-checks, tests and builds every push and pull request. It needs no secrets.
 

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#174f86" />
+    <title>Bubble - You're offline</title>
+    <!-- Shown by sw.js when there's no connection. Keep the numbers in step with
+         HELPLINES in shared/safety.ts (offline.test.ts checks). No scripts: it
+         has to work with nothing else loaded. -->
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: #fff;
+        background: linear-gradient(#174f86, #0b3d66);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+      }
+      main { width: 100%; max-width: 420px; }
+      .mark { display: block; margin: 0 auto 16px; }
+      h1 { font-size: 1.6rem; margin: 0 0 8px; text-align: center; }
+      p { line-height: 1.5; margin: 0 0 16px; }
+      .lead { text-align: center; }
+      a.line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 64px;
+        margin-bottom: 12px;
+        padding: 12px 16px;
+        border-radius: 16px;
+        background: #fff;
+        color: #0b3d66;
+        text-decoration: none;
+      }
+      .name { font-weight: 600; }
+      .hours { font-size: 0.85rem; color: #3b4a5c; }
+      .phone { font-size: 1.15rem; font-weight: 700; white-space: nowrap; }
+      .danger { background: #fde8e8; color: #7a1b1b; border-radius: 16px; padding: 12px 16px; font-weight: 500; }
+      a.retry {
+        display: block;
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 999px;
+        border: 1px solid rgb(255 255 255 / 0.5);
+        color: #fff;
+        text-align: center;
+        font-weight: 600;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg class="mark" width="56" height="56" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="14.5" fill="#c9ecff" fill-opacity="0.8" stroke="#fff" stroke-opacity="0.85" stroke-width="1.5" />
+        <ellipse cx="11" cy="10.5" rx="4.2" ry="2.6" transform="rotate(-35 11 10.5)" fill="#fff" opacity="0.9" />
+      </svg>
+      <h1>You're offline</h1>
+      <p class="lead">Bubble needs a connection to chat. If you need someone to talk to right now, these lines are open 24 hours:</p>
+
+      <a class="line" href="tel:0800567567">
+        <span><span class="name">SADAG Suicide Crisis Line</span><br /><span class="hours">24 hours, free</span></span>
+        <span class="phone">0800 567 567</span>
+      </a>
+      <a class="line" href="tel:0861322322">
+        <span><span class="name">Lifeline South Africa</span><br /><span class="hours">24 hours</span></span>
+        <span class="phone">0861 322 322</span>
+      </a>
+      <a class="line" href="tel:112">
+        <span><span class="name">Emergency (from any mobile)</span><br /><span class="hours">24 hours</span></span>
+        <span class="phone">112</span>
+      </a>
+
+      <p class="danger">If you're in immediate danger, call 112 or go to your nearest hospital emergency unit.</p>
+
+      <a class="retry" href="/">Try again</a>
+    </main>
+  </body>
+</html>

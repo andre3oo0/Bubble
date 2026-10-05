@@ -205,6 +205,28 @@ it("answers unknown API routes with JSON 404", async () => {
   expect(await res.json()).toEqual({ error: "Not found" });
 });
 
+describe("android asset links", () => {
+  it("is missing until the APK's details are set", async () => {
+    vi.stubEnv("ANDROID_PACKAGE_NAME", "");
+    expect((await request("GET", "/.well-known/assetlinks.json")).status).toBe(404);
+    vi.unstubAllEnvs();
+  });
+
+  it("lists the package and every fingerprint", async () => {
+    vi.stubEnv("ANDROID_PACKAGE_NAME", "app.bubble.test");
+    vi.stubEnv("ANDROID_CERT_SHA256", "AA:BB, CC:DD");
+    const res = await request("GET", "/.well-known/assetlinks.json");
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([
+      {
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: { namespace: "android_app", package_name: "app.bubble.test", sha256_cert_fingerprints: ["AA:BB", "CC:DD"] },
+      },
+    ]);
+  });
+});
+
 function linkIn(text: string) {
   return text.match(/https?:\/\/\S+/)![0];
 }

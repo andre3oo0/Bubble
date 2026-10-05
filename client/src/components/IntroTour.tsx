@@ -64,7 +64,7 @@ const STEPS: Step[] = [
             <LifeBuoy size={16} aria-hidden="true" />
             SOS
           </span>
-          <span>Tap this at the top of any screen for free 24-hour South African helplines.</span>
+          <span>Tap this at the top of any screen for South African helplines, open 24 hours.</span>
         </div>
       </>
     ),

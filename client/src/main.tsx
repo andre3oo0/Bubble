@@ -11,3 +11,13 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </QueryClientProvider>
 );
+
+// Installable app + offline helplines page (public/sw.js). Production only, so the
+// dev server never sits behind a worker.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Not fatal: the app works the same without it, just no offline page
+    });
+  });
+}
