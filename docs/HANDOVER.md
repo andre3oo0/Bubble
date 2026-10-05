@@ -30,24 +30,28 @@ An emotional-support web app: an AI chat companion ("Bubble") with crisis safety
 ```
 client/src/
   pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
-  components/   ChatPanel, JournalPanel, MoodPanel, AvatarPanel (= Settings tab), SosScreen,
+  components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
+                ("Reflect with Bubble"), MoodPanel, AvatarPanel (= Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
                 SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough)
-  store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat
+  store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat,
+                intro (seen once), journalDelete (6-second undo)
   lib/          api.ts, chatService.ts, authClient.ts, audioHandler.ts (generated ambient sound),
-                breathing.ts, motion.ts
+                breathing.ts, motion.ts, moods.ts (labels and muted colours), journalPrompts.ts
+client/public/  manifest, icons, sw.js (service worker) and offline.html (helplines with no connection)
 server/
   index.ts      startup: migrations, app, Vite (dev) or static files (prod), graceful shutdown
   app.ts        Express app: proxy trust, helmet, auth handler, logging, routes, JSON 404
   routes.ts     /api/chat (+ fallback replies, usage cap), scenes, affirmation
   dataRoutes.ts journal, moods, data export (all need a session)
   auth.ts       Better Auth config, requireUser middleware
-  openaiService.ts  the AI call: one structured reply {reply, user_mood, risk}
+  openaiService.ts  the AI calls: chat reply {reply, user_mood, risk}, chat reflection, entry reflection
   usage.ts      daily chat counter, email.ts transactional email, db.ts database
 shared/
   schema.ts     Drizzle tables (server only), api.ts / chat.ts request + response types,
   safety.ts     crisis keyword check, helplines, crisis reply (used by client AND server)
 migrations/     generated SQL, applied automatically on startup
+scripts/        try-chat.mjs: scripted conversations against a server, to judge how Bubble talks
 ```
 
 ## Running it
@@ -58,6 +62,7 @@ npm run dev        # http://localhost:5000, needs OPENAI_API_KEY in .env
 npm test
 npm run check      # type-check
 npm run build && npm start
+npm run try-chat   # four test conversations against the live site; prints Bubble's replies
 ```
 
 `.env.example` documents every setting. The owner's local `.env` has a Groq key and its own `BETTER_AUTH_SECRET`. Without a key the app still runs and chat uses canned fallback replies.
@@ -81,10 +86,12 @@ npm run build && npm start
 - **Crisis safety never depends on the AI.** A keyword check (`shared/safety.ts`) runs on the server and, if the network fails, in the browser. A crisis message always gets the helplines, even when the AI is down or the user is over the daily limit. The SOS screen opens automatically on the first crisis message of a visit.
 - **Bubble talks like a friend, not an interviewer** (system prompt in `openaiService.ts`). It answers direct questions with an honest view, gives something back each turn, doesn't parrot ("It sounds like…"), asks a question only when it wants to know more, and offers breathing or journaling only when it fits. Two worked examples in the prompt show the difference. Signed-in people's display name is passed in so Bubble can use it occasionally. Reasoning models (gpt-oss) run with `reasoning_effort: medium`; on low they followed the style rules noticeably worse.
 - **Mood comes from the user's words**, classified by the model in the same call as the reply. Bubble's own replies never change the mood.
-- **The post-chat debrief** ("I'm done for now" in chat, `ChatDebrief.tsx`): Let go clears the chat and the server's context; Reflect asks the AI for a short summary; Save to journal stores that reflection, editable first, and asks signed-out people to make an account. The client sends the transcript it shows (capped server-side at the most recent ~12,000 characters) because the server only keeps 10 turns. Crisis words anywhere in what the person said add the helplines, even when the AI is down or over the limit.
+- **The post-chat debrief** ("I'm done for now" in chat, `ChatDebrief.tsx`): Let go clears the chat and the server's context; Reflect asks the AI for a short summary; Save to journal stores that reflection, editable first, and asks signed-out people to make an account. The client sends the transcript it shows (capped server-side at the most recent ~12,000 characters) because the server only keeps the last 24 messages, and nothing after an hour or a restart. Crisis words anywhere in what the person said add the helplines, even when the AI is down or over the limit.
 - **Journal deletes wait 6 seconds** (`journalDeleteStore.ts`): the entry is hidden at once and only deleted on the server when the undo window ends. Closing the app inside that window keeps the entry, which is the safe way round.
 - **Journal prompts and reflections.** A new entry offers a hand-written prompt (`journalPrompts.ts`, no AI). "Reflect with Bubble" on a saved entry sends that entry to the AI only when tapped and keeps the reply only if the person adds it to the entry. Crisis words in the entry add the helplines.
 - **Chat history isn't stored.** Only the last 24 messages (at most about 8,000 characters) are kept in server memory per conversation for context, cleared after an hour idle. Logs never contain chat or journal content.
+- **Problems aren't put in Bubble's mouth.** A message that can't be sent is marked "Not sent" with Retry; rate limits and the daily limit are plain notices. The one exception is a crisis message with no connection: it still gets Bubble's crisis reply and the helplines, from the browser.
+- **Bubble says it's an AI**, on the home screen and at the top of every chat, and that it isn't a therapist or a crisis service.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
 - **Daily AI cap** (150 per user, 40 per guest, 20 per minute; all configurable). Guests are counted by a keyed hash of their IP, never the raw IP. A limit of 0 is valid.
@@ -112,17 +119,23 @@ npm run build && npm start
 - Old saved scene `"cafe"` is mapped back to ocean (`isSceneId` in `scenes.ts`).
 - **Startup waits for the database**, with a 15s connect timeout and 4 tries, then exits with the reason (`index.ts`). A deploy that fails with "no open ports" after 15 minutes means something hung before `listen`; the `[startup]` log lines show where.
 - **Local dev won't start after a killed server** if `.data/pglite/postmaster.pid` is left behind (startup hangs with no output). With no `node` process running, delete that file.
+- **The owner's work network (Curro) blocks `api.groq.com`.** On that network local chat always uses the fallback replies. Judge how Bubble talks with `npm run try-chat` against the live site after a deploy.
+- **Server changes need a dev restart:** `npm run dev` (tsx) doesn't reload server files, only the client.
 - **Screenshots with the preview pane hidden:** framer-motion fades freeze part-way, so text looks faded. That's the capture, not the page.
 
 ## Workflow
 
 - One branch per piece of work, merged to `main` with fast-forward only, then pushed.
 - Commit messages: short, lowercase, imperative, no lists or emoji.
-- `main` history so far: startup fixes → chat logic → SOS → database + login → phone layout → polish.
+- Changes to Bubble's prompt are checked after deploy with `npm run try-chat`, comparing against the previous run.
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 October 2026: health check, a normal chat reply from Groq (mood detected) and a crisis message (crisis risk, 3 helplines). Brevo email, the redrawn scenes and the startup fix were live by 10:36 the same day. The first-visit introduction is on branch `feat/intro`. A custom domain (`bubblementalhealth.com`) was started in Render but isn't registered yet.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. As of 5 October 2026 the live app has: the drawn scenes, the first-visit introduction, the post-chat debrief, journal prompts and "Reflect with Bubble", journal delete with undo and search, chat errors as notices with Retry, and the "Bubble is an AI" notice.
+
+- **Android:** the APK (PWABuilder, package `com.onrender.bubble_1_kafq.twa`) is in the owner's Downloads with its signing key. The site has served its `assetlinks.json` since 14:22 on 5 October, so after a reinstall the app should open without a browser bar. On the phone it still showed the bar (5 October). Checked and correct: Google's Digital Asset Links API reads the site's statement, the APK's v2/v3 signing certificate matches the fingerprint, and the APK's package and start URL match. What's left is on the phone: uninstall before reinstalling (installing over the old app keeps its failed check), open, close and reopen, Chrome as the default browser and up to date, then a restart. The owner will look at it later.
+- **AI:** Groq `openai/gpt-oss-120b`, reasoning `medium`. After three prompt rounds it no longer parrots as much, answers direct questions and waits before giving advice, but it still slips into stock phrases ("That must sting", "I hear you") and ends too many replies with a question. Next step is trying another Groq model with structured outputs (a settings change), or a server-side rewrite pass.
+- **Domain:** `bubblementalhealth.com` was started in Render but isn't registered, so it doesn't work. Moving to a domain later means rebuilding the APK.
 
 ## Before launch (owner's tasks)
 
@@ -132,12 +145,15 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack. Checked on 5 Oct
 - [ ] When funded: OpenAI credit, a monthly budget, separate local and production keys
 - [ ] Check SADAG and Lifeline numbers in `shared/safety.ts` against their sites
 - [ ] Immanah's OK to launch, including the deeper colours
-- [ ] Privacy notice (POPIA: health-related data, stored in Frankfurt, chat sent to Groq)
+- [ ] Privacy notice (POPIA: health-related data, stored in Frankfurt, chat sent to Groq). Needed before optional past chats ships
 - [ ] On a real phone: breathing circle with calm visuals on
+- [ ] Reinstall the APK and confirm it opens without a browser bar
+- [ ] Try "Reflect with Bubble" on a real entry (needs a signed-in account on the live site)
+- [ ] Look at Groq's model list for another free model with structured outputs, to try for chat
 
 ## UI/UX redesign plan
 
-From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The direction: flat white and pale-blue surfaces with navy text, one orange accent for focus, Montserrat headings, Nunito Sans body, 4 px corners on controls, hairline-divided lists, no blur, glow or decorative motion. Bubble keeps its own name; no Curro logo or name appears.
+From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, kept outside the repo): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The handoff is styled on Curro's design system; the owner chose to keep its flat approach (hairline-divided lists, small corners on controls, no blur, glow or decorative motion) but in Bubble's own colours and fonts, never Curro's.
 
 **Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), and an optional journal title plus search (11).
 
@@ -158,12 +174,12 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 **Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
 1. Dynamic Ambiance Engine: mood drives the background colours and motion
 2. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
-3. Add anger and overwhelm as moods
+3. Add anger and overwhelm as moods (fits the planned feeling tags)
 4. Mirror Moment: grounding overlay on the model's "concern" risk level
 5. Streaming replies
 6. A rain sound
 7. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
-8. Mood trend chart
+8. Mood trend chart (covered by the 14-day view in the planned five-step mood scale)
 
 **From testing the APK (owner, 5 October):**
 - Sign-up was hard to find: now a labelled "Sign in" button in the header and sidebar, plus "Create a free account" on the home screen. Worth asking testers whether it's clear enough now
