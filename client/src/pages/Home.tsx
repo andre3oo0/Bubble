@@ -219,7 +219,7 @@ export default function Home() {
           <LifeBuoy size={18} aria-hidden="true" />
           Get help
         </button>
-        <PhoneMenu onOpenPanel={setActivePanel} />
+        <PhoneMenu onOpenPanel={setActivePanel} scene={selectedEnvironment} onSceneChange={setSelectedEnvironment} />
       </header>
 
       {/* Desktop sidebar: labelled links, help that's always there, and the account */}
