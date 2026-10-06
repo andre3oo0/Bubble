@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, ArrowLeft, Wind, LifeBuoy, LogIn, UserRound } from 'lucide-react';
+import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, Wind, LifeBuoy, LogIn, UserRound } from 'lucide-react';
 import BubbleAvatar from '@/components/BubbleAvatar';
 import BubbleLogo from '@/components/BubbleLogo';
 import SceneBackdrop from '@/components/SceneBackdrop';
@@ -16,7 +16,6 @@ import IntroTour from '@/components/IntroTour';
 import OfflineBanner from '@/components/OfflineBanner';
 import PhoneMenu from '@/components/PhoneMenu';
 import { isSceneId, type SceneId } from '@/components/scenes';
-import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
 import { cn } from '@/lib/utils';
 import { clearGoogleReturn, googleSignInProblem } from '@/lib/googleSignIn';
@@ -27,7 +26,7 @@ import { useIntroStore } from '@/store/introStore';
 
 type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'feedback' | 'welcome' | 'home';
 
-// The desktop sidebar shows them all; phones show the first four as tabs and keep
+// The desktop sidebar lists them all; phones show the first four as tabs and keep
 // Settings and Feedback in the header menu, so the tab bar stays calm
 const PHONE_TABS = 4;
 const NAV_ITEMS: { panel: ActivePanel; label: string; icon: typeof HomeIcon }[] = [
@@ -39,19 +38,8 @@ const NAV_ITEMS: { panel: ActivePanel; label: string; icon: typeof HomeIcon }[] 
   { panel: 'feedback', label: 'Feedback', icon: Heart },
 ];
 
-const MOOD_LINES: Record<Mood, string> = {
-  happy: "I'm feeling cheerful!",
-  calm: "I'm feeling peaceful",
-  sad: "I'm here for you",
-  anxious: "Let's breathe slowly",
-  stressed: 'One step at a time',
-  neutral: 'How are you feeling?',
-  improved: 'Things look brighter',
-};
-
 export default function Home() {
   const [activePanel, setActivePanel] = useState<ActivePanel>('welcome');
-  const [isTyping, setIsTyping] = useState(false);
   const { currentMood, setCurrentMood } = useMoodStore();
   const [selectedEnvironment, setSelectedEnvironment] = useState<SceneId>('ocean');
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
@@ -100,7 +88,7 @@ export default function Home() {
   const getPanelComponent = () => {
     switch(activePanel) {
       case 'chat':
-        return <ChatInterface setIsTyping={setIsTyping} />;
+        return <ChatInterface />;
       case 'avatar':
         return <AvatarPanel
                 setCurrentMood={setCurrentMood}
@@ -127,7 +115,8 @@ export default function Home() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="mb-6 md:hidden" aria-hidden="true">
+            {/* Bubble's face, kept still so it's calm to look at */}
+            <div className="mb-6" aria-hidden="true">
               <BubbleAvatar size="md" animate={false} isTyping={false} mood={currentMood} />
             </div>
             <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">Hey there! I'm Bubble</h1>
@@ -173,27 +162,23 @@ export default function Home() {
     }
   };
 
-  const moodLine = isTyping ? 'Bubble is typing...' : MOOD_LINES[currentMood];
   const isActive = (panel: ActivePanel) =>
     panel === 'home' ? activePanel === 'home' || activePanel === 'welcome' : activePanel === panel;
 
-  // Desktop sidebar: signed out it says "Sign in" in words, so it can't be missed;
-  // signed in it's the account icon. Phones have this in the header menu.
+  // Bottom of the desktop sidebar. Phones have this in the header menu.
+  const sidebarRow =
+    'flex h-11 w-full items-center gap-3 rounded-[8px] px-3 text-left text-[15px] font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60';
   const accountButton = session ? (
-    <button
-      onClick={() => openAccount()}
-      aria-label={`Your account (${session.user.name})`}
-      title="Your account"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-    >
-      <UserRound size={20} aria-hidden="true" />
+    <button onClick={() => openAccount()} className={cn(sidebarRow, 'h-auto py-2 text-white hover:bg-white/10')}>
+      <UserRound size={20} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0">
+        <span className="block truncate">{session.user.name}</span>
+        <span className="block truncate text-xs font-normal text-white/75">{session.user.email}</span>
+      </span>
     </button>
   ) : (
-    <button
-      onClick={() => openAccount()}
-      className="flex h-auto w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-[11px] font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-    >
-      <LogIn size={18} aria-hidden="true" />
+    <button onClick={() => openAccount()} className={cn(sidebarRow, 'text-white hover:bg-white/10')}>
+      <LogIn size={20} className="shrink-0" aria-hidden="true" />
       Sign in
     </button>
   );
@@ -204,16 +189,6 @@ export default function Home() {
       className="relative flex flex-col md:flex-row h-screen overflow-hidden bg-[#0b2a4a]"
       style={{ height: '100dvh' }}
     >
-      {/* Always reachable in one tap, on every panel (phones get it in the header) */}
-      <button
-        onClick={openSos}
-        aria-haspopup="dialog"
-        className={cn(helpButtonClass, 'fixed right-4 top-4 z-40 hidden md:inline-flex')}
-      >
-        <LifeBuoy size={18} aria-hidden="true" />
-        Get help now
-      </button>
-
       <AuthenticationModal />
 
       <IntroTour onStartChat={() => setActivePanel('chat')} />
@@ -231,22 +206,6 @@ export default function Home() {
         onClose={() => setShowBreathingExercise(false)}
       />
 
-      {/* Floating breathing button, desktop only. Phones reach breathing from Home, Chat
-          and the help screen, so nothing floats over their content */}
-      <motion.button
-        className="fixed bottom-8 right-8 z-30 hidden rounded-full bg-[#0b6bb8] p-3 text-white shadow-lg md:block"
-        onClick={() => setShowBreathingExercise(true)}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        title="Breathing Exercise"
-        aria-label="Breathing exercise"
-      >
-        <Wind size={24} aria-hidden="true" />
-      </motion.button>
-
       {/* Phone header: just the name, help and the menu */}
       <header className="md:hidden z-10 flex items-center gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),0.75rem)]">
         <div className="min-w-0 flex-1">
@@ -263,74 +222,56 @@ export default function Home() {
         <PhoneMenu onOpenPanel={setActivePanel} />
       </header>
 
-      {/* Desktop sidebar with persistent navigation */}
+      {/* Desktop sidebar: labelled links, help that's always there, and the account */}
       <nav
         aria-label="Main"
-        className="hidden md:flex w-16 min-w-[4rem] h-full surface-bar flex-col items-center py-6 border-r border-white/10 z-10"
+        className="z-10 hidden h-full w-60 shrink-0 flex-col border-r border-white/10 px-3 py-5 surface-bar md:flex"
       >
-        <div className="mb-10">
-          <BubbleLogo size={34} />
-        </div>
-
-        {/* Navigation icons */}
-        <div className="flex-1 flex flex-col items-center gap-8">
-          {NAV_ITEMS.map(({ panel, label, icon: Icon }) => (
-            <NavIcon
-              key={panel}
-              icon={<Icon />}
-              label={label}
-              isActive={isActive(panel)}
-              onClick={() => setActivePanel(panel)}
-            />
-          ))}
-        </div>
-
-        {/* Account: initial when signed in, sign-in icon when not */}
-        <div className="mt-4">{accountButton}</div>
-      </nav>
-
-      {/* Avatar area (desktop) */}
-      <div className="hidden md:flex w-1/4 h-full flex-col items-center pt-8 pb-4 z-10">
-        <div className="mb-8">
+        <div className="mb-6 px-3">
           <BubbleLogo size={30} withName />
         </div>
 
-        {/* Bubble avatar */}
-        <div className="flex-1 flex items-center justify-center mb-4">
-          <BubbleAvatar
-            size="lg"
-            animate={true}
-            isTyping={isTyping}
-            mood={currentMood}
-          />
-        </div>
+        <ul className="flex flex-col gap-1">
+          {NAV_ITEMS.map(({ panel, label, icon: Icon }) => (
+            <li key={panel}>
+              <button
+                onClick={() => setActivePanel(panel)}
+                aria-current={isActive(panel) ? 'page' : undefined}
+                className={cn(
+                  sidebarRow,
+                  isActive(panel) ? 'bg-white/15 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white',
+                )}
+              >
+                <Icon size={20} className="shrink-0" aria-hidden="true" />
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
 
-        {/* Mood indicator text */}
-        <div className="text-white/90 text-sm mb-8">{moodLine}</div>
-      </div>
+        <button
+          onClick={openSos}
+          aria-haspopup="dialog"
+          className={cn(helpButtonClass, 'mt-6 h-11 w-full justify-center text-[15px]')}
+        >
+          <LifeBuoy size={18} aria-hidden="true" />
+          Get help now
+        </button>
 
-      {/* Main content area: full width on phones */}
-      <main className="z-10 flex min-h-0 flex-1 flex-col md:h-full md:w-2/4 md:flex-none">
-        {/* Content header with back button (phones use the tab bar instead) */}
-        <div className="hidden md:flex h-16 px-6 items-center">
-          {activePanel !== 'home' && activePanel !== 'welcome' && (
-            <button
-              onClick={() => setActivePanel('home')}
-              className="flex items-center text-white hover:text-sky-100 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              <span>Back to home</span>
-            </button>
-          )}
-        </div>
+        <div className="mt-auto border-t border-white/10 pt-3">{accountButton}</div>
+      </nav>
 
-        <div className="px-4 md:px-6">
-          <OfflineBanner />
-        </div>
+      {/* Main content: full width on phones, centred and capped on desktop so lines
+          stay readable */}
+      <main className="z-10 flex min-h-0 flex-1 flex-col md:h-full">
+        <div className="mx-auto flex min-h-0 w-full max-w-[720px] flex-1 flex-col md:pt-8">
+          <div className="px-4 md:px-6">
+            <OfflineBanner />
+          </div>
 
-        {/* Main content with scrolling */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 md:px-6 md:pb-6">
-          {getPanelComponent()}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 md:px-6 md:pb-6">
+            {getPanelComponent()}
+          </div>
         </div>
       </main>
 
@@ -361,32 +302,5 @@ export default function Home() {
         <SceneBackdrop scene={selectedEnvironment} />
       </div>
     </div>
-  );
-}
-
-interface NavIconProps {
-  icon: React.ReactNode;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-function NavIcon({ icon, label, isActive, onClick }: NavIconProps) {
-  return (
-    <motion.button
-      onClick={onClick}
-      className={`w-10 h-10 rounded-full flex items-center justify-center text-center transition-all ${
-        isActive
-          ? 'bg-white/20 text-white ring-1 ring-white/40'
-          : 'text-white/80 hover:bg-white/10 hover:text-white'
-      }`}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
-      title={label}
-      aria-label={label}
-      aria-current={isActive ? 'page' : undefined}
-    >
-      {icon}
-    </motion.button>
   );
 }

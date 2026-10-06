@@ -2,23 +2,18 @@ import { useState } from 'react';
 import ChatPanel from './ChatPanel';
 import BreathingExercise from './BreathingExercise';
 
-interface ChatInterfaceProps {
-  setIsTyping: (isTyping: boolean) => void;
-}
-
-export default function ChatInterface({ setIsTyping }: ChatInterfaceProps) {
+export default function ChatInterface() {
   const [showBreathingExercise, setShowBreathingExercise] = useState(false);
-  
+
   return (
     <div className="h-full">
-      <ChatPanel 
-        setIsTyping={setIsTyping} 
+      <ChatPanel
         showBreathingExercise={showBreathingExercise}
         setShowBreathingExercise={setShowBreathingExercise}
       />
-      <BreathingExercise 
-        isOpen={showBreathingExercise} 
-        onClose={() => setShowBreathingExercise(false)} 
+      <BreathingExercise
+        isOpen={showBreathingExercise}
+        onClose={() => setShowBreathingExercise(false)}
       />
     </div>
   );

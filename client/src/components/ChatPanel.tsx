@@ -12,7 +12,6 @@ import ChatDebrief from './ChatDebrief';
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
 
 interface ChatPanelProps {
-  setIsTyping: (typing: boolean) => void;
   showBreathingExercise: boolean;
   setShowBreathingExercise: (show: boolean) => void;
 }
@@ -46,7 +45,6 @@ function openSosForCrisis() {
 }
 
 export default function ChatPanel({
-  setIsTyping,
   showBreathingExercise,
   setShowBreathingExercise
 }: ChatPanelProps) {
@@ -154,7 +152,6 @@ export default function ChatPanel({
       addMessage({ id, content: text, sender: 'user', timestamp: new Date() });
     }
     setIsSending(true);
-    setIsTyping(true);
 
     try {
       const response = await sendChatMessage(text);
@@ -203,7 +200,6 @@ export default function ChatPanel({
       }
     } finally {
       setIsSending(false);
-      setIsTyping(false);
     }
   };
 
@@ -293,8 +289,8 @@ export default function ChatPanel({
       {/* Chat messages area */}
       <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
         <p className="mb-4 border-b border-white/15 pb-3 text-center text-xs text-white/85">
-          Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please tap Get help at the top to
-          reach someone right away.
+          Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please tap Get help to reach someone
+          right away.
         </p>
         {messages.length === 0 && (
           <div className="flex min-h-[70%] flex-col items-center justify-center px-2 text-center text-white">
