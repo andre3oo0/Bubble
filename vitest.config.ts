@@ -27,6 +27,8 @@ export default defineConfig({
       CHAT_DAILY_LIMIT_GUEST: "1000",
       CHAT_DAILY_LIMIT_USER: "1000",
       CHAT_PER_MINUTE_LIMIT: "1000",
+      AI_DAILY_LIMIT: "100000",
+      EMAIL_DAILY_LIMIT: "100000",
     },
   },
 });

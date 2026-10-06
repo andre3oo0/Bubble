@@ -2,7 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { Server } from "http";
 import { toNodeHandler } from "better-auth/node";
 import helmet from "helmet";
-import { auth, CLIENT_IP_HEADER } from "./auth";
+import { auth, AUTH_BASE_URL, CLIENT_IP_HEADER } from "./auth";
 import { registerRoutes } from "./routes";
 import { log } from "./log";
 
@@ -31,13 +31,27 @@ export async function createApp(): Promise<{ app: express.Express; server: Serve
         contentSecurityPolicy: {
           directives: {
             // style attributes are set by React/framer; no inline <script> is ever needed.
-            // Google Fonts serves the Inter stylesheet (the font files load under font-src https:)
-            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            // The font is served from here, so no third party sees visitors' IPs
+            "style-src": ["'self'", "'unsafe-inline'"],
+            "font-src": ["'self'"],
           },
         },
       }),
     );
   }
+
+  // Bubble never needs these, so nothing embedded or injected can ask for them
+  app.use((_req, res, next) => {
+    res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+    next();
+  });
+
+  // Personal data (journal, moods, the export) must not be kept in the browser's
+  // disk cache, where the next person on a shared device could find it
+  app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
 
   // Hand Better Auth the IP Express resolved. Always overwritten, so a client can't
   // set this header itself to dodge login rate limits.
@@ -50,7 +64,18 @@ export async function createApp(): Promise<{ app: express.Express; server: Serve
   app.all("/api/auth/*", toNodeHandler(auth));
 
   app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+
+  // Better Auth checks the Origin on its own routes; do the same for ours, so another
+  // site can't make a signed-in browser write journal entries or moods. Requests
+  // without an Origin (scripts, same-origin GETs) are left alone.
+  const appOrigin = new URL(AUTH_BASE_URL).origin;
+  app.use("/api", (req, res, next) => {
+    const origin = req.headers.origin;
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS" || !origin || origin === appOrigin) {
+      return next();
+    }
+    res.status(403).json({ error: "Forbidden" });
+  });
 
   // Method, path, status and timing only. Bodies are never logged: they hold
   // journal entries and chat messages.
@@ -92,11 +117,15 @@ export async function createApp(): Promise<{ app: express.Express; server: Serve
     res.status(404).json({ error: "Not found" });
   });
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    console.error(err);
+    // Only the kind of error, never the error itself: a failed query's message lists
+    // its parameters and a JSON parse error carries the body, both of which can be
+    // someone's journal entry
+    const code = err.cause?.code ?? err.code;
+    console.error(`${req.method} ${req.path} ${status} ${err.type ?? err.name ?? "Error"}${code ? ` (${code})` : ""}`);
     if (!res.headersSent) {
-      res.status(status).json({ error: status === 500 ? "Something went wrong" : err.message });
+      res.status(status).json({ error: status >= 500 ? "Something went wrong" : "Invalid request" });
     }
   });
 

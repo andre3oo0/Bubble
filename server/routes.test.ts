@@ -190,6 +190,22 @@ describe("daily chat limit", () => {
     expect(data.helplines).toEqual(HELPLINES);
     expect(mockReply).not.toHaveBeenCalled();
   });
+
+  it("stops for everyone once the whole app's daily AI budget is used", async () => {
+    process.env.CHAT_DAILY_LIMIT_GUEST = original;
+    vi.stubEnv("AI_DAILY_LIMIT", "0");
+    mockReply.mockResolvedValue({ reply: "should not be used", mood: "neutral", risk: "none" });
+
+    const { data } = await chat({ message: "hello" });
+    const crisis = await chat({ message: "I want to end it all" });
+    vi.unstubAllEnvs();
+
+    expect(data.limited).toBe(true);
+    expect(data.reply).toMatch(/so many conversations today/);
+    expect(data.reply).not.toMatch(/free account/);
+    expect(crisis.data.helplines).toEqual(HELPLINES);
+    expect(mockReply).not.toHaveBeenCalled();
+  });
 });
 
 async function post(path: string, body: unknown) {
@@ -297,6 +313,12 @@ describe("usageKey", () => {
     expect(key).not.toContain("203.0.113.7");
     expect(usageKey(undefined, "203.0.113.7").key).toBe(key);
     expect(usageKey(undefined, "203.0.113.8").key).not.toBe(key);
+  });
+
+  it("counts an IPv6 network as one guest, so changing the address doesn't reset the limit", () => {
+    const { key } = usageKey(undefined, "2001:db8:abcd:1200::1");
+    expect(usageKey(undefined, "2001:db8:abcd:12ff:ffff:1:2:3").key).toBe(key);
+    expect(usageKey(undefined, "2001:db8:abcd:1300::1").key).not.toBe(key);
   });
 });
 

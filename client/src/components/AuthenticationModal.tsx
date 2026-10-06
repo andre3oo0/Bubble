@@ -15,6 +15,8 @@ import {
 } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
 import { useToast } from '@/hooks/use-toast';
+import { forgetDevice } from '@/lib/forgetDevice';
+import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '@shared/account';
 import GoogleButton, { useGoogleSignIn } from './GoogleButton';
 
 const inputClass =
@@ -23,9 +25,6 @@ const primaryButtonClass =
   'flex w-full items-center justify-center gap-2 rounded-xl bg-[#0b5394] py-3 font-medium text-white hover:bg-[#09457c] focus:outline-none focus:ring-4 focus:ring-[#0b5394]/40 disabled:opacity-70';
 const secondaryButtonClass =
   'flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-medium text-gray-800 hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-300 disabled:opacity-70';
-
-// Device-only data removed when the account is deleted (display preferences are kept)
-const PERSONAL_STORAGE_KEYS = ['bubble-mood', 'activePanel', 'checkInTimes', 'journalEntries', 'moodHistory'];
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -108,14 +107,25 @@ export default function AuthenticationModal() {
       return;
     }
 
-    const { error } =
-      mode === 'login'
-        ? await signIn.email({ email, password })
-        : await signUp.email({ name, email, password, callbackURL: '/' });
+    if (mode === 'register') {
+      // Sign-up answers the same whether or not the email already has an account (so it
+      // can't be used to check who uses Bubble), then we sign in with the new password
+      const { error } = await signUp.email({ name, email, password, callbackURL: '/' });
+      if (error) {
+        setIsLoading(false);
+        setErrorMessage(error.message || 'Something went wrong. Please try again.');
+        return;
+      }
+    }
+    const { error } = await signIn.email({ email, password });
 
     setIsLoading(false);
     if (error) {
-      setErrorMessage(error.message || 'Something went wrong. Please try again.');
+      setErrorMessage(
+        mode === 'register' && error.status === 401
+          ? "We couldn't create an account with those details. If you already have one, sign in instead, or reset your password."
+          : error.message || 'Something went wrong. Please try again.',
+      );
       return;
     }
     // Load this account's journal and moods fresh
@@ -126,8 +136,9 @@ export default function AuthenticationModal() {
   const handleSignOut = async () => {
     setIsLoading(true);
     await signOut();
-    // Don't leave the previous person's entries in memory on a shared device
+    // Don't leave the previous person's entries or chat on a shared device
     queryClient.clear();
+    await forgetDevice();
     handleClose();
   };
 
@@ -183,13 +194,7 @@ export default function AuthenticationModal() {
       return;
     }
     queryClient.clear();
-    PERSONAL_STORAGE_KEYS.forEach((key) => {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // storage can be unavailable (private mode); nothing to remove then
-      }
-    });
+    await forgetDevice();
     handleClose();
     toast({ title: 'Your account has been deleted', description: 'Your journal, mood history and account are gone for good.' });
   };
@@ -288,11 +293,11 @@ export default function AuthenticationModal() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 className={inputClass}
                 autoComplete="new-password"
-                minLength={8}
+                minLength={MIN_PASSWORD_LENGTH}
                 required
                 disabled={isLoading}
               />
-              <p className="mt-1 text-xs text-gray-600">At least 8 characters</p>
+              <p className="mt-1 text-xs text-gray-600">At least {MIN_PASSWORD_LENGTH} characters. A few words together is easy to remember.</p>
             </div>
             {errorMessage && (
               <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -438,6 +443,7 @@ export default function AuthenticationModal() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className={inputClass}
+              maxLength={MAX_NAME_LENGTH}
               autoComplete="nickname"
               required
               disabled={isLoading}
@@ -474,11 +480,14 @@ export default function AuthenticationModal() {
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              minLength={8}
+              // Older accounts may have shorter passwords, so only new ones are checked
+              minLength={mode === 'register' ? MIN_PASSWORD_LENGTH : undefined}
               required
               disabled={isLoading}
             />
-            {mode === 'register' && <p className="mt-1 text-xs text-gray-600">At least 8 characters</p>}
+            {mode === 'register' && (
+              <p className="mt-1 text-xs text-gray-600">At least {MIN_PASSWORD_LENGTH} characters. A few words together is easy to remember.</p>
+            )}
             {mode === 'login' && (
               <button
                 type="button"

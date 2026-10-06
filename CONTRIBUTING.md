@@ -47,7 +47,7 @@ Usually no body. If one helps, one to three plain sentences on why. No emoji, he
 
 **Privacy**
 
-- Never log chat or journal content. Never store raw IP addresses.
+- Never log chat or journal content. Log the kind of an error (`describeError` in `server/log.ts`), never the error itself: a failed query or a broken request carries what someone wrote. Never store IP addresses, raw or in sessions.
 - Every journal and mood query is scoped to the signed-in user. Any new endpoint that touches user data gets an isolation test showing one person can't see another's data.
 
 **Design**

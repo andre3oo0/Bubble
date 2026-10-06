@@ -51,10 +51,13 @@ async function migrateWithRetry() {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000, unless overridden by environment variable
+  // Port 5000 unless overridden. The dev server only listens on this machine: on a
+  // shared network, anyone could otherwise reach Vite's file serving. HOST=0.0.0.0
+  // opens it up (e.g. to try it on a phone on a trusted home network).
   const port = Number(process.env.PORT) || 5000;
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
+  const host = process.env.HOST || (app.get("env") === "development" ? "127.0.0.1" : "0.0.0.0");
+  server.listen(port, host, () => {
+    log(`serving on http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
   });
 
   // Hosts send SIGTERM before replacing the app on deploy: finish in-flight

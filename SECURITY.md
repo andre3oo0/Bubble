@@ -22,7 +22,8 @@ A summary; the detail is in [docs/SAFETY.md](docs/SAFETY.md).
 
 - Every journal and mood query is scoped to the signed-in user, with isolation tests.
 - Chat messages aren't stored; the server keeps a short in-memory context that's cleared after an hour.
-- Logs never contain chat or journal content, and raw IP addresses are never stored.
-- Passwords are hashed by Better Auth; Google sign-in tokens are stored encrypted.
-- Password reset signs out every other session. Login is rate-limited per visitor.
+- Logs never contain chat or journal content, and IP addresses are never stored.
+- Passwords are hashed by Better Auth, need 10 or more characters and are checked against known breaches; Google sign-in tokens are stored encrypted.
+- Sign-up doesn't reveal whether an email already has an account. Login is rate-limited per visitor and per account.
+- Password reset signs out every other session. Signing out clears the chat from the device.
 - Secrets live only in the host's environment settings, never in the repository.

@@ -1,8 +1,8 @@
 import type { Express, NextFunction, Request, RequestHandler, Response } from "express";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
-import { journalEntries, moodCheckins, user } from "@shared/schema";
+import { account as accountTable, journalEntries, moodCheckins, session, user } from "@shared/schema";
 import {
   journalEntryInputSchema,
   journalEntryUpdateSchema,
@@ -16,7 +16,8 @@ import { HELPLINES, detectCrisis } from "@shared/safety";
 import { db } from "./db";
 import { requireUser, type AuthedLocals } from "./auth";
 import { generateEntryReflection } from "./openaiService";
-import { recordChatMessage, usageKey } from "./usage";
+import { describeError } from "./log";
+import { allowAiCall, usageKey } from "./usage";
 
 type AuthedHandler = (req: Request, res: Response<unknown, AuthedLocals>) => Promise<unknown>;
 
@@ -31,6 +32,11 @@ const idSchema = z.string().uuid();
 const MAX_JOURNAL_ENTRIES = 200;
 const DEFAULT_MOOD_DAYS = 30;
 
+// Caps per person, so one account can't fill the (free, small) database for everyone.
+// Far above what anyone writes by hand.
+const MAX_STORED_ENTRIES = 2000;
+const MAX_MOODS_PER_DAY = 50;
+
 // Long entries are trimmed before they go to the AI to keep the cost down
 const MAX_REFLECT_CHARS = 8000;
 
@@ -39,6 +45,16 @@ const FALLBACK_ENTRY_REFLECTION: Omit<EntryReflection, "helplines"> = {
   question: "Reading it back now, what stands out to you most?",
   fallback: true,
 };
+
+// Saving and editing entries, per person
+const journalWriteLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  keyGenerator: (_req, res) => res.locals.userId,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "That's a lot of saving at once. Please wait a minute and try again." },
+});
 
 const reflectBurstLimit = rateLimit({
   windowMs: 60 * 1000,
@@ -84,6 +100,16 @@ export function registerDataRoutes(app: Express) {
       .from(moodCheckins)
       .where(eq(moodCheckins.userId, userId))
       .orderBy(desc(moodCheckins.createdAt));
+    // Never the tokens or password hash: only what was signed in, how, and when
+    const signIns = await db
+      .select({ createdAt: session.createdAt, expiresAt: session.expiresAt })
+      .from(session)
+      .where(eq(session.userId, userId))
+      .orderBy(desc(session.createdAt));
+    const methods = await db
+      .select({ providerId: accountTable.providerId, createdAt: accountTable.createdAt })
+      .from(accountTable)
+      .where(eq(accountTable.userId, userId));
 
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Disposition", `attachment; filename="bubble-data-${date}.json"`);
@@ -92,6 +118,11 @@ export function registerDataRoutes(app: Express) {
       account: { ...account, createdAt: account.createdAt.toISOString() },
       journalEntries: journal.map(toJournalEntry),
       moodCheckins: moods.map(toMoodCheckin),
+      signInMethods: methods.map((m) => ({
+        method: m.providerId === "credential" ? "email" : m.providerId,
+        addedAt: m.createdAt.toISOString(),
+      })),
+      sessions: signIns.map((s) => ({ startedAt: s.createdAt.toISOString(), expiresAt: s.expiresAt.toISOString() })),
       chat: "Bubble doesn't store your chat messages.",
     });
   }));
@@ -106,9 +137,19 @@ export function registerDataRoutes(app: Express) {
     res.json(rows.map(toJournalEntry));
   }));
 
-  app.post("/api/journal", handle(async (req, res) => {
+  app.post("/api/journal", journalWriteLimit, handle(async (req, res) => {
     const parsed = journalEntryInputSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Title, text and mood are required" });
+
+    const [stored] = await db
+      .select({ total: count() })
+      .from(journalEntries)
+      .where(eq(journalEntries.userId, res.locals.userId));
+    if (stored.total >= MAX_STORED_ENTRIES) {
+      return res.status(429).json({
+        error: `Your journal has reached ${MAX_STORED_ENTRIES.toLocaleString("en-ZA")} entries. Delete some older ones to make room.`,
+      });
+    }
 
     const [row] = await db
       .insert(journalEntries)
@@ -117,7 +158,7 @@ export function registerDataRoutes(app: Express) {
     res.status(201).json(toJournalEntry(row));
   }));
 
-  app.patch("/api/journal/:id", handle(async (req, res) => {
+  app.patch("/api/journal/:id", journalWriteLimit, handle(async (req, res) => {
     const id = idSchema.safeParse(req.params.id);
     if (!id.success) return res.status(404).json({ error: "Entry not found" });
     const parsed = journalEntryUpdateSchema.safeParse(req.body);
@@ -161,13 +202,7 @@ export function registerDataRoutes(app: Express) {
       crisis ? { ...reflection, helplines: HELPLINES } : reflection;
 
     const { key, limit } = usageKey(res.locals.userId, req.ip);
-    let used = 0;
-    try {
-      used = await recordChatMessage(key);
-    } catch (error) {
-      console.error("Chat usage count failed:", error instanceof Error ? error.message : error);
-    }
-    if (used > limit) return res.json(withHelplines(FALLBACK_ENTRY_REFLECTION));
+    if ((await allowAiCall(key, limit)) !== "ok") return res.json(withHelplines(FALLBACK_ENTRY_REFLECTION));
 
     try {
       const ai = await generateEntryReflection({
@@ -177,7 +212,7 @@ export function registerDataRoutes(app: Express) {
       });
       res.json(withHelplines({ reflection: ai.reflection, question: ai.question }));
     } catch (error) {
-      console.error("Entry reflection AI error:", error instanceof Error ? error.message : error);
+      console.error("Entry reflection AI error:", describeError(error));
       res.json(withHelplines(FALLBACK_ENTRY_REFLECTION));
     }
   }));
@@ -196,6 +231,14 @@ export function registerDataRoutes(app: Express) {
   app.post("/api/moods", handle(async (req, res) => {
     const parsed = moodCheckinInputSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "A valid mood is required" });
+
+    const [today] = await db
+      .select({ total: count() })
+      .from(moodCheckins)
+      .where(and(eq(moodCheckins.userId, res.locals.userId), gte(moodCheckins.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))));
+    if (today.total >= MAX_MOODS_PER_DAY) {
+      return res.status(429).json({ error: "That's a lot of check-ins for one day. Try again tomorrow." });
+    }
 
     const [row] = await db
       .insert(moodCheckins)

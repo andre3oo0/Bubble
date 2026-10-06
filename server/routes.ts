@@ -3,9 +3,10 @@ import { createServer, type Server } from "http";
 import { randomUUID } from "crypto";
 import rateLimit from "express-rate-limit";
 import { fromNodeHeaders } from "better-auth/node";
-import { auth, googleSignInEnabled } from "./auth";
+import { auth, googleSignInEnabled, pruneExpiredAuthRows } from "./auth";
 import { registerDataRoutes } from "./dataRoutes";
-import { pruneOldUsage, recordChatMessage, usageKey } from "./usage";
+import { describeError } from "./log";
+import { allowAiCall, pruneOldUsage, usageKey } from "./usage";
 import { generateReflection, generateReply, type AiReflection, type AiReply, type ChatTurn } from "./openaiService";
 import {
   chatRequestSchema,
@@ -52,7 +53,8 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 setInterval(() => {
-  pruneOldUsage().catch((error) => console.error('Usage prune failed:', error));
+  pruneOldUsage().catch((error) => console.error('Usage prune failed:', describeError(error)));
+  pruneExpiredAuthRows().catch((error) => console.error('Session prune failed:', describeError(error)));
 }, 60 * 60 * 1000).unref();
 
 const LIMIT_REPLY =
@@ -60,6 +62,10 @@ const LIMIT_REPLY =
   "You can still write in your journal or try a breathing exercise, and Get help is always there if you need someone right now.";
 const GUEST_LIMIT_REPLY =
   LIMIT_REPLY + " Creating a free account gives you more messages each day.";
+// The whole app is over its daily AI budget, so an account wouldn't help
+const APP_LIMIT_REPLY =
+  "I've had so many conversations today that I can't reply properly until tomorrow. " +
+  "You can still write in your journal or try a breathing exercise, and Get help is always there if you need someone right now.";
 
 // Stops scripts and accidental floods; the daily cap below handles cost
 const chatBurstLimit = rateLimit({
@@ -182,17 +188,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // and if the counter itself fails we let the message through rather than block support.
     const signedIn = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
     const { key, limit } = usageKey(signedIn?.user.id, req.ip);
-    let used = 0;
-    try {
-      used = await recordChatMessage(key);
-    } catch (error) {
-      console.error('Chat usage count failed:', error instanceof Error ? error.message : error);
-    }
-    if (used > limit) {
+    const allowed = await allowAiCall(key, limit);
+    if (allowed !== 'ok') {
       const crisis = detectCrisis(message);
+      const limitReply = allowed === 'app' ? APP_LIMIT_REPLY : signedIn ? LIMIT_REPLY : GUEST_LIMIT_REPLY;
       const limited: ChatResponse = crisis
         ? { reply: CRISIS_REPLY, mood: analyzeMood(message), risk: 'crisis', sessionId, helplines: HELPLINES, limited: true }
-        : { reply: signedIn ? LIMIT_REPLY : GUEST_LIMIT_REPLY, mood: analyzeMood(message), risk: 'none', sessionId, limited: true };
+        : { reply: limitReply, mood: analyzeMood(message), risk: 'none', sessionId, limited: true };
       return res.json(limited);
     }
 
@@ -202,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: signedIn?.user.name,
       });
     } catch (error) {
-      console.error('Chat AI error:', error instanceof Error ? error.message : error);
+      console.error('Chat AI error:', describeError(error));
     }
 
     // The keyword check wins even if the model rated the message lower
@@ -237,13 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const signedIn = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
     const { key, limit } = usageKey(signedIn?.user.id, req.ip);
-    let used = 0;
-    try {
-      used = await recordChatMessage(key);
-    } catch (error) {
-      console.error('Chat usage count failed:', error instanceof Error ? error.message : error);
-    }
-    if (used > limit) {
+    if ((await allowAiCall(key, limit)) !== 'ok') {
       return res.json(withHelplines(FALLBACK_REFLECTION));
     }
 
@@ -251,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       ai = await generateReflection(transcript);
     } catch (error) {
-      console.error('Reflection AI error:', error instanceof Error ? error.message : error);
+      console.error('Reflection AI error:', describeError(error));
     }
 
     res.json(withHelplines(ai ? { title: ai.title.slice(0, 200), summary: ai.summary, takeaway: ai.takeaway } : FALLBACK_REFLECTION));
@@ -262,64 +258,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = endChatSchema.safeParse(req.body);
     if (parsed.success) sessions.delete(parsed.data.sessionId);
     res.status(204).end();
-  });
-
-  // Environment change API (with ambient sound selection)
-  app.post('/api/environment/change', async (req, res) => {
-    try {
-      const { environmentId } = req.body;
-      
-      // This would normally update user preferences in the database
-      // and potentially notify connected clients about the change
-      
-      // Return environment details including ambient sound URL
-      const environments = {
-        forest: {
-          id: 'forest',
-          name: 'Forest Retreat',
-          audioUrl: '/sounds/forest-ambient.mp3',
-          sceneData: { 
-            particles: 'leaves',
-            lightIntensity: 0.8,
-            fogDensity: 0.05
-          }
-        },
-        ocean: {
-          id: 'ocean',
-          name: 'Ocean Waves',
-          audioUrl: '/sounds/ocean-waves.mp3',
-          sceneData: { 
-            particles: 'bubbles',
-            lightIntensity: 1.0,
-            fogDensity: 0.02
-          }
-        },
-        sunset: {
-          id: 'sunset',
-          name: 'Peaceful Sunset',
-          audioUrl: '/sounds/gentle-wind.mp3',
-          sceneData: { 
-            particles: 'dust',
-            lightIntensity: 0.7,
-            fogDensity: 0.08
-          }
-        },
-        bedroom: {
-          id: 'bedroom',
-          name: 'Cozy Bedroom',
-          audioUrl: '/sounds/fireplace.mp3',
-          sceneData: { 
-            particles: 'none',
-            lightIntensity: 0.6,
-            fogDensity: 0.01
-          }
-        }
-      };
-      
-      res.json(environments[environmentId as keyof typeof environments] || environments.forest);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to change environment' });
-    }
   });
 
   // Safe Space routes

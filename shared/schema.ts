@@ -103,8 +103,10 @@ export const moodCheckins = pgTable(
   (table) => [index("mood_checkin_user_created_idx").on(table.userId, table.createdAt)],
 );
 
-// Messages sent to the AI per day, for the daily cap. key is "user:<id>" or
-// "ip:<hmac>" for guests (the raw IP is never stored).
+// Daily counters for the limits in server/usage.ts: AI messages ("user:<id>", or
+// "ip:<hmac>" for guests, "ai:all" for the whole app), emails ("email:<hmac>",
+// "email:all") and failed sign-ins ("sign-in:<hmac>:<window>"). Hashed with a secret
+// key, so no IP or email address is ever stored here. Rows go after 7 days.
 export const chatUsage = pgTable(
   "chat_usage",
   {

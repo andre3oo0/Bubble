@@ -11,24 +11,34 @@ import viteConfig from "../vite.config";
 const viteLogger = createLogger();
 
 export async function setupVite(app: Express, server: Server) {
+  // Keep Vite's host check on (no allowedHosts: true): it stops other websites
+  // reading source and .env files through DNS rebinding while this runs
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true as const,
   };
 
+  // Vite's errors are logged, not fatal: a blocked file request is an error too, and
+  // exiting on it would let any web page stop the dev server with one request
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      },
-    },
+    customLogger: viteLogger,
     server: serverOptions,
     appType: "custom",
+  });
+
+  // Vite is meant to refuse these itself, but query tricks like ?import&raw?? have
+  // got past it before. Secrets and keys are never part of the app, so refuse them here.
+  app.use((req, res, next) => {
+    let path = req.path;
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      return res.status(400).end();
+    }
+    if (/(^|[\\/])(\.env|\.git[\\/])|\.(pem|crt|key)$/i.test(path)) return res.status(403).end();
+    next();
   });
 
   app.use(vite.middlewares);

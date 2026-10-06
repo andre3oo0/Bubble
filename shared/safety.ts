@@ -31,9 +31,20 @@ const CRISIS_PATTERNS: RegExp[] = [
   /\b(hurt|harm|cut|cutting|hurting|harming) my ?self\b/,
   /\bself[- ]?harm/,
   /\boverdos/,
+  // Slang and softer phrasings people use, especially online
+  /\bkms\b/,
+  /\bun-?aliv/,
+  /\bend(ing)? my ?self\b/,
+  /\b(don'?t|do not) want to wake up\b/,
+  /\bnot (be|being) (here|around|alive) (tomorrow|anymore|much longer)\b/,
+  /\bcan'?t (go on|do this) anymore\b/,
 ];
 
 export function detectCrisis(text: string): boolean {
-  const normalized = text.toLowerCase().replace(/[‘’]/g, "'");
+  const normalized = text
+    .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    // "kms" is also kilometres: "we drove 40 kms" isn't a crisis
+    .replace(/\d\s*kms\b/g, "");
   return CRISIS_PATTERNS.some((pattern) => pattern.test(normalized));
 }

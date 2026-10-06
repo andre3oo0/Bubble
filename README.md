@@ -31,7 +31,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/React-18-20232a?logo=react&logoColor=61dafb" alt="React 18">
   <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white" alt="TypeScript 5">
-  <img src="https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white" alt="Vite 5">
+  <img src="https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white" alt="Vite 6">
   <img src="https://img.shields.io/badge/Tailwind_CSS-3-06b6d4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS 3">
   <img src="https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white" alt="Express 4">
   <img src="https://img.shields.io/badge/PostgreSQL-Drizzle-4169e1?logo=postgresql&logoColor=white" alt="PostgreSQL with Drizzle">
@@ -108,7 +108,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Open http://localhost:5000. Without an AI key, chat answers with gentle canned replies and everything else works. For real replies, add a free [Groq](https://console.groq.com/keys) key to `.env`:
+Open http://localhost:5000. The dev server only accepts connections from your own computer (set `HOST=0.0.0.0` in `.env` to try it from a phone on a network you trust). Without an AI key, chat answers with gentle canned replies and everything else works. For real replies, add a free [Groq](https://console.groq.com/keys) key to `.env`:
 
 ```bash
 OPENAI_API_KEY=your_groq_key

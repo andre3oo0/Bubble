@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { KeyRound } from 'lucide-react';
 import { resetPassword } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
+import { MIN_PASSWORD_LENGTH } from '@shared/account';
 
 const inputClass =
   'w-full rounded-xl bg-[#D4F1FF] p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-[#0b6bb8]/40';
@@ -84,11 +85,11 @@ export default function ResetPassword() {
                 onChange={(e) => setPassword(e.target.value)}
                 className={inputClass}
                 autoComplete="new-password"
-                minLength={8}
+                minLength={MIN_PASSWORD_LENGTH}
                 required
                 disabled={isLoading}
               />
-              <p className="mt-1 text-xs text-gray-600">At least 8 characters</p>
+              <p className="mt-1 text-xs text-gray-600">At least {MIN_PASSWORD_LENGTH} characters. A few words together is easy to remember.</p>
             </div>
             <div>
               <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium text-gray-800">
@@ -101,7 +102,7 @@ export default function ResetPassword() {
                 onChange={(e) => setConfirm(e.target.value)}
                 className={inputClass}
                 autoComplete="new-password"
-                minLength={8}
+                minLength={MIN_PASSWORD_LENGTH}
                 required
                 disabled={isLoading}
               />

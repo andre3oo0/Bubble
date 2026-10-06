@@ -18,13 +18,13 @@ Bubble is a shared project by **Immanah Makitla** and **andre3oo0**, and it's bo
 
 | Layer | What |
 |---|---|
-| Frontend | React 18, Vite, TypeScript, Tailwind, Radix dialog, Zustand, TanStack Query, framer-motion, wouter |
+| Frontend | React 18, Vite 6, TypeScript, Tailwind, Radix dialog, Zustand, TanStack Query, framer-motion, wouter |
 | Backend | Node (20+, developed on 24), Express 4, one process serving API and frontend |
 | Database | Postgres via Drizzle ORM. Locally and in tests: PGlite (embedded Postgres, nothing to install) |
 | Auth | Better Auth: email and password, plus Google when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set. Sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `qwen/qwen3.8-27b` (best-effort structured outputs, checked by `parseBestEffort`), via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest (127 tests), in-memory database, AI and email mocked |
+| Tests | Vitest 4 (167 tests), in-memory database, AI, email and the breached-password check mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -51,7 +51,8 @@ server/
   auth.ts       Better Auth config, requireUser middleware
   openaiService.ts  the AI calls: chat reply {reply, user_mood, risk}, chat reflection, entry reflection;
                 strict structured outputs for GPT models, best-effort plus parseBestEffort() for others
-  usage.ts      daily chat counter, email.ts transactional email, db.ts database
+  usage.ts      daily counters and limits (AI per person and app-wide, emails, failed sign-ins)
+  email.ts      transactional email, passwordCheck.ts breached-password check, log.ts (describeError), db.ts database
 shared/
   schema.ts     Drizzle tables (server only), api.ts / chat.ts request + response types,
   safety.ts     crisis keyword check, helplines, crisis reply (used by client AND server)
@@ -87,7 +88,7 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 | `GET/POST /api/journal`, `PATCH/DELETE /api/journal/:id` | Signed in only, always scoped to the session's user |
 | `POST /api/journal/:id/reflect` | → `{reflection, question, helplines?, fallback?}`. "Reflect with Bubble" on one of your own entries; counts towards the daily limit, nothing stored |
 | `GET/POST /api/moods` | Check-ins, last 30 days by default |
-| `GET /api/me/export` | JSON download of everything stored for the user |
+| `GET /api/me/export` | JSON download of everything stored for the user: account, journal, moods, sign-in methods, sessions |
 | `/api/auth/*` | Better Auth: sign up/in/out, request-password-reset, reset-password, verify-email, delete-user |
 | `GET /api/health` | Health check |
 | `GET /api/auth-options` | `{google}`: whether to show "Continue with Google" |
@@ -109,7 +110,9 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **Sign-in comes first, but is optional.** The first page of the first-visit introduction offers "Continue with Google", "Continue with email" and "Not now, show me around". Neither sign-in route counts as finishing the introduction, so it picks up again afterwards ("Hi Sam, I'm Bubble"). Chat never needs an account.
 - **Google sign-in** (free) is switched on by the two `GOOGLE_*` settings; without them the button doesn't show. It always shows Google's account chooser (shared phones), stores Google's tokens encrypted, and asks only for name and email. An existing email account is linked to Google only once its email is confirmed, so an unconfirmed sign-up can't be taken over; the person is told to use their password instead. Google-only accounts have no password, so "Change password" is hidden and deleting needs a sign-in from the last 24 hours instead. Google sign-in leaves the page, so it's hidden in the chat debrief, where it would lose the reflection. Apple (US$99/year) and phone numbers (paid per SMS) are parked until Bubble is funded.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
-- **Daily AI cap** (150 per user, 40 per guest, 20 per minute; all configurable). Guests are counted by a keyed hash of their IP, never the raw IP. A limit of 0 is valid. Known weakness: everyone signed out on one network (a school, an office) shares the 40. The owner chose to fix it before beta: count per device (a random ID) with a higher shared cap per network.
+- **Sign-up doesn't sign in by itself** (`autoSignIn: false`), so it answers the same whether or not the email has an account and can't be used to check who uses Bubble. The account dialog signs in straight after with the new password; if that fails it says "If you already have one, sign in instead, or reset your password", and the real owner gets an email saying someone tried. This makes checking slower and noisy, not impossible: someone who signs up and then signs in can still tell, at the cost of creating an account and emailing the address. Only requiring email confirmation before first sign-in would close it fully, which the owner decided against for now.
+- **Security audit, 6 October** (local file, not committed). Fixed: the dev server listens on 127.0.0.1 with Vite 6's host check on and a block on `.env` and key files; errors are logged by kind only, never the error object; session rows don't keep IPs or browsers (cleared by migration 0002, expired ones pruned hourly); names (50 characters, no links) are kept out of emails; at most 3 emails per address a day and an app-wide email budget; IPv6 guests counted per /56; an app-wide AI budget; per-person caps on journal and mood writes; 10-character passwords checked against Have I Been Pwned (fails open, production only); 5 wrong passwords per email per 15 minutes; an Origin check on API writes; `Cache-Control: no-store` on `/api`; a Permissions-Policy; no Google Fonts (Inter was loaded but never used); sign-out clears the chat and mood on the device; more crisis phrasings; CI runs `npm audit` with a read-only token. Not done: optional two-factor sign-in, Cloudflare Turnstile on sign-up, a check on the AI's own replies, field-level journal encryption.
+- **Daily AI cap** (150 per user, 40 per guest, 20 per minute, 900 for the whole app via `AI_DAILY_LIMIT`; all configurable). Guests are counted by a keyed hash of their network (IPv6 grouped per /56), never the raw IP. A limit of 0 is valid. Known weakness: everyone signed out on one network (a school, an office) shares the 40. The owner chose to fix it before beta: count per device (a random ID) with a higher shared cap per network.
 - **Ambient sound is generated with the Web Audio API**, not audio files: no hosting, licensing or data cost. It only plays when the user presses play.
 - **Calm visuals** (reduced motion) follows the device setting or an in-app switch. The breathing circle keeps moving because it is the exercise.
 - **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back, including the scene skies.
@@ -134,6 +137,8 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **`useQueryClient()` in components**, not the `queryClient` import. (A dev-server cache-buster once loaded the module twice; it's removed, but the hook is the safe pattern.)
 - **Express 4 doesn't catch rejected promises.** Async routes go through the `handle()` wrapper in `dataRoutes.ts`.
 - **Better Auth must be mounted before `express.json()`**, and it gets the client IP from the `x-bubble-client-ip` header that `app.ts` sets from `req.ip`. Without that, login rate limits are one bucket for everyone.
+- **Logging:** never `console.error(error)`. Use `describeError(error)` from `server/log.ts`: Drizzle's error message lists the query's parameters (a journal entry), and a JSON parse error quotes the text. Better Auth's own log details are dropped for the same reason.
+- **The dev server only listens on 127.0.0.1.** To open it on a phone, set `HOST=0.0.0.0`, on a trusted network only. Sign-in then needs `BETTER_AUTH_URL` set to that address. Vite errors no longer stop the dev server.
 - **The server bundle is split** (`esbuild --splitting`) so production never loads Vite. Keep the dynamic `import("./vite")` in `index.ts`.
 - **Tests:** the database and password hashing are slow when test files run in parallel, hence the raised timeouts in `vitest.config.ts`. `routes.test.ts` and `data.test.ts` run migrations in `beforeAll`.
 - **Schema changes:** edit `shared/schema.ts`, run `npm run db:generate`, commit the new migration.
@@ -158,6 +163,8 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 
 Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, and the new Bubble faces and logo. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
 
+First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
+
 **Next up (owner's order, 6 October):**
 1. Settings screen redesign (07, with the control shapes from 04). See the redesign plan below.
 2. Before beta: per-device counting for the signed-out message limit (see "Daily AI cap").
@@ -177,6 +184,10 @@ Smaller open points: the "listening" face exists but isn't used anywhere yet (an
 - [ ] Sign up on the live site, confirm the email arrives, try a password reset
 - [ ] Check Groq's free limits for `qwen/qwen3.8-27b` (console.groq.com, Settings → Limits) and lower `CHAT_DAILY_LIMIT_*` if needed
 - [ ] When funded: OpenAI credit, a monthly budget, separate local and production keys
+- [ ] **Security audit follow-ups (owner, soon):** create a new Google OAuth client secret and a new Groq key, put them in Render, and use a separate Google client and Groq key in the local `.env`, so a development machine never holds the live site's secrets (costs nothing); turn on two-factor sign-in for Render, Neon, Groq, Brevo, Google Cloud and GitHub; turn on Dependabot alerts and security updates (GitHub, Settings → Code security); set `AI_DAILY_LIMIT` in Render just under Groq's requests per day for the model
+- [ ] On the live site, signed in: the session cookie shows the `__Secure-` prefix, Secure, HttpOnly and SameSite=Lax, and `BETTER_AUTH_URL` in Render is exactly `https://bubble-1-kafq.onrender.com`
+- [ ] Render's proxy count: from two different networks, compare the `RateLimit` header from `/api/chat`, then send one with a made-up `X-Forwarded-For` and check the count doesn't reset (uses signed-out messages; keep it to a few)
+- [ ] POPIA, with someone qualified: privacy notice (responsible party, purposes, Render, Neon, Groq, Brevo, Google, transfer to the US, retention, rights, the Information Regulator), a recorded consent step before first chat and at sign-up, an age decision (18+ with a confirmation, or a route for minors), an Information Officer, operator agreements, Groq's data retention, a breach-response page and a retention schedule
 - [ ] Check SADAG and Lifeline numbers in `shared/safety.ts` against their sites
 - [ ] Immanah's OK to launch, including the deeper colours
 - [ ] Privacy notice (POPIA: health-related data, stored in Frankfurt, chat sent to Groq). Needed before optional past chats ships
@@ -226,7 +237,6 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 - Feedback form only logs to the browser console
 - Mood check-in reminder times are saved but nothing is sent (needs notifications)
 - `ChatInterface` renders a second `BreathingExercise` alongside the one in Home
-- `POST /api/environment/change` is unused
 - Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed
 
 **Later phases (not started):** community, wearables, sleep system, AR, Orrery, Chronicle, smart home, Teams, therapist portal, monetisation, analytics and safety metrics.

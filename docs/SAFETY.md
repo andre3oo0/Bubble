@@ -8,7 +8,7 @@ Bubble is used by people who may be struggling. This page explains how it keeps 
 
 **The rule: a message that needs helplines always gets them, whatever else is going wrong.**
 
-- **A keyword check, not the AI, decides.** `shared/safety.ts` looks for signs of suicidal thoughts, self-harm and danger. It's deliberately broad: a false alarm only shows helpline numbers, while a miss is far worse. The same code runs on the server and in the browser.
+- **A keyword check, not the AI, decides.** `shared/safety.ts` looks for signs of suicidal thoughts, self-harm and danger, including slang and softer phrasings ("kms", "unalive", "don't want to wake up", "won't be here tomorrow"). It's deliberately broad: a false alarm only shows helpline numbers, while a miss is far worse. The same code runs on the server and in the browser.
 - **The server's check wins.** The AI also rates each message (`none`, `concern` or `crisis`), but if the keyword check says crisis, it's a crisis, whatever the model said.
 - **It works when things fail:**
   - The AI is down or slow: the reply is the fixed crisis message plus the helplines.
@@ -37,12 +37,13 @@ Changes to the prompt or model are judged on the live site with `npm run try-cha
 | End-of-chat reflection | Only if saved | The transcript is sent for the reflection and not kept. The reflection is saved only if the person chooses "Save to journal". |
 | Journal entries | Yes, if signed in | Readable only by their author. Every query is scoped to the signed-in user, with isolation tests. |
 | Mood check-ins | Yes, if signed in | Same scoping as the journal. |
-| Account | Yes, if created | Name, email and a hashed password (or a Google link). Google's tokens are stored encrypted. |
-| Usage counts | Yes | A daily message count per account, or for guests per keyed hash of the IP address. Raw IP addresses are never stored. |
-| Logs | Yes | Errors and request lines only. Logs never contain chat or journal content. |
+| Account | Yes, if created | Name (up to 50 characters), email and a hashed password (or a Google link). Google's tokens are stored encrypted. |
+| Sign-in sessions | Yes, if signed in | When each session started and when it expires. Not the IP address or browser. Expired sessions and used email links are deleted every hour. |
+| Usage counts | Yes, 7 days | Daily counters for the limits: AI messages per account, or for guests per keyed hash of their network address; emails sent per keyed hash of the address; failed sign-ins per keyed hash of the email. Raw IP and email addresses are never stored in them. |
+| Logs | Yes | Request lines (method, path, status, timing) and the kind of error, never its details: a failed database query or a broken request can contain what someone wrote. Logs never contain chat or journal content, names, emails or IP addresses. |
 | Preferences | On the device | Scene, sound volume, calm visuals, theme and whether the introduction was seen, in the browser's local storage. |
 
-People can download everything stored about them (Settings, then the account screen, then **Download my data**) and delete their account, which removes the journal, moods and sessions with it.
+People can download everything stored about them (Settings, then the account screen, then **Download my data**): account, journal, moods, sign-in methods and sessions. They can delete their account, which removes the journal, moods and sessions with it. Signing out, or deleting the account, also clears the chat and the current mood from the device, so the next person on a shared phone doesn't see them.
 
 ## Where data goes
 
@@ -50,9 +51,20 @@ People can download everything stored about them (Settings, then the account scr
 - **AI:** chat messages, reflections and journal entries the person asks Bubble to reflect on are sent to Groq to generate a reply. Groq was chosen over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations.
 - **Email:** Brevo sends account emails (confirmation, password reset). No chat or journal content is ever emailed.
 - **Sign-in:** Google, only for people who choose "Continue with Google". Bubble asks for name and email only.
+- **Password checks:** when someone chooses a password on the live site, the first 5 characters of its SHA-1 hash go to [Have I Been Pwned](https://haveibeenpwned.com/Passwords) to check it hasn't appeared in a data breach. The password itself never leaves the server, and the service can't work it out from those 5 characters. If the service is down, the password is accepted.
+- **Nothing else:** no analytics, no ads, and no third-party fonts or scripts in the app.
+
+## Protecting accounts
+
+- Sign-up gives the same answer whether or not an email already has an account, so it can't be used to find out who uses Bubble. The owner of the address gets an email saying someone tried.
+- Passwords need at least 10 characters and are checked against known breaches. After 5 wrong passwords for one email in 15 minutes, sign-in for that email pauses until the window ends, whichever network the guesses come from.
+- Emails never include the name someone typed, since anyone can sign up with any name and any address. Each address gets at most 3 emails a day, and the app has a daily email budget, so nobody can flood an inbox or use up the free sending allowance.
+- Journal saves, mood check-ins and AI messages have per-person caps, and the AI has a daily budget for the whole app, so one person can't use up the free AI quota or fill the database for everyone. Crisis replies and helplines still work past every limit.
+- Personal API responses are marked not to be cached, and changes to journal or mood data are refused if they come from another website.
 
 ## Still to do
 
-- A privacy notice for POPIA (health-related data, stored in Frankfurt, chat sent to Groq), needed before launch and before optional chat history ships.
+- A privacy notice for POPIA (health-related data, stored in Frankfurt, chat sent to Groq in the US), a recorded consent step and a decision on under-18s, needed before launch and before optional chat history ships.
+- A check on the AI's own replies when the risk is `concern` or `crisis`, in case a manipulated model says something harmful.
 - Field-level encryption of journal entries at rest.
 - Checking the SADAG and Lifeline numbers against their own websites before launch.
