@@ -52,12 +52,12 @@ const STEPS: Step[] = [
     ),
   },
   {
-    title: 'A companion, not a therapist',
+    title: 'Here to listen',
     body: (
       <>
         <p>
-          Bubble can't diagnose anything or give medical advice. If things feel too heavy, or you're not safe, help is
-          one tap away.
+          Bubble is an AI, so it can't diagnose anything or give medical advice. But it's always here to listen, and if
+          things ever feel too heavy, real people are one tap away.
         </p>
         <div className="mt-4 flex items-center gap-3 rounded-2xl p-3 text-left text-sm surface-soft">
           <span className={cn(helpButtonClass, 'pointer-events-none')}>

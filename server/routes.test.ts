@@ -89,6 +89,14 @@ describe("POST /api/chat", () => {
     expect(data.fallback).toBe(true);
   });
 
+  it("treats a loss gently when the AI is down, without mistaking deadlines for death", async () => {
+    mockReply.mockRejectedValue(new Error("OpenAI unavailable"));
+
+    expect((await chat({ message: "my gran passed away last week" })).data.mood).toBe("sad");
+    expect((await chat({ message: "I lost my dad in March" })).data.mood).toBe("sad");
+    expect((await chat({ message: "the deadline is tomorrow" })).data.mood).not.toBe("sad");
+  });
+
   it("falls back to a mood-based reply from the user's words when the AI is down", async () => {
     mockReply.mockRejectedValue(new Error("OpenAI unavailable"));
 

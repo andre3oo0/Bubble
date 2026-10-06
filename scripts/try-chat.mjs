@@ -24,6 +24,11 @@ const conversations = {
     'everyone else seems to be doing fine',
     "I don't really want advice, I just needed to say it",
   ],
+  Grief: [
+    'my gran passed away last week',
+    "everyone keeps saying she's in a better place and it makes me so angry",
+    'I just miss her',
+  ],
   'Good news': [
     'I actually had a really good day today',
     'I finally finished the project I was stressing about for weeks',

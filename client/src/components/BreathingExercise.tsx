@@ -30,19 +30,19 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
   const circleVariants = {
     inhale: {
       scale: 1.5,
-      transition: { duration: 4, ease: "easeInOut" }
+      transition: { duration: PHASE_DURATIONS.inhale, ease: "easeInOut" }
     },
     hold: {
       scale: 1.5,
-      transition: { duration: 2, ease: "linear" }
+      transition: { duration: PHASE_DURATIONS.hold, ease: "linear" }
     },
     exhale: {
       scale: 1,
-      transition: { duration: 4, ease: "easeInOut" }
+      transition: { duration: PHASE_DURATIONS.exhale, ease: "easeInOut" }
     },
     rest: {
       scale: 1,
-      transition: { duration: 2, ease: "linear" }
+      transition: { duration: PHASE_DURATIONS.rest, ease: "linear" }
     }
   };
 
@@ -51,7 +51,7 @@ export default function BreathingExercise({ isOpen, onClose }: BreathingExercise
     switch (phase) {
       case 'inhale': return 'Breathe in...';
       case 'hold': return 'Hold...';
-      case 'exhale': return 'Breathe out...';
+      case 'exhale': return 'Breathe out slowly...';
       case 'rest': return 'Rest...';
       default: return '';
     }

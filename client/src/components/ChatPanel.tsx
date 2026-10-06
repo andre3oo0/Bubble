@@ -293,7 +293,8 @@ export default function ChatPanel({
       {/* Chat messages area */}
       <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
         <p className="mb-4 border-b border-white/15 pb-3 text-center text-xs text-white/85">
-          Bubble is an AI and can get things wrong. It isn't a crisis service: if you're in danger, use the help button at the top.
+          Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please tap Get help at the top to
+          reach someone right away.
         </p>
         {messages.length === 0 && (
           <div className="flex min-h-[70%] flex-col items-center justify-center px-2 text-center text-white">

@@ -153,8 +153,8 @@ export default function Home() {
                 What can Bubble do?
               </button>
               <p className="mt-6 max-w-sm text-sm text-white/90">
-                Bubble is an AI. It isn't a therapist and can't respond to emergencies. If you're in danger, call 112 or use
-                the help button at the top.
+                Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please call 112 or tap Get
+                help to reach someone right away.
               </p>
               {!session && (
                 <p className="mt-4 max-w-xs text-sm text-white/90">

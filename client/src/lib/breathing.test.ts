@@ -8,8 +8,9 @@ describe('nextBreathingStep', () => {
     const secondsInPhase: Record<BreathingPhase, number> = { inhale: 0, hold: 0, exhale: 0, rest: 0 };
     let rounds = 0;
 
-    // 12 seconds = one full 4-2-4-2 round
-    for (let tick = 0; tick < 12; tick++) {
+    // One full round is every phase's seconds added up
+    const roundSeconds = Object.values(PHASE_DURATIONS).reduce((sum, seconds) => sum + seconds, 0);
+    for (let tick = 0; tick < roundSeconds; tick++) {
       secondsInPhase[phase] += 1;
       const step = nextBreathingStep(phase, count);
       phase = step.phase;
@@ -23,11 +24,17 @@ describe('nextBreathingStep', () => {
     expect(count).toBe(PHASE_DURATIONS.inhale);
   });
 
+  it('breathes out for longer than in, at a slow pace', () => {
+    expect(PHASE_DURATIONS.exhale).toBeGreaterThan(PHASE_DURATIONS.inhale);
+    const roundSeconds = Object.values(PHASE_DURATIONS).reduce((sum, seconds) => sum + seconds, 0);
+    expect(60 / roundSeconds).toBeLessThanOrEqual(4);
+  });
+
   it('counts down within a phase', () => {
     expect(nextBreathingStep('exhale', 3)).toEqual({ phase: 'exhale', count: 2, completedRound: false });
   });
 
   it('moves from hold to exhale with a fresh count', () => {
-    expect(nextBreathingStep('hold', 1)).toEqual({ phase: 'exhale', count: 4, completedRound: false });
+    expect(nextBreathingStep('hold', 1)).toEqual({ phase: 'exhale', count: PHASE_DURATIONS.exhale, completedRound: false });
   });
 });

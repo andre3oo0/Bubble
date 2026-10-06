@@ -71,7 +71,7 @@ export default function SosScreen({ onBreathe }: SosScreenProps) {
           <ul className="list-disc space-y-1 pl-5 text-gray-800">
             <li>Message or call someone you trust and tell them how you're feeling.</li>
             <li>If you can, put some distance between yourself and anything you could use to hurt yourself.</li>
-            <li>Slow your breathing. In for 4, hold, out for 4.</li>
+            <li>Slow your breathing. In for 4, hold for 4, then out slowly for 6.</li>
           </ul>
         </div>
 

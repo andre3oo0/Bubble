@@ -57,7 +57,7 @@ setInterval(() => {
 
 const LIMIT_REPLY =
   "We've reached today's limit for chatting, so I can't reply properly until tomorrow. " +
-  "You can still write in your journal or try a breathing exercise, and SOS is always there if you need someone right now.";
+  "You can still write in your journal or try a breathing exercise, and Get help is always there if you need someone right now.";
 const GUEST_LIMIT_REPLY =
   LIMIT_REPLY + " Creating a free account gives you more messages each day.";
 
@@ -70,36 +70,38 @@ const chatBurstLimit = rateLimit({
   message: { error: "You're sending messages very quickly. Take a breath and try again in a minute." },
 });
 
-// Canned replies used when the AI is unavailable
+// Canned replies used when the AI is unavailable. They can't know what was said, so
+// they stay gentle and open, never assume, and never sound like a form: someone may
+// have just shared something heavy.
 const moodResponses = {
   happy: [
-    "I'm glad to hear you're feeling positive! What's bringing you joy today?",
-    "That's wonderful! It's great to see you in such high spirits."
+    "I love hearing that. Tell me more, I'm all ears.",
+    "That's really lovely. I'm happy with you.",
   ],
   calm: [
-    "It sounds like you're in a peaceful state of mind. How can we maintain this tranquility?",
-    "I'm here to support your calm energy. What would you like to explore today?"
+    "That sounds like a nice place to be. I'm glad you're here.",
+    "I'm glad things feel a bit settled. Stay as long as you like.",
   ],
   sad: [
-    "I'm sorry to hear you're feeling down. Would you like to talk about what's troubling you?",
-    "It's okay to feel sad sometimes. I'm here to listen whenever you're ready to share."
+    "I'm so sorry you're going through this. I'm here, and you don't have to carry it alone.",
+    "That's a lot to hold. Take your time, I'm right here with you.",
   ],
   anxious: [
-    "I notice you might be feeling anxious. Would taking a few deep breaths together help?",
-    "Anxiety can be challenging. Let's work through these feelings together at your pace."
+    "That's such an uncomfortable feeling, and it makes sense. I'm here with you. Breathing slowly together might help a little, whenever you're ready.",
+    "You're not alone with this. Go as slowly as you need, I'm listening.",
   ],
   stressed: [
-    "It sounds like you're under a lot of pressure. What's contributing to your stress right now?",
-    "When you're feeling stressed, it can help to identify what's within your control. Shall we explore that?"
+    "That's a lot on your plate. You don't have to sort it all out at once. I'm here.",
+    "It's okay to feel stretched thin. Let's take it one small piece at a time, together.",
   ],
   neutral: [
-    "How are you feeling right now? I'm here to support you however you need.",
-    "Is there something specific you'd like to talk about today?"
+    "I'm here, and I'm listening. Share as much or as little as you like.",
+    "Thank you for telling me. Take your time, I'm right here.",
   ],
   improved: [
-    "It's great to hear you're feeling better! What positive changes have you noticed?",
-    "Progress is something to celebrate! What's been working well for you?"
-  ]
+    "I'm really glad things feel a bit lighter. You've earned that.",
+    "That's so good to hear. Little steps like that really count.",
+  ],
 };
 
 // Used for the reflection when the AI is down or the daily limit is reached
@@ -133,7 +135,10 @@ function getRandomMoodResponse(mood: Mood): string {
 function analyzeMood(message: string): Mood {
   const message_lower = message.toLowerCase();
 
-  if (message_lower.includes('happy') || message_lower.includes('joy') || message_lower.includes('excited')) {
+  // Loss first, so "my gran passed away" never gets a cheerful reply
+  if (/\b(passed away|died|dead|death|funeral|grief|grieving|lost my)\b/.test(message_lower)) {
+    return 'sad';
+  } else if (message_lower.includes('happy') || message_lower.includes('joy') || message_lower.includes('excited')) {
     return 'happy';
   } else if (message_lower.includes('calm') || message_lower.includes('peaceful') || message_lower.includes('relaxed')) {
     return 'calm';

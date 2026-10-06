@@ -1,10 +1,11 @@
 export type BreathingPhase = 'inhale' | 'hold' | 'exhale' | 'rest';
 
-// Seconds per phase
+// Seconds per phase. Slow on purpose, with a longer out-breath, which is the part
+// that calms (people found 4-2-4-2 rushed)
 export const PHASE_DURATIONS: Record<BreathingPhase, number> = {
   inhale: 4,
-  hold: 2,
-  exhale: 4,
+  hold: 4,
+  exhale: 6,
   rest: 2,
 };
 
