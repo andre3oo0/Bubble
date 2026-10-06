@@ -7,7 +7,7 @@ import SceneBackdrop from '@/components/SceneBackdrop';
 import ChatInterface from '@/components/ChatInterface';
 import JournalPanel from '@/components/JournalPanel';
 import MoodPanel from '@/components/MoodPanel';
-import AvatarPanel from '@/components/AvatarPanel';
+import SettingsPanel from '@/components/SettingsPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen, { helpButtonClass } from '@/components/SosScreen';
@@ -90,9 +90,7 @@ export default function Home() {
       case 'chat':
         return <ChatInterface />;
       case 'avatar':
-        return <AvatarPanel
-                setCurrentMood={setCurrentMood}
-                currentMood={currentMood}
+        return <SettingsPanel
                 selectedEnvironment={selectedEnvironment}
                 setSelectedEnvironment={setSelectedEnvironment}
               />;

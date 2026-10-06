@@ -9,13 +9,13 @@ import {
   requestPasswordReset,
   sendVerificationEmail,
   signIn,
-  signOut,
   signUp,
   useSession,
 } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
 import { useToast } from '@/hooks/use-toast';
 import { forgetDevice } from '@/lib/forgetDevice';
+import { signOutHere } from '@/lib/signOut';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '@shared/account';
 import GoogleButton, { useGoogleSignIn } from './GoogleButton';
 
@@ -29,7 +29,7 @@ const secondaryButtonClass =
 type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthenticationModal() {
-  const { isOpen, close, startMode, allowGoogle, message } = useAccountDialog();
+  const { isOpen, close, startMode, allowGoogle, message, action } = useAccountDialog();
   const googleEnabled = useGoogleSignIn();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -48,8 +48,12 @@ export default function AuthenticationModal() {
   const [needsFreshSignIn, setNeedsFreshSignIn] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setMode(startMode);
-  }, [isOpen, startMode]);
+    if (!isOpen) return;
+    setMode(startMode);
+    // Opened from Settings' "Change password" or "Delete my account"
+    setChangingPassword(action === 'change-password');
+    setConfirmingDelete(action === 'delete');
+  }, [isOpen, startMode, action]);
 
   const accounts = useQuery({
     queryKey: ['auth-accounts', session?.user.id],
@@ -135,10 +139,7 @@ export default function AuthenticationModal() {
 
   const handleSignOut = async () => {
     setIsLoading(true);
-    await signOut();
-    // Don't leave the previous person's entries or chat on a shared device
-    queryClient.clear();
-    await forgetDevice();
+    await signOutHere(queryClient);
     handleClose();
   };
 

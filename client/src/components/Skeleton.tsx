@@ -42,3 +42,16 @@ export function MoodHistorySkeleton() {
     </div>
   );
 }
+
+export function AccountSkeleton() {
+  return (
+    <div role="status" aria-busy="true" className="flex items-center gap-3 px-4 py-3">
+      <span className="sr-only">Loading your account</span>
+      <span aria-hidden="true" className="animated-skeleton block h-11 w-11 shrink-0 rounded-full bg-white/20" />
+      <span aria-hidden="true" className="flex flex-1 flex-col gap-2">
+        <span className={`${bar} h-3.5 w-28 bg-white/20`} />
+        <span className={`${bar} h-3 w-44 bg-white/10`} />
+      </span>
+    </div>
+  );
+}

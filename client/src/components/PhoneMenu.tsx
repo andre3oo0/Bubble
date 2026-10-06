@@ -41,7 +41,7 @@ export default function PhoneMenu({ onOpenPanel, scene, onSceneChange }: PhoneMe
   };
 
   const links = [
-    { label: 'Settings', detail: 'Scene, sound and display', icon: Settings, action: () => onOpenPanel('avatar') },
+    { label: 'Settings', detail: 'Account, privacy, safety and display', icon: Settings, action: () => onOpenPanel('avatar') },
     { label: 'Send feedback', detail: 'Tell us what would make Bubble better', icon: Heart, action: () => onOpenPanel('feedback') },
     { label: 'What can Bubble do?', icon: HelpCircle, action: openIntro },
   ];

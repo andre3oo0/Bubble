@@ -33,7 +33,7 @@ Bubble is a shared project by **Immanah Makitla** and **andre3oo0**, and it's bo
 client/src/
   pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
   components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
-                ("Reflect with Bubble"), MoodPanel, AvatarPanel (= Settings tab), SosScreen,
+                ("Reflect with Bubble"), MoodPanel, SettingsPanel (the Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar (Bubble's face), BubbleLogo,
                 SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
                 OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones),
@@ -166,7 +166,7 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
 **Next up (owner's order, 6 October):**
-1. Settings screen redesign (07, with the control shapes from 04). See the redesign plan below.
+1. Privacy policy and terms of use (owner asked, 6 October), linked from Settings and sign-up. Needs the owner's decisions: who the responsible party and contact are, an age rule, and legal review before it's relied on.
 2. Before beta: per-device counting for the signed-out message limit (see "Daily AI cap").
 3. Run the rest of `try-chat` against Qwen (exam, friend, good news) and ask the tester whether Bubble feels warmer.
 
@@ -205,8 +205,7 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 
 **Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), loading placeholders, an offline banner and a proper 404 (16), the phone layout (06: four tabs, a simpler header, no floating button), a calmer help screen (13), the desktop sidebar with content capped at 720 px (05), and the new Bubble faces and logo, still, in Bubble's colours (03; from a second download of the same name in the owner's Downloads, with SVG assets only). The new screens use 8 px corners; the project's `rounded-lg` is still 24 px until the controls are reworked (04).
 
-**Ready to build (no open questions):**
-- Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04)
+**Settings (07, 04), done 6 October** from the written plan (the original design file was no longer on disk): one screen with Account (who's signed in, confirm email, change password, sign out; sign-in buttons when signed out), Privacy (what's kept, download my data, delete my account), Safety (the AI notice, Get help, the introduction) and Display (scene, sound, calm visuals as a switch, theme as a segmented control). Flat sections with hairline rows and 8 px corners; only the switch is rounded. Setting Bubble's mood by hand is gone, and the Mood tab's reminder times are hidden until reminders exist. Change password and Delete open the account dialog straight at that step (`open('login', { action })` in `accountStore`). The rest of the app's controls (mood chips, journal buttons) still have pill shapes.
 
 **Owner's decisions (5 October 2026):**
 - **Rising mood bubbles stay** (6 October): the bubbles that rise in chat when the mood changes are kept, despite the audit suggesting removal (03). They already stop with calm visuals
@@ -235,7 +234,7 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 **Known loose ends:**
 - `index.css` still has the old scenery styles (cafe, rain, stars, lamp, the CSS trees and clouds). Nothing uses them; they can be deleted
 - Feedback form only logs to the browser console
-- Mood check-in reminder times are saved but nothing is sent (needs notifications)
+- Mood check-in reminders: the times screen is hidden until notifications exist (old saved times stay in `checkInTimes` on the device and are cleared on sign-out)
 - `ChatInterface` renders a second `BreathingExercise` alongside the one in Home
 - Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed
 

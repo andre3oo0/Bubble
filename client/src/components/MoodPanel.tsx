@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Mood } from '@/models/types';
-import { Clock, Settings, Plus, Save, X } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useSession } from '@/lib/authClient';
 
 import { fetchMoods, queryKeys, saveMoodCheckin } from '@/lib/api';
@@ -27,10 +27,6 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
   const { open: openAccount } = useAccountDialog();
   const queryClient = useQueryClient();
   const [selectedMood, setSelectedMood] = useState<Mood>(currentMood);
-  const [showSettings, setShowSettings] = useState(false);
-  const [checkInTimes, setCheckInTimes] = useState<string[]>(['12:00', '18:00']);
-  const [newCheckInTime, setNewCheckInTime] = useState('');
-  const [isEditingTimes, setIsEditingTimes] = useState(false);
 
   const moodsQuery = useQuery({ queryKey: queryKeys.moods, queryFn: fetchMoods, enabled: !!session });
   const moodHistory: MoodCheckIn[] = (moodsQuery.data ?? []).map((checkin) => {
@@ -48,14 +44,6 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.moods }),
   });
 
-  // Check-in times are a device setting for now, they move to the server with reminders
-  useEffect(() => {
-    const savedCheckInTimes = localStorage.getItem('checkInTimes');
-    if (savedCheckInTimes) {
-      setCheckInTimes(JSON.parse(savedCheckInTimes));
-    }
-  }, []);
-
   // Save mood when selected
   const saveMood = () => {
     if (selectedMood) {
@@ -63,23 +51,6 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       setCurrentMood(selectedMood);
       if (session) saveCheckin.mutate(selectedMood);
     }
-  };
-
-  // Add new check-in time
-  const addCheckInTime = () => {
-    if (newCheckInTime) {
-      const updatedTimes = [...checkInTimes, newCheckInTime].sort();
-      setCheckInTimes(updatedTimes);
-      localStorage.setItem('checkInTimes', JSON.stringify(updatedTimes));
-      setNewCheckInTime('');
-    }
-  };
-
-  // Remove check-in time
-  const removeCheckInTime = (time: string) => {
-    const updatedTimes = checkInTimes.filter(t => t !== time);
-    setCheckInTimes(updatedTimes);
-    localStorage.setItem('checkInTimes', JSON.stringify(updatedTimes));
   };
 
   // Group mood history by date
@@ -98,108 +69,40 @@ export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProp
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center flex-1">Mood</h1>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          aria-label={showSettings ? 'Back to check-in' : 'Check-in reminder times'}
-          aria-pressed={showSettings}
-          className="rounded-full p-2 text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-        >
-          <Settings className="w-6 h-6" aria-hidden="true" />
-        </button>
-      </div>
+      {/* Reminder times come back once Bubble can actually send reminders */}
+      <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center mb-4">Mood</h1>
 
-      {showSettings ? (
-        // Settings panel
-        <div className="surface rounded-3xl p-4 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-white text-lg">Check-in Times</h3>
+      {/* Current mood selector */}
+      <div className="surface rounded-3xl p-4 mb-6">
+        <h2 className="text-white text-lg mb-3">How are you feeling right now?</h2>
+        <div className="flex flex-wrap gap-2">
+          {MOOD_ORDER.map((mood) => (
             <button
-              onClick={() => setIsEditingTimes(!isEditingTimes)}
-              className="text-white bg-[#0b6bb8] rounded-full px-3 py-1 text-sm"
+              key={mood}
+              onClick={() => setSelectedMood(mood)}
+              aria-pressed={selectedMood === mood}
+              className={`rounded-full px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
+                selectedMood === mood ? 'bg-white text-[#0b3d66]' : 'surface-soft surface-soft-hover text-white'
+              }`}
             >
-              {isEditingTimes ? 'Done' : 'Edit'}
+              {MOOD_LABELS[mood]}
             </button>
-          </div>
-
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-2">
-              {checkInTimes.map((time) => (
-                <div
-                  key={time}
-                  className="flex items-center surface-soft rounded-full px-3 py-1 text-white"
-                >
-                  <Clock className="w-4 h-4 mr-1" />
-                  <span>{time}</span>
-                  {isEditingTimes && (
-                    <button
-                      onClick={() => removeCheckInTime(time)}
-                      className="ml-2 text-white hover:text-red-500"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {isEditingTimes && (
-            <div className="flex gap-2 mb-2">
-              <input
-                type="time"
-                value={newCheckInTime}
-                onChange={(e) => setNewCheckInTime(e.target.value)}
-                className="surface-soft text-white border-none rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-white/60"
-              />
-              <button
-                onClick={addCheckInTime}
-                className="bg-[#0b6bb8] text-white rounded-full p-1"
-                disabled={!newCheckInTime}
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
-          <p className="text-white/90 text-sm">
-            Set times for daily mood check-in reminders
-          </p>
+          ))}
         </div>
-      ) : (
-        // Current mood selector
-        <div className="surface rounded-3xl p-4 mb-6">
-          <h2 className="text-white text-lg mb-3">How are you feeling right now?</h2>
-          <div className="flex flex-wrap gap-2">
-            {MOOD_ORDER.map((mood) => (
-              <button
-                key={mood}
-                onClick={() => setSelectedMood(mood)}
-                aria-pressed={selectedMood === mood}
-                className={`rounded-full px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
-                  selectedMood === mood ? 'bg-white text-[#0b3d66]' : 'surface-soft surface-soft-hover text-white'
-                }`}
-              >
-                {MOOD_LABELS[mood]}
-              </button>
-            ))}
-          </div>
 
-          <div className="mt-4 flex justify-center">
-            <motion.button
-              onClick={saveMood}
-              className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={!selectedMood}
-            >
-              <Save className="w-5 h-5 mr-2" />
-              Save mood
-            </motion.button>
-          </div>
+        <div className="mt-4 flex justify-center">
+          <motion.button
+            onClick={saveMood}
+            className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            disabled={!selectedMood}
+          >
+            <Save className="w-5 h-5 mr-2" />
+            Save mood
+          </motion.button>
         </div>
-      )}
+      </div>
 
       {/* Mood history */}
       <div className="md:flex-1 surface rounded-3xl p-4 md:overflow-y-auto">
