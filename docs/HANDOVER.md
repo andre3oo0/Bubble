@@ -164,13 +164,19 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, and the new Bubble faces and logo. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
-**Next up (owner's order, 6 October):**
-1. Before beta: per-device counting for the signed-out message limit (see "Daily AI cap").
-2. Run the rest of `try-chat` against Qwen (exam, friend, good news) and ask the tester whether Bubble feels warmer.
+**Next action item: count the signed-out message limit per device, not per network** (before beta; branch `feat/per-device-limit`). Today everyone signed out on one network (a school, an office, the owner's work network) shares one allowance of 40 a day, so one busy person uses it up for everyone. Plan, to confirm with the owner before building:
+- The browser makes a random device ID once (`crypto.randomUUID()`, in local storage) and sends it with chat requests (`/api/chat`, `/api/chat/reflect`) in a header. It's never tied to an account, and it's cleared with the other personal keys on sign-out (`forgetDevice`).
+- The server counts each device by a keyed hash of that ID (40 a day, as now), and also keeps a higher cap per network (keyed hash of the /56, e.g. 200 a day) so clearing storage or scripting fresh IDs can't get round the limit. A missing or malformed ID falls back to the network count at 40.
+- Crisis messages keep getting helplines past every limit; the crisis tests in `server/routes.test.ts` must keep passing. Add tests for: two devices on one network get separate allowances, the network cap still applies, and a missing ID falls back.
+- Update `usageKey` and `.env.example` (a `CHAT_DAILY_LIMIT_NETWORK` setting), SAFETY.md (what's counted), and the privacy policy's "Daily counts" line to mention the random device code (decide with the owner whether that wording change needs a new `LEGAL_VERSION`).
+
+**After that:**
+1. Run the rest of `try-chat` against Qwen (exam, friend, good news) and ask the tester whether Bubble feels warmer.
+2. The rest of the redesign's control shapes: mood chips and journal buttons are still pill-shaped (04).
 
 Smaller open points: the "listening" face exists but isn't used anywhere yet (an idea: while the person is typing in chat); the Android APK still has the old launcher icon until it's rebuilt in PWABuilder with the same signing key.
 
