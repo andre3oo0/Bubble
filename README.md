@@ -70,7 +70,7 @@
 - **Mood check-ins** with a history of the last 30 days.
 - **Breathing exercise.** A slow 4-4-6-2 pace, with a longer out-breath.
 - **Calming scenes.** Ocean, forest, sunset and a cozy room, drawn in SVG, with ambient sound generated in the browser. Calm visuals turns off movement.
-- **Accounts that stay optional.** Email and password or Google. Download or delete everything at any time.
+- **Accounts that stay optional.** Email and password or Google. Download or delete everything at any time. A plain-language [privacy policy](https://bubble-1-kafq.onrender.com/privacy) and [terms of use](https://bubble-1-kafq.onrender.com/terms) say what's kept and why.
 - **Installable.** Works as a PWA with an offline helplines page, and as an Android app.
 
 ## How it works

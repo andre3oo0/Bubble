@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { forgetDevice } from '@/lib/forgetDevice';
 import { signOutHere } from '@/lib/signOut';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '@shared/account';
+import { LEGAL_VERSION, MIN_AGE } from '@shared/legal';
 import GoogleButton, { useGoogleSignIn } from './GoogleButton';
 
 const inputClass =
@@ -38,6 +39,7 @@ export default function AuthenticationModal() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -114,7 +116,14 @@ export default function AuthenticationModal() {
     if (mode === 'register') {
       // Sign-up answers the same whether or not the email already has an account (so it
       // can't be used to check who uses Bubble), then we sign in with the new password
-      const { error } = await signUp.email({ name, email, password, callbackURL: '/' });
+      // The server checks this is the current version and records when they agreed
+      const { error } = await signUp.email({
+        name,
+        email,
+        password,
+        callbackURL: '/',
+        acceptedTerms: agreed ? LEGAL_VERSION : undefined,
+      } as Parameters<typeof signUp.email>[0]);
       if (error) {
         setIsLoading(false);
         setErrorMessage(error.message || 'Something went wrong. Please try again.');
@@ -499,6 +508,31 @@ export default function AuthenticationModal() {
               </button>
             )}
           </div>
+        )}
+
+        {mode === 'register' && (
+          <label className="flex items-start gap-3 text-sm text-gray-800">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              required
+              disabled={isLoading}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[#0b5394]"
+            />
+            <span>
+              I'm {MIN_AGE} or older and I agree to the{' '}
+              {/* New tab, so the form isn't lost */}
+              <a href="/terms" target="_blank" rel="noopener" className="font-medium text-[#0b5394] underline underline-offset-2">
+                terms of use
+              </a>{' '}
+              and{' '}
+              <a href="/privacy" target="_blank" rel="noopener" className="font-medium text-[#0b5394] underline underline-offset-2">
+                privacy policy
+              </a>
+              , including my messages being sent to Bubble's AI provider in the US.
+            </span>
+          </label>
         )}
 
         {errorMessage && (

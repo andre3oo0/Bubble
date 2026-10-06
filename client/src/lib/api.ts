@@ -43,3 +43,8 @@ export async function fetchMoods(): Promise<MoodCheckin[]> {
 export async function saveMoodCheckin(mood: Mood): Promise<MoodCheckin> {
   return (await apiRequest('POST', '/api/moods', { mood })).json();
 }
+
+// Agree to the current terms and privacy policy (accounts that didn't tick the box at sign-up)
+export async function agreeToTerms(version: string): Promise<void> {
+  await apiRequest('POST', '/api/me/consent', { version });
+}

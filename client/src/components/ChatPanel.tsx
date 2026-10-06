@@ -8,6 +8,9 @@ import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
 import { v4 as uuidv4 } from 'uuid';
 import { endChat, sendChatMessage } from '@/lib/chatService';
+import { chatTermsSeen, rememberChatTerms } from '@/lib/chatConsent';
+import { useSession } from '@/lib/authClient';
+import { LEGAL_VERSION, MIN_AGE } from '@shared/legal';
 import ChatDebrief from './ChatDebrief';
 import BubbleAvatar from './BubbleAvatar';
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
@@ -55,6 +58,11 @@ export default function ChatPanel({
   const [debriefOpen, setDebriefOpen] = useState(false);
   const [releasing, setReleasing] = useState(false);
   const { messages, addMessage, updateMessage, clearMessages } = useChatStore();
+  const { data: session } = useSession();
+  // Before the first message: who Bubble is for, and what sending means. Account holders
+  // agreed at sign-up; on this device it's shown until a message has been sent.
+  const [termsSeen, setTermsSeen] = useState(chatTermsSeen);
+  const showTermsNote = !termsSeen && session?.user.termsVersion !== LEGAL_VERSION;
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const hasConversation = messages.some((m) => m.sender === 'user');
   const { currentMood, setCurrentMood } = useMoodStore();
@@ -211,6 +219,10 @@ export default function ChatPanel({
       setInputMessage('');
       if (composerRef.current) composerRef.current.style.height = '';
     }
+    if (!termsSeen) {
+      rememberChatTerms();
+      setTermsSeen(true);
+    }
     sendMessage(text);
   };
 
@@ -311,6 +323,19 @@ export default function ChatPanel({
                 </button>
               ))}
             </div>
+            {showTermsNote && (
+              <p className="mt-6 max-w-sm text-xs text-white/85">
+                Bubble is for people {MIN_AGE} and over. By sending a message you agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener" className="underline underline-offset-2">
+                  terms of use
+                </a>{' '}
+                and{' '}
+                <a href="/privacy" target="_blank" rel="noopener" className="underline underline-offset-2">
+                  privacy policy
+                </a>
+                , including your messages going to Bubble's AI provider in the US to get a reply. Chats aren't saved.
+              </p>
+            )}
           </div>
         )}
         <div className="flex flex-col space-y-3">

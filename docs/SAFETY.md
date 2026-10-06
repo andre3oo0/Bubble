@@ -37,7 +37,7 @@ Changes to the prompt or model are judged on the live site with `npm run try-cha
 | End-of-chat reflection | Only if saved | The transcript is sent for the reflection and not kept. The reflection is saved only if the person chooses "Save to journal". |
 | Journal entries | Yes, if signed in | Readable only by their author. Every query is scoped to the signed-in user, with isolation tests. |
 | Mood check-ins | Yes, if signed in | Same scoping as the journal. |
-| Account | Yes, if created | Name (up to 50 characters), email and a hashed password (or a Google link). Google's tokens are stored encrypted. |
+| Account | Yes, if created | Name (up to 50 characters), email and a hashed password (or a Google link). Google's tokens are stored encrypted. Which version of the terms and privacy policy was agreed to, and when. |
 | Sign-in sessions | Yes, if signed in | When each session started and when it expires. Not the IP address or browser. Expired sessions and used email links are deleted every hour. |
 | Usage counts | Yes, 7 days | Daily counters for the limits: AI messages per account, or for guests per keyed hash of their network address; emails sent per keyed hash of the address; failed sign-ins per keyed hash of the email. Raw IP and email addresses are never stored in them. |
 | Logs | Yes | Request lines (method, path, status, timing) and the kind of error, never its details: a failed database query or a broken request can contain what someone wrote. Logs never contain chat or journal content, names, emails or IP addresses. |
@@ -54,6 +54,14 @@ People can download everything stored about them (Settings, then the account scr
 - **Password checks:** when someone chooses a password on the live site, the first 5 characters of its SHA-1 hash go to [Have I Been Pwned](https://haveibeenpwned.com/Passwords) to check it hasn't appeared in a data breach. The password itself never leaves the server, and the service can't work it out from those 5 characters. If the service is down, the password is accepted.
 - **Nothing else:** no analytics, no ads, and no third-party fonts or scripts in the app.
 
+## Consent and age
+
+The [privacy policy](https://bubble-1-kafq.onrender.com/privacy) and [terms of use](https://bubble-1-kafq.onrender.com/terms) are pages in the app, kept in step with this one. Bubble is for people 18 and over.
+
+- Email sign-up needs a tick box ("I'm 18 or older and I agree to the terms of use and privacy policy, including my messages being sent to Bubble's AI provider in the US"). The server refuses sign-up without it and records which version was agreed to, and when.
+- Google sign-ups, accounts from before the policy, and everyone after a change are asked to agree on their next visit, or can sign out. The consent record is part of the data export.
+- Signed-out chat shows a short note before the first message: who Bubble is for, and that sending a message means agreeing. It's a note, not a button, so nobody in crisis has to tap through anything to be heard. The device remembers it was shown.
+
 ## Protecting accounts
 
 - Sign-up gives the same answer whether or not an email already has an account, so it can't be used to find out who uses Bubble. The owner of the address gets an email saying someone tried.
@@ -64,7 +72,7 @@ People can download everything stored about them (Settings, then the account scr
 
 ## Still to do
 
-- A privacy notice for POPIA (health-related data, stored in Frankfurt, chat sent to Groq in the US), a recorded consent step and a decision on under-18s, needed before launch and before optional chat history ships.
+- A review of the privacy policy and terms by someone qualified in POPIA, and the before-launch items in the handover (a Bubble contact address instead of a personal one, Groq's data retention).
 - A check on the AI's own replies when the risk is `concern` or `crisis`, in case a manipulated model says something harmful.
 - Field-level encryption of journal entries at rest.
 - Checking the SADAG and Lifeline numbers against their own websites before launch.

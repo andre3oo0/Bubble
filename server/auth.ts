@@ -5,6 +5,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import { lt } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from "@shared/account";
+import { LEGAL_VERSION } from "@shared/legal";
 import { authSchema, session as sessionTable, verification } from "@shared/schema";
 import { db } from "./db";
 import { emailConfigured, existingAccountEmail, resetPasswordEmail, sendEmail, verifyEmail, type Email } from "./email";
@@ -102,6 +103,12 @@ export const auth = betterAuth({
   user: {
     // Account and everything in it (journal, moods, sessions) is removed via ON DELETE CASCADE
     deleteUser: { enabled: true },
+    // The consent record. Never set by the client directly: email sign-up sets it
+    // below, everyone else agrees through POST /api/me/consent
+    additionalFields: {
+      termsVersion: { type: "string", required: false, input: false },
+      termsAcceptedAt: { type: "date", required: false, input: false },
+    },
   },
   advanced: {
     // app.ts sets this header from Express's req.ip (which honours TRUST_PROXY), so login
@@ -109,6 +116,16 @@ export const auth = betterAuth({
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
   databaseHooks: {
+    user: {
+      create: {
+        // The sign-up hook below has already checked they ticked the box. Google
+        // sign-ups have no box, so the app asks them on their first visit.
+        before: async (user, ctx) =>
+          ctx?.path === "/sign-up/email"
+            ? { data: { ...user, termsVersion: LEGAL_VERSION, termsAcceptedAt: new Date() } }
+            : { data: user },
+      },
+    },
     session: {
       create: {
         // The IP is still used for rate limits, but never stored: where someone signs
@@ -120,6 +137,13 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/sign-up/email" || ctx.path === "/update-user") checkName(ctx.body?.name);
+
+      // Health information needs explicit consent (POPIA s27), and Bubble is 18+
+      if (ctx.path === "/sign-up/email" && ctx.body?.acceptedTerms !== LEGAL_VERSION) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Please confirm you're 18 or older and agree to the terms of use and privacy policy.",
+        });
+      }
 
       if (ctx.path === "/sign-in/email" && typeof ctx.body?.email === "string") {
         if ((await signInFailures(ctx.body.email)) >= SIGN_IN_FAILURES_ALLOWED) {

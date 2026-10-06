@@ -13,6 +13,7 @@ import {
 } from "@shared/api";
 import type { Mood } from "@shared/chat";
 import { HELPLINES, detectCrisis } from "@shared/safety";
+import { LEGAL_VERSION } from "@shared/legal";
 import { db } from "./db";
 import { requireUser, type AuthedLocals } from "./auth";
 import { generateEntryReflection } from "./openaiService";
@@ -87,7 +88,14 @@ export function registerDataRoutes(app: Express) {
   app.get("/api/me/export", handle(async (_req, res) => {
     const userId = res.locals.userId;
     const [account] = await db
-      .select({ name: user.name, email: user.email, emailVerified: user.emailVerified, createdAt: user.createdAt })
+      .select({
+        name: user.name,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt,
+        termsVersion: user.termsVersion,
+        termsAcceptedAt: user.termsAcceptedAt,
+      })
       .from(user)
       .where(eq(user.id, userId));
     const journal = await db
@@ -115,7 +123,15 @@ export function registerDataRoutes(app: Express) {
     res.setHeader("Content-Disposition", `attachment; filename="bubble-data-${date}.json"`);
     res.json({
       exportedAt: new Date().toISOString(),
-      account: { ...account, createdAt: account.createdAt.toISOString() },
+      account: {
+        name: account.name,
+        email: account.email,
+        emailVerified: account.emailVerified,
+        createdAt: account.createdAt.toISOString(),
+      },
+      agreedTo: account.termsVersion
+        ? { termsAndPrivacyVersion: account.termsVersion, at: account.termsAcceptedAt?.toISOString() ?? null }
+        : null,
       journalEntries: journal.map(toJournalEntry),
       moodCheckins: moods.map(toMoodCheckin),
       signInMethods: methods.map((m) => ({
@@ -125,6 +141,18 @@ export function registerDataRoutes(app: Express) {
       sessions: signIns.map((s) => ({ startedAt: s.createdAt.toISOString(), expiresAt: s.expiresAt.toISOString() })),
       chat: "Bubble doesn't store your chat messages.",
     });
+  }));
+
+  // Agreeing to the current terms and privacy policy (Google sign-ups, older
+  // accounts, and everyone again after a change). Only the current version counts.
+  app.post("/api/me/consent", handle(async (req, res) => {
+    const parsed = z.object({ version: z.literal(LEGAL_VERSION) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Please agree to the current version" });
+    await db
+      .update(user)
+      .set({ termsVersion: LEGAL_VERSION, termsAcceptedAt: new Date() })
+      .where(eq(user.id, res.locals.userId));
+    res.status(204).end();
   }));
 
   app.get("/api/journal", handle(async (_req, res) => {

@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Download, Info, KeyRound, LifeBuoy, LogOut, MailCheck, Pause, Play, Trash2, Volume2 } from 'lucide-react';
+import { ChevronRight, Download, FileText, Info, KeyRound, LifeBuoy, LogOut, MailCheck, Pause, Play, ScrollText, Trash2, Volume2 } from 'lucide-react';
 import SceneBackdrop from './SceneBackdrop';
 import { AccountSkeleton } from './Skeleton';
 import { SCENES, type SceneId } from './scenes';
@@ -185,6 +186,16 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
           Your chats aren't saved. Bubble keeps the latest part of a conversation for up to an hour so it can follow along,
           and forgets it as soon as you choose Let go. Your journal and moods are only ever shown to you.
         </Note>
+        <Link href="/privacy" className={rowClass}>
+          <FileText className={rowIcon} aria-hidden="true" />
+          <span className="min-w-0 flex-1 font-medium">Privacy policy</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
+        </Link>
+        <Link href="/terms" className={rowClass}>
+          <ScrollText className={rowIcon} aria-hidden="true" />
+          <span className="min-w-0 flex-1 font-medium">Terms of use</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
+        </Link>
         {session && (
           <>
             {/* Plain link: same-origin, so the session cookie goes along and the browser saves the file */}

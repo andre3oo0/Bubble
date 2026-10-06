@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import ResetPassword from "@/pages/ResetPassword";
+import { PrivacyPolicy, TermsOfUse } from "@/pages/Legal";
 import { usePreferences } from "@/store/preferencesStore";
 
 function Router() {
@@ -12,6 +13,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfUse} />
       <Route component={NotFound} />
     </Switch>
   );

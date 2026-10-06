@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import type { JournalEntry, MoodCheckin } from "@shared/api";
 import { account, journalEntries, moodCheckins, session, user } from "@shared/schema";
 import { HELPLINES } from "@shared/safety";
+import { LEGAL_VERSION } from "@shared/legal";
 
 // Capture outgoing email instead of sending or printing it
 vi.mock("./email", async (importOriginal) => ({
@@ -70,7 +71,7 @@ const newEmail = () => `user${++emailCounter}-${Date.now()}@example.com`;
 async function signUp() {
   const email = newEmail();
   const res = await request("POST", "/api/auth/sign-up/email", {
-    body: { name: "Test User", email, password: PASSWORD },
+    body: { acceptedTerms: LEGAL_VERSION, name: "Test User", email, password: PASSWORD },
   });
   expect(res.status).toBe(200);
   const signedIn = await request("POST", "/api/auth/sign-in/email", { body: { email, password: PASSWORD } });
@@ -526,8 +527,10 @@ describe("security", () => {
     const { email } = await signUp();
     sentEmails.mockClear();
 
-    const again = await request("POST", "/api/auth/sign-up/email", { body: { name: "Someone", email, password: "another-long-password" } });
-    const fresh = await request("POST", "/api/auth/sign-up/email", { body: { name: "Someone", email: newEmail(), password: "another-long-password" } });
+    const again = await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name: "Someone", email, password: "another-long-password" } });
+    const fresh = await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name: "Someone", email: newEmail(), password: "another-long-password" } });
 
     expect(again.status).toBe(fresh.status);
     const [a, b] = [await again.json(), await fresh.json()];
@@ -545,7 +548,8 @@ describe("security", () => {
     ["a web address", "www.evil.example"],
     ["markup", "<b>Sam</b>"],
   ])("rejects a name that is %s", async (_label, name) => {
-    const res = await request("POST", "/api/auth/sign-up/email", { body: { name, email: newEmail(), password: PASSWORD } });
+    const res = await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name, email: newEmail(), password: PASSWORD } });
     expect(res.status).toBe(400);
   });
 
@@ -556,13 +560,15 @@ describe("security", () => {
   });
 
   it("needs a password of at least 10 characters", async () => {
-    const res = await request("POST", "/api/auth/sign-up/email", { body: { name: "Sam", email: newEmail(), password: "123456789" } });
+    const res = await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name: "Sam", email: newEmail(), password: "123456789" } });
     expect(res.status).toBe(400);
   });
 
   it("keeps the name out of emails", async () => {
     const email = newEmail();
-    await request("POST", "/api/auth/sign-up/email", { body: { name: "Sam Mokoena", email, password: PASSWORD } });
+    await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name: "Sam Mokoena", email, password: PASSWORD } });
     await vi.waitFor(() => expect(sentEmails).toHaveBeenCalled());
     const [message] = sentEmails.mock.calls.at(-1)!;
     expect(message.text).not.toContain("Sam");
@@ -581,7 +587,8 @@ describe("security", () => {
   it("stops sending email when the app's daily budget is spent", async () => {
     vi.stubEnv("EMAIL_DAILY_LIMIT", "0");
     const email = newEmail();
-    await request("POST", "/api/auth/sign-up/email", { body: { name: "Sam", email, password: PASSWORD } });
+    await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name: "Sam", email, password: PASSWORD } });
     vi.unstubAllEnvs();
     expect(sentEmails.mock.calls.filter(([m]) => m.to === email)).toHaveLength(0);
   });
@@ -599,7 +606,8 @@ describe("security", () => {
   it("rejects a password that's been in a data breach", async () => {
     vi.mocked(passwordCheck.breachCheckEnabled).mockReturnValue(true);
     vi.mocked(passwordCheck.isBreachedPassword).mockResolvedValueOnce(true);
-    const res = await request("POST", "/api/auth/sign-up/email", { body: { name: "Sam", email: newEmail(), password: "password123" } });
+    const res = await request("POST", "/api/auth/sign-up/email", {
+    body: { acceptedTerms: LEGAL_VERSION, name: "Sam", email: newEmail(), password: "password123" } });
     vi.mocked(passwordCheck.breachCheckEnabled).mockReturnValue(false);
     expect(res.status).toBe(400);
     expect((await res.json()).message).toMatch(/data breach/);
@@ -659,5 +667,53 @@ describe("security", () => {
     expect(data.signInMethods).toEqual([expect.objectContaining({ method: "email" })]);
     expect(data.sessions.length).toBeGreaterThan(0);
     expect(Object.keys(data.sessions[0]).sort()).toEqual(["expiresAt", "startedAt"]);
+  });
+});
+
+describe("terms and privacy consent", () => {
+  it("won't create an account without agreeing", async () => {
+    const res = await request("POST", "/api/auth/sign-up/email", { body: { name: "Sam", email: newEmail(), password: PASSWORD } });
+    expect(res.status).toBe(400);
+    const old = await request("POST", "/api/auth/sign-up/email", {
+      body: { name: "Sam", email: newEmail(), password: PASSWORD, acceptedTerms: "2020-01-01" },
+    });
+    expect(old.status).toBe(400);
+  });
+
+  it("records the version and time agreed to at sign-up", async () => {
+    const { email, cookie } = await signUp();
+    const [row] = await db.select({ version: user.termsVersion, at: user.termsAcceptedAt }).from(user).where(eq(user.email, email));
+    expect(row.version).toBe(LEGAL_VERSION);
+    expect(row.at).toBeInstanceOf(Date);
+
+    const session = await (await request("GET", "/api/auth/get-session", { cookie })).json();
+    expect(session.user.termsVersion).toBe(LEGAL_VERSION);
+    const exported = await (await request("GET", "/api/me/export", { cookie })).json();
+    expect(exported.agreedTo.termsAndPrivacyVersion).toBe(LEGAL_VERSION);
+  });
+
+  it("can't be set through the account update", async () => {
+    const { cookie } = await signUp();
+    const res = await request("POST", "/api/auth/update-user", { cookie, body: { termsVersion: "made-up" } });
+    expect(res.status).toBe(400);
+  });
+
+  it("lets a signed-in person agree to the current version, for their own account only", async () => {
+    const alice = await signUp();
+    const bob = await signUp();
+    await db.update(user).set({ termsVersion: null, termsAcceptedAt: null }).where(eq(user.email, alice.email));
+    await db.update(user).set({ termsVersion: null, termsAcceptedAt: null }).where(eq(user.email, bob.email));
+
+    expect((await request("POST", "/api/me/consent", { cookie: alice.cookie, body: { version: "2020-01-01" } })).status).toBe(400);
+    expect((await request("POST", "/api/me/consent", { cookie: alice.cookie, body: { version: LEGAL_VERSION } })).status).toBe(204);
+
+    const [a] = await db.select({ version: user.termsVersion }).from(user).where(eq(user.email, alice.email));
+    const [b] = await db.select({ version: user.termsVersion }).from(user).where(eq(user.email, bob.email));
+    expect(a.version).toBe(LEGAL_VERSION);
+    expect(b.version).toBeNull();
+  });
+
+  it("needs a session to agree", async () => {
+    expect((await request("POST", "/api/me/consent", { body: { version: LEGAL_VERSION } })).status).toBe(401);
   });
 });

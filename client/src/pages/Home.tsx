@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'wouter';
 import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, Wind, LifeBuoy, LogIn, UserRound } from 'lucide-react';
 import BubbleAvatar from '@/components/BubbleAvatar';
 import BubbleLogo from '@/components/BubbleLogo';
@@ -12,6 +13,7 @@ import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
 import SosScreen, { helpButtonClass } from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
+import ConsentGate from '@/components/ConsentGate';
 import IntroTour from '@/components/IntroTour';
 import OfflineBanner from '@/components/OfflineBanner';
 import PhoneMenu from '@/components/PhoneMenu';
@@ -154,6 +156,15 @@ export default function Home() {
                   </button>
                 </p>
               )}
+              <p className="mt-4 text-xs text-white/85">
+                <Link href="/privacy" className="underline underline-offset-4 decoration-white/50 hover:decoration-white focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 rounded">
+                  Privacy policy
+                </Link>
+                <span aria-hidden="true" className="mx-2">·</span>
+                <Link href="/terms" className="underline underline-offset-4 decoration-white/50 hover:decoration-white focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 rounded">
+                  Terms of use
+                </Link>
+              </p>
             </div>
           </motion.div>
         );
@@ -188,6 +199,7 @@ export default function Home() {
       style={{ height: '100dvh' }}
     >
       <AuthenticationModal />
+      <ConsentGate />
 
       <IntroTour onStartChat={() => setActivePanel('chat')} />
 

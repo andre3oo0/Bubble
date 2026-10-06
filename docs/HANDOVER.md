@@ -24,14 +24,15 @@ Bubble is a shared project by **Immanah Makitla** and **andre3oo0**, and it's bo
 | Auth | Better Auth: email and password, plus Google when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set. Sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `qwen/qwen3.8-27b` (best-effort structured outputs, checked by `parseBestEffort`), via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest 4 (167 tests), in-memory database, AI, email and the breached-password check mocked |
+| Tests | Vitest 4 (172 tests), in-memory database, AI, email and the breached-password check mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
 
 ```
 client/src/
-  pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
+  pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, Legal (privacy policy
+                and terms of use, at /privacy and /terms), not-found
   components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
                 ("Reflect with Bubble"), MoodPanel, SettingsPanel (the Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar (Bubble's face), BubbleLogo,
@@ -88,7 +89,8 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 | `GET/POST /api/journal`, `PATCH/DELETE /api/journal/:id` | Signed in only, always scoped to the session's user |
 | `POST /api/journal/:id/reflect` | → `{reflection, question, helplines?, fallback?}`. "Reflect with Bubble" on one of your own entries; counts towards the daily limit, nothing stored |
 | `GET/POST /api/moods` | Check-ins, last 30 days by default |
-| `GET /api/me/export` | JSON download of everything stored for the user: account, journal, moods, sign-in methods, sessions |
+| `GET /api/me/export` | JSON download of everything stored for the user: account, consent record, journal, moods, sign-in methods, sessions |
+| `POST /api/me/consent` | `{version}` → 204. Agree to the current terms and privacy policy; only `LEGAL_VERSION` is accepted |
 | `/api/auth/*` | Better Auth: sign up/in/out, request-password-reset, reset-password, verify-email, delete-user |
 | `GET /api/health` | Health check |
 | `GET /api/auth-options` | `{google}`: whether to show "Continue with Google" |
@@ -110,6 +112,7 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **Sign-in comes first, but is optional.** The first page of the first-visit introduction offers "Continue with Google", "Continue with email" and "Not now, show me around". Neither sign-in route counts as finishing the introduction, so it picks up again afterwards ("Hi Sam, I'm Bubble"). Chat never needs an account.
 - **Google sign-in** (free) is switched on by the two `GOOGLE_*` settings; without them the button doesn't show. It always shows Google's account chooser (shared phones), stores Google's tokens encrypted, and asks only for name and email. An existing email account is linked to Google only once its email is confirmed, so an unconfirmed sign-up can't be taken over; the person is told to use their password instead. Google-only accounts have no password, so "Change password" is hidden and deleting needs a sign-in from the last 24 hours instead. Google sign-in leaves the page, so it's hidden in the chat debrief, where it would lose the reflection. Apple (US$99/year) and phone numbers (paid per SMS) are parked until Bubble is funded.
 - **Email confirmation is sent but not required**, so nobody is locked out of support. Password reset signs out every other session.
+- **Privacy policy and terms of use** (6 October, owner's decisions): pages at `/privacy` and `/terms` (`pages/Legal.tsx`), with the version, date, contact and the Information Regulator's details in `shared/legal.ts`. The pages say "Bubble" throughout and name no people (owner's choice, 6 October). Bubble is 18+. Email sign-up needs a tick box ("I'm 18 or older and I agree…"); the server refuses sign-up without the current version and records version and time on the user (`terms_version`, `terms_accepted_at`, migration 0003, never settable by the client). Signed-in people without the current version (Google sign-ups, older accounts, everyone after `LEGAL_VERSION` changes) get `ConsentGate`, which can only be agreed to or signed out of. Signed-out chat shows a note before the first message ("By sending a message you agree…"), remembered on the device. It's a passive note, not a button, so nobody in crisis has to tap through anything first. Change the pages, then bump `LEGAL_VERSION` if people should agree again.
 - **Sign-up doesn't sign in by itself** (`autoSignIn: false`), so it answers the same whether or not the email has an account and can't be used to check who uses Bubble. The account dialog signs in straight after with the new password; if that fails it says "If you already have one, sign in instead, or reset your password", and the real owner gets an email saying someone tried. This makes checking slower and noisy, not impossible: someone who signs up and then signs in can still tell, at the cost of creating an account and emailing the address. Only requiring email confirmation before first sign-in would close it fully, which the owner decided against for now.
 - **Security audit, 6 October** (local file, not committed). Fixed: the dev server listens on 127.0.0.1 with Vite 6's host check on and a block on `.env` and key files; errors are logged by kind only, never the error object; session rows don't keep IPs or browsers (cleared by migration 0002, expired ones pruned hourly); names (50 characters, no links) are kept out of emails; at most 3 emails per address a day and an app-wide email budget; IPv6 guests counted per /56; an app-wide AI budget; per-person caps on journal and mood writes; 10-character passwords checked against Have I Been Pwned (fails open, production only); 5 wrong passwords per email per 15 minutes; an Origin check on API writes; `Cache-Control: no-store` on `/api`; a Permissions-Policy; no Google Fonts (Inter was loaded but never used); sign-out clears the chat and mood on the device; more crisis phrasings; CI runs `npm audit` with a read-only token. Not done: optional two-factor sign-in, Cloudflare Turnstile on sign-up, a check on the AI's own replies, field-level journal encryption.
 - **Daily AI cap** (150 per user, 40 per guest, 20 per minute, 900 for the whole app via `AI_DAILY_LIMIT`; all configurable). Guests are counted by a keyed hash of their network (IPv6 grouped per /56), never the raw IP. A limit of 0 is valid. Known weakness: everyone signed out on one network (a school, an office) shares the 40. The owner chose to fix it before beta: count per device (a random ID) with a higher shared cap per network.
@@ -166,9 +169,8 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
 **Next up (owner's order, 6 October):**
-1. Privacy policy and terms of use (owner asked, 6 October), linked from Settings and sign-up. Needs the owner's decisions: who the responsible party and contact are, an age rule, and legal review before it's relied on.
-2. Before beta: per-device counting for the signed-out message limit (see "Daily AI cap").
-3. Run the rest of `try-chat` against Qwen (exam, friend, good news) and ask the tester whether Bubble feels warmer.
+1. Before beta: per-device counting for the signed-out message limit (see "Daily AI cap").
+2. Run the rest of `try-chat` against Qwen (exam, friend, good news) and ask the tester whether Bubble feels warmer.
 
 Smaller open points: the "listening" face exists but isn't used anywhere yet (an idea: while the person is typing in chat); the Android APK still has the old launcher icon until it's rebuilt in PWABuilder with the same signing key.
 
@@ -187,10 +189,15 @@ Smaller open points: the "listening" face exists but isn't used anywhere yet (an
 - [ ] **Security audit follow-ups (owner, soon):** create a new Google OAuth client secret and a new Groq key, put them in Render, and use a separate Google client and Groq key in the local `.env`, so a development machine never holds the live site's secrets (costs nothing); turn on two-factor sign-in for Render, Neon, Groq, Brevo, Google Cloud and GitHub; turn on Dependabot alerts and security updates (GitHub, Settings → Code security); set `AI_DAILY_LIMIT` in Render just under Groq's requests per day for the model
 - [ ] On the live site, signed in: the session cookie shows the `__Secure-` prefix, Secure, HttpOnly and SameSite=Lax, and `BETTER_AUTH_URL` in Render is exactly `https://bubble-1-kafq.onrender.com`
 - [ ] Render's proxy count: from two different networks, compare the `RateLimit` header from `/api/chat`, then send one with a made-up `X-Forwarded-For` and check the count doesn't reset (uses signed-out messages; keep it to a few)
-- [ ] POPIA, with someone qualified: privacy notice (responsible party, purposes, Render, Neon, Groq, Brevo, Google, transfer to the US, retention, rights, the Information Regulator), a recorded consent step before first chat and at sign-up, an age decision (18+ with a confirmation, or a route for minors), an Information Officer, operator agreements, Groq's data retention, a breach-response page and a retention schedule
+- [ ] **Before going live (technical debt from the privacy policy, 6 October):**
+  - [ ] Replace the owner's personal email in `LEGAL_CONTACT` (`shared/legal.ts`) with a Bubble address. It shows on the privacy policy and terms
+  - [ ] Have someone qualified in POPIA review `/privacy` and `/terms`, including the cross-border transfer to Groq (s72, and whether s57 prior authorisation applies), the consumer-law wording and the liability paragraph
+  - [ ] The pages name "Bubble" as the responsible party, not people (owner's choice). Ask the reviewer whether POPIA (s18) needs a legal name and address there, and whether that means setting up a company or NPO first
+  - [ ] Find out whether Groq keeps API requests, for how long, and whether it trains on them; add the answer to the policy and SAFETY.md
+  - [ ] Check the Information Regulator's website and complaints address in `shared/legal.ts` against their site (taken from a search, 6 October; their site wasn't reachable from the work network)
+  - [ ] Register an Information Officer, keep the providers' data processing terms on file, and write a one-page breach plan and a retention schedule (including Neon backups and Render logs)
 - [ ] Check SADAG and Lifeline numbers in `shared/safety.ts` against their sites
 - [ ] Immanah's OK to launch, including the deeper colours
-- [ ] Privacy notice (POPIA: health-related data, stored in Frankfurt, chat sent to Groq). Needed before optional past chats ships
 - [ ] On a real phone: breathing circle with calm visuals on
 - [ ] Reinstall the APK and confirm it opens without a browser bar
 - [ ] Rebuild the APK in PWABuilder (same signing key) so it gets the new launcher icon
