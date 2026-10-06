@@ -19,7 +19,7 @@ Migrations run automatically when the server starts. There's nothing to run by h
    - `OPENAI_BASE_URL`: `https://api.groq.com/openai/v1`
    - `OPENAI_MODEL`: `qwen/qwen3.8-27b` (the live model) or `openai/gpt-oss-120b`
 
-The model must support Groq's structured outputs. GPT models use strict mode; others use best-effort mode, and the server checks every reply itself. Check the model's free limits under **Settings → Limits** and keep `CHAT_DAILY_LIMIT_USER` and `CHAT_DAILY_LIMIT_GUEST` inside them. Set `AI_DAILY_LIMIT` (default 900) just under the model's requests per day: past it, everyone gets Bubble's friendly limit message instead of errors, and crisis replies still work.
+The model must support Groq's structured outputs. GPT models use strict mode; others use best-effort mode, and the server checks every reply itself. Check the model's free limits under **Settings → Limits** and keep `CHAT_DAILY_LIMIT_USER`, `CHAT_DAILY_LIMIT_GUEST` (per signed-out device) and `CHAT_DAILY_LIMIT_NETWORK` (everyone signed out on one network) inside them. Set `AI_DAILY_LIMIT` (default 900) just under the model's requests per day: past it, everyone gets Bubble's friendly limit message instead of errors, and crisis replies still work.
 
 To use OpenAI instead, set only `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`, which defaults to `gpt-4.1-mini`).
 

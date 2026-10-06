@@ -27,13 +27,18 @@ describe('forgetDevice', () => {
     expect(vi.mocked(apiRequest)).toHaveBeenLastCalledWith('POST', '/api/chat/end', { sessionId: 'chat-1' });
   });
 
-  it('starts a new conversation afterwards', async () => {
+  it('starts a new conversation, with a new device ID, afterwards', async () => {
     await sendChatMessage('hello');
+    const before = vi.mocked(apiRequest).mock.calls.at(-1)![3]!['x-bubble-device'];
     await forgetDevice();
     vi.mocked(apiRequest).mockClear();
 
     await sendChatMessage('hello again');
 
-    expect(vi.mocked(apiRequest)).toHaveBeenCalledWith('POST', '/api/chat', { message: 'hello again', sessionId: undefined });
+    const [, url, body, headers] = vi.mocked(apiRequest).mock.calls[0];
+    expect(url).toBe('/api/chat');
+    expect(body).toEqual({ message: 'hello again', sessionId: undefined });
+    expect(headers!['x-bubble-device']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(headers!['x-bubble-device']).not.toBe(before);
   });
 });

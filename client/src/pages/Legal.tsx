@@ -98,7 +98,9 @@ export function PrivacyPolicy() {
         </li>
         <li>
           <strong>Daily counts</strong> used for fair-use limits, such as how many messages were sent. These are linked to
-          a scrambled code instead of your IP or email address, and deleted after 7 days.
+          a scrambled code instead of your IP or email address, and deleted after 7 days. If you chat without an account,
+          your browser keeps a random code so each device gets its own daily allowance. It says nothing about you, isn't
+          linked to an account, and signing out clears it.
         </li>
         <li>
           <strong>Settings on your device</strong>, like your scene, sound and theme, kept in your browser and not sent to

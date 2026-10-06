@@ -36,6 +36,10 @@ const conversations = {
   ],
 };
 
+// Counted like one signed-out device, so a run doesn't use up the allowance of
+// everyone else on the same network (the network still has its own cap)
+const device = crypto.randomUUID();
+
 for (const [name, messages] of Object.entries(conversations)) {
   console.log(`\n===== ${name} =====`);
   let sessionId;
@@ -44,7 +48,7 @@ for (const [name, messages] of Object.entries(conversations)) {
     try {
       const res = await fetch(`${base}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-bubble-device': device },
         body: JSON.stringify({ message, sessionId }),
       });
       const data = await res.json();

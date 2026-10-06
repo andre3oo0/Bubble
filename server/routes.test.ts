@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import type { AddressInfo } from "net";
 import type { Server } from "http";
@@ -319,6 +319,73 @@ describe("usageKey", () => {
     const { key } = usageKey(undefined, "2001:db8:abcd:1200::1");
     expect(usageKey(undefined, "2001:db8:abcd:12ff:ffff:1:2:3").key).toBe(key);
     expect(usageKey(undefined, "2001:db8:abcd:1300::1").key).not.toBe(key);
+  });
+
+  it("counts a signed-out device on its own, with its network's shared allowance behind it", () => {
+    const device = "6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b";
+    const usage = usageKey(undefined, "203.0.113.7", device);
+    expect(usage.key).toMatch(/^device:[0-9a-f]{32}$/);
+    expect(usage.key).not.toContain(device);
+    expect(usage.limit).toBe(1000);
+    expect(usage.network?.key).toMatch(/^network:[0-9a-f]{32}$/);
+    expect(usageKey(undefined, "203.0.113.7", "6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4c").network?.key).toBe(usage.network?.key);
+  });
+
+  it("falls back to the network for a missing or made-up device ID", () => {
+    const network = usageKey(undefined, "203.0.113.7").key;
+    expect(usageKey(undefined, "203.0.113.7", "not-an-id").key).toBe(network);
+    expect(usageKey(undefined, "203.0.113.7", "x".repeat(500)).network).toBeUndefined();
+  });
+
+  it("ignores the device ID for signed-in people", () => {
+    expect(usageKey("abc123", "10.0.0.1", "6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b")).toEqual({ key: "user:abc123", limit: 1000 });
+  });
+});
+
+describe("signed-out limit per device", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function chatFrom(device: string | undefined, message: string) {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(device && { "x-bubble-device": device }) },
+      body: JSON.stringify({ message }),
+    });
+    return (await res.json()) as ChatResponse;
+  }
+  const newDevice = () => crypto.randomUUID();
+
+  it("gives two devices on one network their own allowance", async () => {
+    vi.stubEnv("CHAT_DAILY_LIMIT_GUEST", "1");
+    mockReply.mockResolvedValue({ reply: "I'm here.", mood: "neutral", risk: "none" });
+    const first = newDevice();
+
+    expect((await chatFrom(first, "hi")).limited).toBeUndefined();
+    expect((await chatFrom(first, "hi again")).limited).toBe(true);
+    expect((await chatFrom(newDevice(), "hello")).limited).toBeUndefined();
+  });
+
+  it("still caps the whole network, however many device IDs it uses", async () => {
+    // The test above already sent three messages from this network
+    vi.stubEnv("CHAT_DAILY_LIMIT_NETWORK", "1");
+    mockReply.mockResolvedValue({ reply: "should not be used", mood: "neutral", risk: "none" });
+
+    const data = await chatFrom(newDevice(), "hello");
+
+    expect(data.limited).toBe(true);
+    expect(data.reply).toMatch(/free account/);
+    expect(mockReply).not.toHaveBeenCalled();
+  });
+
+  it("still answers a crisis with helplines when the network is over its cap", async () => {
+    vi.stubEnv("CHAT_DAILY_LIMIT_NETWORK", "0");
+
+    const data = await chatFrom(newDevice(), "I want to end it all");
+
+    expect(data.risk).toBe("crisis");
+    expect(data.helplines).toEqual(HELPLINES);
   });
 });
 

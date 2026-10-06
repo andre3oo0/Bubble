@@ -39,7 +39,7 @@ Changes to the prompt or model are judged on the live site with `npm run try-cha
 | Mood check-ins | Yes, if signed in | Same scoping as the journal. |
 | Account | Yes, if created | Name (up to 50 characters), email and a hashed password (or a Google link). Google's tokens are stored encrypted. Which version of the terms and privacy policy was agreed to, and when. |
 | Sign-in sessions | Yes, if signed in | When each session started and when it expires. Not the IP address or browser. Expired sessions and used email links are deleted every hour. |
-| Usage counts | Yes, 7 days | Daily counters for the limits: AI messages per account, or for guests per keyed hash of their network address; emails sent per keyed hash of the address; failed sign-ins per keyed hash of the email. Raw IP and email addresses are never stored in them. |
+| Usage counts | Yes, 7 days | Daily counters for the limits: AI messages per account, or for guests per keyed hash of a random ID their browser makes (kept in local storage, never tied to an account, cleared on sign-out) plus a shared count per keyed hash of their network address; emails sent per keyed hash of the address; failed sign-ins per keyed hash of the email. Raw IP and email addresses are never stored in them. |
 | Logs | Yes | Request lines (method, path, status, timing) and the kind of error, never its details: a failed database query or a broken request can contain what someone wrote. Logs never contain chat or journal content, names, emails or IP addresses. |
 | Preferences | On the device | Scene, sound volume, calm visuals, theme and whether the introduction was seen, in the browser's local storage. |
 

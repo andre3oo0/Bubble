@@ -1,4 +1,5 @@
 import { endChat } from './chatService';
+import { forgetDeviceId } from './deviceId';
 import { useChatStore } from '@/store/chatStore';
 import { useMoodStore } from '@/store/moodStore';
 
@@ -17,5 +18,6 @@ export async function forgetDevice(): Promise<void> {
       // storage can be unavailable (private mode); nothing to remove then
     }
   });
+  forgetDeviceId();
   await endChat();
 }

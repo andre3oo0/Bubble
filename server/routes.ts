@@ -7,6 +7,7 @@ import { auth, googleSignInEnabled, pruneExpiredAuthRows } from "./auth";
 import { registerDataRoutes } from "./dataRoutes";
 import { describeError } from "./log";
 import { allowAiCall, pruneOldUsage, usageKey } from "./usage";
+import { DEVICE_HEADER } from "@shared/device";
 import { generateReflection, generateReply, type AiReflection, type AiReply, type ChatTurn } from "./openaiService";
 import {
   chatRequestSchema,
@@ -187,8 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Daily cap on AI calls. Crisis messages always get helplines, even over the cap,
     // and if the counter itself fails we let the message through rather than block support.
     const signedIn = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
-    const { key, limit } = usageKey(signedIn?.user.id, req.ip);
-    const allowed = await allowAiCall(key, limit);
+    const allowed = await allowAiCall(usageKey(signedIn?.user.id, req.ip, req.get(DEVICE_HEADER)));
     if (allowed !== 'ok') {
       const crisis = detectCrisis(message);
       const limitReply = allowed === 'app' ? APP_LIMIT_REPLY : signedIn ? LIMIT_REPLY : GUEST_LIMIT_REPLY;
@@ -238,8 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       crisis ? { ...reflection, helplines: HELPLINES } : reflection;
 
     const signedIn = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
-    const { key, limit } = usageKey(signedIn?.user.id, req.ip);
-    if ((await allowAiCall(key, limit)) !== 'ok') {
+    if ((await allowAiCall(usageKey(signedIn?.user.id, req.ip, req.get(DEVICE_HEADER)))) !== 'ok') {
       return res.json(withHelplines(FALLBACK_REFLECTION));
     }
 

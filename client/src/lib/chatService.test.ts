@@ -32,7 +32,7 @@ describe('reflectOnChat', () => {
         { role: 'user', content: 'work was a lot' },
         { role: 'assistant', content: 'That does sound like a lot.' },
       ],
-    });
+    }, { 'x-bubble-device': expect.stringMatching(/^[0-9a-f-]{36}$/) });
   });
 });
 

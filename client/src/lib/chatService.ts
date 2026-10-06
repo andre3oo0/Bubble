@@ -1,12 +1,17 @@
 import type { ChatResponse, ReflectionResponse } from '@shared/chat';
 import type { Message } from '@/models/types';
 import { apiRequest } from './queryClient';
+import { getDeviceId } from './deviceId';
+import { DEVICE_HEADER } from '@shared/device';
+
+// Signed-out daily limits count per device (an account has its own allowance)
+const deviceHeaders = () => ({ [DEVICE_HEADER]: getDeviceId() });
 
 // Server-side conversation context; reset on page reload
 let sessionId: string | undefined;
 
 export async function sendChatMessage(message: string): Promise<ChatResponse> {
-  const response = await apiRequest('POST', '/api/chat', { message, sessionId });
+  const response = await apiRequest('POST', '/api/chat', { message, sessionId }, deviceHeaders());
   const data: ChatResponse = await response.json();
   sessionId = data.sessionId;
   return data;
@@ -21,7 +26,7 @@ export async function reflectOnChat(messages: Message[]): Promise<ReflectionResp
       role: message.sender === 'user' ? ('user' as const) : ('assistant' as const),
       content: message.content.slice(0, 2000),
     }));
-  return (await apiRequest('POST', '/api/chat/reflect', { transcript })).json();
+  return (await apiRequest('POST', '/api/chat/reflect', { transcript }, deviceHeaders())).json();
 }
 
 // "Let go": the server forgets its copy and the next message starts a new chat

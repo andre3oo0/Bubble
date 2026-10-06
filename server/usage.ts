@@ -14,6 +14,10 @@ function envLimit(name: string, fallback: number) {
 // Read at call time so tests (and a restart with new env) can change them
 const userLimit = () => envLimit("CHAT_DAILY_LIMIT_USER", 150);
 const guestLimit = () => envLimit("CHAT_DAILY_LIMIT_GUEST", 40);
+// Everyone signed out on one network together (a school, an office): higher than one
+// device's allowance, so a shared network isn't used up by one person, but capped so
+// clearing storage or scripting fresh device IDs can't get round the limit
+const networkLimit = () => envLimit("CHAT_DAILY_LIMIT_NETWORK", 200);
 // For the whole app: the AI provider's free quota is shared by everyone, so stop
 // just short of it and give the friendly limit message instead of errors
 const appAiLimit = () => envLimit("AI_DAILY_LIMIT", 900);
@@ -28,11 +32,29 @@ function keyedHash(value: string) {
     .slice(0, 32);
 }
 
-export function usageKey(userId: string | undefined, ip: string | undefined) {
+export interface UsageKey {
+  key: string;
+  limit: number;
+  // Signed-out people on a device: the shared allowance for their network as well
+  network?: { key: string; limit: number };
+}
+
+// The random ID the browser makes for itself (client/src/lib/deviceId.ts)
+const DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function usageKey(userId: string | undefined, ip: string | undefined, deviceId?: string): UsageKey {
   if (userId) return { key: `user:${userId}`, limit: userLimit() };
   // One IPv6 connection usually gets a whole /64 or more, so changing the last part
   // of the address would mean a fresh limit. Count the /56 network instead.
-  return { key: `ip:${keyedHash(ip ? ipKeyGenerator(ip, 56) : "unknown")}`, limit: guestLimit() };
+  const networkKey = `ip:${keyedHash(ip ? ipKeyGenerator(ip, 56) : "unknown")}`;
+  // No usable device ID (an old app version, a script): the network's count, at the
+  // device allowance, as before
+  if (!deviceId || !DEVICE_ID.test(deviceId)) return { key: networkKey, limit: guestLimit() };
+  return {
+    key: `device:${keyedHash(deviceId.toLowerCase())}`,
+    limit: guestLimit(),
+    network: { key: `network:${networkKey.slice(3)}`, limit: networkLimit() },
+  };
 }
 
 // Adds one to today's count for `key` and returns the new total
@@ -56,12 +78,13 @@ async function readToday(key: string): Promise<number> {
   return row?.count ?? 0;
 }
 
-// One AI call for this person: "personal" when they're over their own daily limit,
-// "app" when the whole app is over its daily budget. If counting fails the call is
-// allowed: support shouldn't depend on the counter.
-export async function allowAiCall(key: string, limit: number): Promise<"ok" | "personal" | "app"> {
+// One AI call for this person: "personal" when they (or, signed out, their network)
+// are over the daily limit, "app" when the whole app is over its daily budget. If
+// counting fails the call is allowed: support shouldn't depend on the counter.
+export async function allowAiCall({ key, limit, network }: UsageKey): Promise<"ok" | "personal" | "app"> {
   try {
     if ((await countToday(key)) > limit) return "personal";
+    if (network && (await countToday(network.key)) > network.limit) return "personal";
     if ((await countToday("ai:all")) > appAiLimit()) return "app";
   } catch (error) {
     console.error("Chat usage count failed:", describeError(error));

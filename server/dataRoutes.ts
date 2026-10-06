@@ -229,8 +229,7 @@ export function registerDataRoutes(app: Express) {
     const withHelplines = (reflection: Omit<EntryReflection, "helplines">): EntryReflection =>
       crisis ? { ...reflection, helplines: HELPLINES } : reflection;
 
-    const { key, limit } = usageKey(res.locals.userId, req.ip);
-    if ((await allowAiCall(key, limit)) !== "ok") return res.json(withHelplines(FALLBACK_ENTRY_REFLECTION));
+    if ((await allowAiCall(usageKey(res.locals.userId, req.ip))) !== "ok") return res.json(withHelplines(FALLBACK_ENTRY_REFLECTION));
 
     try {
       const ai = await generateEntryReflection({
