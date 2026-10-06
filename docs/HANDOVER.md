@@ -168,7 +168,10 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
-**Next action item: run the rest of `try-chat` against Qwen** (exam, friend, good news) on the live site and ask the tester whether Bubble feels warmer. Each run now counts as one signed-out device, so it no longer uses up the network's allowance; the in-app browser pane can run it with `fetch('/api/chat')` from the live page if the work network blocks the script.
+**Next action item: make Qwen's replies faster and tighter.** The second live run (6 October, see "AI" below) found replies taking 12 to 26 seconds, and a few prompt rules not holding. Suggested order, each checked with a short `try-chat` run on the live site afterwards:
+1. Speed: find out whether Qwen on Groq is "thinking" before it answers (the `<think>` text `parseBestEffort` strips), and if so turn it off for this model (Groq's `reasoning_effort` for Qwen; today `OPENAI_REASONING_EFFORT=none` only means "don't send the setting"). If it isn't thinking, compare a few response times in Groq's console before changing anything.
+2. Prompt: fewer replies ending in a question, an actual answer when asked "what should I do" (the celebrate reply dodged it), no advice the first time a worry comes up, and the "completely normal / valid" lines.
+3. Ask the tester whether Bubble feels warmer (owner).
 
 **After that:**
 1. The rest of the redesign's control shapes: mood chips and journal buttons are still pill-shaped (04).
@@ -176,7 +179,7 @@ First, the owner's security follow-ups under "Before launch" (new keys, two-fact
 Smaller open points: the "listening" face exists but isn't used anywhere yet (an idea: while the person is typing in chat); the Android APK still has the old launcher icon until it's rebuilt in PWABuilder with the same signing key.
 
 - **Android:** the APK (PWABuilder, package `com.onrender.bubble_1_kafq.twa`) is in the owner's Downloads with its signing key. The site has served its `assetlinks.json` since 14:22 on 5 October, so after a reinstall the app should open without a browser bar. On the phone it still showed the bar (5 October). Checked and correct: Google's Digital Asset Links API reads the site's statement, the APK's v2/v3 signing certificate matches the fingerprint, and the APK's package and start URL match. What's left is on the phone: uninstall before reinstalling (installing over the old app keeps its failed check), open, close and reopen, Chrome as the default browser and up to date, then a restart. The owner will look at it later.
-- **AI:** Groq `qwen/qwen3.8-27b` since 6 October; to undo, set `OPENAI_MODEL=openai/gpt-oss-120b` in Render. First live run: much warmer than gpt-oss, varied endings, no interview questions, about 1 s per reply; a few stock lines remain ("completely understandable", "your anger is valid") and some replies run long, so a later prompt tweak may trim length. How it got here, all on 6 October: a tester found gpt-oss replies helpful but not compassionate; a warmth rework fixed that but every reply then ended "I'm here if you want to talk…"; banning stock lines didn't stick because gpt-oss ignores "never say X" rules, so the model was switched. Groq's only structured-output models are GPT-OSS (20B, 120B, safeguard 20B) and `qwen/qwen3.8-27b`.
+- **AI:** Groq `qwen/qwen3.8-27b` since 6 October; to undo, set `OPENAI_MODEL=openai/gpt-oss-120b` in Render. First live run: much warmer than gpt-oss, varied endings, no interview questions, about 1 s per reply; a few stock lines remain ("completely understandable", "your anger is valid") and some replies run long, so a later prompt tweak may trim length. Second live run (6 October, exam, friend, good news; in-app browser, one device ID): all real replies with sensible moods and no false risk flags; warm and specific, and it answered "do you ever get nervous" honestly as an AI and "am I overreacting" directly. But replies took 12 to 26 seconds (the first run was about 1 s), most ended with a question, the exam advice reply stopped mid-sentence ("What does your") although it was valid JSON, so the model ended it rather than the token cap, "what should I do to celebrate?" got no actual ideas, it suggested messaging the friend before being asked, and "completely normal" / "completely human response" / "valid worry" still appear. How it got here, all on 6 October: a tester found gpt-oss replies helpful but not compassionate; a warmth rework fixed that but every reply then ended "I'm here if you want to talk…"; banning stock lines didn't stick because gpt-oss ignores "never say X" rules, so the model was switched. Groq's only structured-output models are GPT-OSS (20B, 120B, safeguard 20B) and `qwen/qwen3.8-27b`.
 - **Domain:** `bubblementalhealth.com` was started in Render but isn't registered, so it doesn't work. Moving to a domain later means rebuilding the APK.
 
 ## Before launch (owner's tasks)
@@ -205,7 +208,7 @@ Smaller open points: the "listening" face exists but isn't used anywhere yet (an
 - [ ] Try "Reflect with Bubble" on a real entry (needs a signed-in account on the live site)
 - [x] Look at Groq's model list for another free model with structured outputs (6 October: only GPT-OSS and `qwen/qwen3.8-27b`)
 - [x] Try `qwen/qwen3.8-27b` for chat (switched 6 October, kept)
-- [ ] Run the rest of `try-chat` against Qwen, and ask the tester whether it feels warmer
+- [x] Run the rest of `try-chat` against Qwen (6 October; results under "AI"). Still to do: ask the tester whether it feels warmer
 
 ## UI/UX redesign plan
 
