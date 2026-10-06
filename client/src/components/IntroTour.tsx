@@ -188,9 +188,7 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
           </div>
 
           <div className="mx-auto mb-2 flex h-28 items-center justify-center" aria-hidden="true">
-            <div className="scale-[0.7]">
-              <BubbleAvatar size="md" animate={true} mood={step === 2 ? 'calm' : 'happy'} />
-            </div>
+            <BubbleAvatar size="md" mood={step === 2 ? 'calm' : 'happy'} />
           </div>
 
           <AnimatePresence mode="wait" initial={false} custom={direction}>

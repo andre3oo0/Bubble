@@ -9,6 +9,7 @@ import { useSosStore } from '@/store/sosStore';
 import { v4 as uuidv4 } from 'uuid';
 import { endChat, sendChatMessage } from '@/lib/chatService';
 import ChatDebrief from './ChatDebrief';
+import BubbleAvatar from './BubbleAvatar';
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
 
 interface ChatPanelProps {
@@ -399,7 +400,8 @@ export default function ChatPanel({
             );
           })}
           {isSending && (
-            <div className="flex justify-start" role="status" aria-label="Bubble is typing">
+            <div className="flex items-end justify-start gap-2" role="status" aria-label="Bubble is typing">
+              <BubbleAvatar size="sm" face="thinking" />
               <div className="flex items-center gap-1 rounded-2xl rounded-tl-none bg-[#9AD9EA] px-4 py-3" aria-hidden="true">
                 <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700" />
                 <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700 [animation-delay:150ms]" />

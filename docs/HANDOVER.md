@@ -6,10 +6,12 @@ Status as of 6 October 2026. Read this before changing anything. The README is t
 
 An emotional-support web app: an AI chat companion ("Bubble") with crisis safety, a private journal, mood check-ins, a breathing exercise, calming scenes with ambient sound, and a help screen with South African helplines. The product vision is in Immanah's design document (the PDD); this repo is at roughly its Phase 1 (MVP).
 
-## Where the code came from
+## Who makes it, and where the code lives
 
-- Original app: **Immanah/BubbleBackend** (Immanah Makitla). Despite the name it's the whole app, frontend and backend. Left untouched.
-- This repo: **andre3oo0/Bubble** (public). Cloned from hers, history kept. Her repo is the `upstream` remote, fetch only; pushing to it is disabled on purpose.
+Bubble is a shared project by **Immanah Makitla** and **andre3oo0**, and it's both of theirs. Present it that way everywhere (README, release notes, anything public): a collaboration, not one person continuing the other's work. MIT licence, © 2025-2026 both.
+
+- **Immanah/BubbleBackend**: where the project started. Despite the name it's the whole app, frontend and backend. Kept as it was.
+- **andre3oo0/Bubble** (public): where the project lives now, with the full history. Immanah's repo is the `upstream` remote, fetch only; pushing to it is disabled on purpose.
 - An earlier Python/Flask backend (`andre3oo0/Bubble`, first version) was deleted. Everything is TypeScript now.
 
 ## Stack
@@ -32,7 +34,7 @@ client/src/
   pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, not-found
   components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
                 ("Reflect with Bubble"), MoodPanel, AvatarPanel (= Settings tab), SosScreen,
-                BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar, BubbleLogo,
+                BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar (Bubble's face), BubbleLogo,
                 SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
                 OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones),
                 GoogleButton
@@ -122,6 +124,7 @@ npm run try-chat   # four test conversations against the live site; prints Bubbl
 - **Offline, in the app too.** While the device is offline a banner on every screen says Bubble can't reply and gives SADAG's number plus an "All helplines" link to the SOS screen. Chat still lets you send: the message fails with Retry, and a crisis message still gets the helplines from the browser. The browser's online flag can say "online" on a network with no internet, so the banner is an early warning, not the only check.
 - **Loading shows placeholder rows** shaped like the content (journal and mood history). Their pulse uses an `animated-` class, so calm visuals stops it.
 - **The 404 page** has a way back and lists the helplines, so help is reachable even from a wrong link.
+- **Bubble's face and logo** (6 October) come from the owner's design: a flat bubble with a face for each mood, plus "listening" and "thinking" (shown beside the typing dots). They're drawn in code (`BubbleAvatar.tsx`, `BubbleLogo.tsx`, colours in `BUBBLE_COLOURS`), not image files. The design arrived in Curro's colours, so it was recoloured to Bubble's: fill `#C9ECFF`, ring `#8CCBEB`, accent `#5BAEDC`, lines `#0B3D66`. The faces are still; only the rising mood bubbles in chat move. Exported design files can carry provenance metadata (a `<metadata>` block): strip it before anything goes in the repo. The favicon and app icons in `client/public` were regenerated from the new mark; the Android APK keeps its old launcher icon until it's rebuilt in PWABuilder with the same signing key.
 - **The mic button was removed**: it did nothing, and browser speech recognition sends audio to a third party, which needs consent first.
 
 ## Gotchas
@@ -181,9 +184,10 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 **Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), loading placeholders, an offline banner and a proper 404 (16), the phone layout (06: four tabs, a simpler header, no floating button), a calmer help screen (13), the desktop sidebar with content capped at 720 px (05), and Bubble's face kept still (part of 03). The new screens use 8 px corners; the project's `rounded-lg` is still 24 px until the controls are reworked (04).
 
 **Ready to build (no open questions):**
-- Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04); remove the rising mood bubbles (03)
+- Settings: drop setting Bubble's mood by hand, hide reminder times until reminders exist, and bring account, privacy, safety and display into one screen (07); controls lose the pill shape except switches (04)
 
 **Owner's decisions (5 October 2026):**
+- **Rising mood bubbles stay** (6 October): the bubbles that rise in chat when the mood changes are kept, despite the audit suggesting removal (03). They already stop with calm visuals
 - **Styling:** the same flat style, but in Bubble's own colours, not Curro's palette or fonts
 - **Scenes:** keep the drawn, animated scenes
 - **Past chats:** yes. Optional chat history, off by default, kept 30 days. Needs a privacy-notice update (POPIA, health data), a database table, deletion after 30 days and isolation tests

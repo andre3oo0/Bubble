@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "license": "MIT",
+  "author": "Immanah Makitla and andre3oo0",
   "engines": {
     "node": ">=20"
   },

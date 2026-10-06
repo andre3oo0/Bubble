@@ -86,7 +86,8 @@ const say = async (text) => {
   await p.waitForFunction(() => !document.querySelector('[aria-label="Bubble is typing"]'), null, { timeout: 60000 });
 };
 await say("I can't switch my mind off tonight");
-await say('work tomorrow and I keep going over everything that could go wrong');
+await say("I'm worried about work tomorrow, I keep going over what could go wrong");
+await settle(p, 8500); // let the rising mood bubbles finish
 await shot(p, 'phone-chat');
 
 await setPanel(p, 'journal', 'forest');

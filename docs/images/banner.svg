@@ -6,11 +6,6 @@
       <stop offset="0" stop-color="#0b1d3a"/>
       <stop offset="1" stop-color="#174f86"/>
     </linearGradient>
-    <radialGradient id="bubble" cx="0.38" cy="0.34" r="0.75">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
-      <stop offset="0.45" stop-color="#c9ecff" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#6fc1ee" stop-opacity="0.85"/>
-    </radialGradient>
   </defs>
 
   <rect width="1280" height="400" fill="url(#sky)"/>
@@ -33,10 +28,10 @@
 
   <!-- Logo and name -->
   <g transform="translate(386 108)">
-    <g transform="scale(3.4)">
-      <circle cx="16" cy="16" r="14.5" fill="url(#bubble)" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1.5"/>
-      <ellipse cx="11" cy="10.5" rx="4.2" ry="2.6" transform="rotate(-35 11 10.5)" fill="#ffffff" opacity="0.9"/>
-      <circle cx="22.5" cy="21.5" r="1.6" fill="#ffffff" opacity="0.6"/>
+    <g transform="translate(-4 -6) scale(2.6)">
+      <circle cx="24" cy="24" r="22" fill="none" stroke="#5baedc" stroke-width="2"/>
+      <circle cx="24" cy="24" r="16" fill="#c9ecff"/>
+      <ellipse cx="18.5" cy="17.5" rx="4" ry="2.3" transform="rotate(-35 18.5 17.5)" fill="#ffffff"/>
     </g>
     <text x="140" y="78" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="88" font-weight="700" fill="#ffffff">Bubble</text>
     <text x="142" y="126" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="28" fill="#d6ecfa">A calm place to talk things through</text>

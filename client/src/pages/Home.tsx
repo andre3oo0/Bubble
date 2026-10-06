@@ -117,7 +117,7 @@ export default function Home() {
           >
             {/* Bubble's face, kept still so it's calm to look at */}
             <div className="mb-6" aria-hidden="true">
-              <BubbleAvatar size="md" animate={false} isTyping={false} mood={currentMood} />
+              <BubbleAvatar size="lg" mood={currentMood} />
             </div>
             <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">Hey there! I'm Bubble</h1>
             <p className="text-lg md:text-xl mb-8 text-white">A calm place to talk things through</p>

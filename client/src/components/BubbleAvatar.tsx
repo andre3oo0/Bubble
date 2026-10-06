@@ -1,204 +1,107 @@
-import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Mood } from '@/models/types';
-import { motion } from 'framer-motion';
+
+// Bubble's face: a flat, still bubble with a different expression for each mood,
+// plus "listening" and "thinking". Drawn on a 64-unit grid in Bubble's own colours.
+export const BUBBLE_COLOURS = {
+  fill: '#C9ECFF',
+  ring: '#8CCBEB',
+  accent: '#5BAEDC',
+  ink: '#0B3D66',
+  shine: '#FFFFFF',
+};
+
+export type BubbleFace = Mood | 'listening' | 'thinking';
+
+const { fill, ring, accent, ink, shine } = BUBBLE_COLOURS;
+const line = {
+  fill: 'none',
+  stroke: ink,
+  strokeWidth: 2.2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
+const eyes = (y: number, r = 2.1, x1 = 26, x2 = 38) => (
+  <>
+    <circle cx={x1} cy={y} r={r} fill={ink} />
+    <circle cx={x2} cy={y} r={r} fill={ink} />
+  </>
+);
+
+const FACES: Record<BubbleFace, ReactNode> = {
+  happy: (
+    <>
+      <circle cx="20.5" cy="38.5" r="2.4" fill={ring} />
+      <circle cx="43.5" cy="38.5" r="2.4" fill={ring} />
+      <path d="M23.5 34 q2.5 -3 5 0 M35.5 34 q2.5 -3 5 0 M27 39 q5 5 10 0" {...line} />
+    </>
+  ),
+  calm: <path d="M23.5 33 q2.5 2.6 5 0 M35.5 33 q2.5 2.6 5 0 M29 40 q3 2.2 6 0" {...line} />,
+  sad: (
+    <>
+      <path d="M22.5 28.8 L27.5 27.4 M41.5 28.8 L36.5 27.4 M29 42 q3 -2 6 0" {...line} strokeWidth={2} />
+      {eyes(34)}
+    </>
+  ),
+  anxious: (
+    <>
+      <path d="M22.5 27.6 q2.5 -1.6 5 -0.6 M41.5 27.6 q-2.5 -1.6 -5 -0.6" {...line} strokeWidth={2} />
+      <path d="M27.5 41 q1.5 -1.6 3 0 q1.5 1.6 3 0 q1.5 -1.6 3 0" {...line} strokeWidth={2} />
+      {eyes(33, 2.6)}
+    </>
+  ),
+  stressed: (
+    <>
+      <path d="M23.5 33.5 h5 M35.5 33.5 h5 M29.5 41 q2.5 -1 5 0" {...line} />
+      <path d="M46 20 q-2.6 3.6 0 5.8 q2.6 -2.2 0 -5.8 z" fill={accent} />
+    </>
+  ),
+  neutral: (
+    <>
+      {eyes(33)}
+      <path d="M29.5 40.5 h5" {...line} />
+    </>
+  ),
+  improved: (
+    <>
+      {eyes(32.5)}
+      <path d="M28 39.5 q4 3.6 8 0" {...line} />
+    </>
+  ),
+  listening: (
+    <>
+      {eyes(33)}
+      <path d="M29 40 q3 2.2 6 0" {...line} />
+    </>
+  ),
+  thinking: (
+    <>
+      {eyes(31.5, 2.1, 27.5, 39.5)}
+      <path d="M30 41 h4" {...line} />
+    </>
+  ),
+};
+
+const SIZES = { sm: 40, md: 96, lg: 140 };
 
 interface BubbleAvatarProps {
   mood?: Mood;
-  size?: 'sm' | 'md' | 'lg';
-  animate?: boolean;
+  size?: keyof typeof SIZES;
+  // While Bubble is writing a reply
   isTyping?: boolean;
+  // Overrides mood, e.g. "listening"
+  face?: BubbleFace;
 }
 
-export default function BubbleAvatar({ 
-  mood = 'neutral', 
-  size = 'lg',
-  animate = true,
-  isTyping = false
-}: BubbleAvatarProps) {
-  const [blinking, setBlinking] = useState(false);
-
-  // Periodic blinking effect
-  useEffect(() => {
-    if (!animate) return;
-    
-    const blinkInterval = setInterval(() => {
-      setBlinking(true);
-      setTimeout(() => setBlinking(false), 200);
-    }, 3000);
-    
-    return () => clearInterval(blinkInterval);
-  }, [animate]);
-
-  // Size mapping
-  const sizeConfig = {
-    sm: {
-      width: '50px',
-      height: '65px',
-    },
-    md: {
-      width: '80px',
-      height: '104px',
-    },
-    lg: {
-      width: '120px',
-      height: '156px',
-    }
-  };
-
-  const config = sizeConfig[size];
-  
-  // Render facial expression based on mood
-  const renderFacialExpression = () => {
-    switch(mood) {
-      case 'happy':
-        return (
-          <>
-            {/* Happy eyes */}
-            <div className="flex justify-center space-x-4 mt-6">
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2.5'} w-2.5`}></div>
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2.5'} w-2.5`}></div>
-            </div>
-            {/* Happy smile */}
-            <div className="mt-3 w-8 h-4 border-black border-2 border-t-0 rounded-b-full"></div>
-          </>
-        );
-      case 'sad':
-        return (
-          <>
-            {/* Sad eyes */}
-            <div className="flex justify-center space-x-4 mt-6">
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2.5'} w-2.5`}></div>
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2.5'} w-2.5`}></div>
-            </div>
-            {/* Sad mouth - upside down smile */}
-            <div className="mt-3 w-8 h-4 border-black border-2 border-b-0 rounded-t-full"></div>
-          </>
-        );
-      case 'anxious':
-        return (
-          <>
-            {/* Anxious eyes - angled eyebrows */}
-            <div className="flex flex-col items-center mt-6">
-              <div className="flex justify-center space-x-4 relative">
-                <div>
-                  <div className="absolute top-[-5px] left-0 w-3 h-0.5 bg-black transform rotate-[-30deg]"></div>
-                  <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-3'} w-3`}></div>
-                </div>
-                <div>
-                  <div className="absolute top-[-5px] right-0 w-3 h-0.5 bg-black transform rotate-[30deg]"></div>
-                  <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-3'} w-3`}></div>
-                </div>
-              </div>
-              {/* Anxious mouth - small 'o' */}
-              <div className="mt-3 w-5 h-5 border-black border-2 rounded-full"></div>
-            </div>
-          </>
-        );
-      case 'stressed':
-        return (
-          <>
-            {/* Stressed eyes - squinted */}
-            <div className="flex justify-center space-x-4 mt-6">
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2'} w-5`}></div>
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2'} w-5`}></div>
-            </div>
-            {/* Stressed mouth - thin line */}
-            <div className="mt-4 w-6 h-0.5 bg-black"></div>
-          </>
-        );
-      case 'neutral':
-        return (
-          <>
-            {/* Neutral eyes - horizontal lines */}
-            <div className="flex justify-center space-x-6 mt-6">
-              <div className={`bg-black rounded-sm ${blinking ? 'h-0.5' : 'h-1'} w-4`}></div>
-              <div className={`bg-black rounded-sm ${blinking ? 'h-0.5' : 'h-1'} w-4`}></div>
-            </div>
-            {/* Neutral mouth - straight line */}
-            <div className="mt-5 w-8 h-0.5 bg-black"></div>
-          </>
-        );
-      case 'calm':
-      case 'improved':
-        return (
-          <>
-            {/* Calm/improved eyes - relaxed */}
-            <div className="flex justify-center space-x-4 mt-6">
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2'} w-2.5`}></div>
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2'} w-2.5`}></div>
-            </div>
-            {/* Calm mouth - gentle smile */}
-            <div className="mt-4 w-6 h-3 border-black border-2 border-t-0 rounded-b-full"></div>
-          </>
-        );
-      default:
-        return (
-          <>
-            {/* Default eyes */}
-            <div className="flex justify-center space-x-4 mt-6">
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2.5'} w-2.5`}></div>
-              <div className={`bg-black rounded-full ${blinking ? 'h-0.5' : 'h-2.5'} w-2.5`}></div>
-            </div>
-            {/* Default neutral mouth */}
-            <div className="mt-4 w-6 h-0.5 bg-black"></div>
-          </>
-        );
-    }
-  };
-
+export default function BubbleAvatar({ mood = 'neutral', size = 'lg', isTyping = false, face }: BubbleAvatarProps) {
+  const shown: BubbleFace = face ?? (isTyping ? 'thinking' : mood);
+  const px = SIZES[size];
   return (
-    <motion.div 
-      className={`relative ${animate ? 'animate-float' : ''}`}
-      style={{ 
-        width: config.width, 
-        height: config.height 
-      }}
-      animate={{ 
-        scale: animate ? [1, 1.03, 1] : 1 
-      }}
-      transition={{ 
-        repeat: animate ? Infinity : 0, 
-        duration: 3 
-      }}
-    >
-      {/* Bubble oval shape */}
-      <div 
-        className="w-full h-full rounded-full bg-[#D4F1FF]"
-        style={{ 
-          borderRadius: '50%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
-        }}
-      >
-        {/* Facial Expression */}
-        {renderFacialExpression()}
-      </div>
-
-      {/* Typing indicator */}
-      {isTyping && (
-        <div className="absolute -bottom-6 left-0 w-full flex justify-center">
-          <div className="flex gap-1 items-center bg-[#A3DAFF]/50 px-2 py-1 rounded-full">
-            <motion.div 
-              className="w-1.5 h-1.5 bg-white rounded-full" 
-              animate={{ scale: [1, 1.5, 1] }}
-              transition={{ repeat: Infinity, duration: 1 }}
-            />
-            <motion.div 
-              className="w-1.5 h-1.5 bg-white rounded-full" 
-              animate={{ scale: [1, 1.5, 1] }}
-              transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
-            />
-            <motion.div 
-              className="w-1.5 h-1.5 bg-white rounded-full" 
-              animate={{ scale: [1, 1.5, 1] }}
-              transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
-            />
-          </div>
-        </div>
-      )}
-    </motion.div>
+    <svg width={px} height={px} viewBox="0 0 64 64" aria-hidden="true" focusable="false" className="shrink-0">
+      <circle cx="32" cy="32" r="30" fill="none" stroke={ring} strokeWidth="1.5" />
+      <circle cx="32" cy="32" r="25" fill={fill} />
+      <ellipse cx="23" cy="21" rx="4.5" ry="2.6" transform="rotate(-35 23 21)" fill={shine} />
+      {FACES[shown] ?? FACES.neutral}
+    </svg>
   );
 }

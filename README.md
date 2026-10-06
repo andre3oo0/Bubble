@@ -8,6 +8,10 @@
 </p>
 
 <p align="center">
+  Made together by <a href="https://github.com/Immanah">Immanah Makitla</a> and <a href="https://github.com/andre3oo0">andre3oo0</a>.
+</p>
+
+<p align="center">
   <a href="https://bubble-1-kafq.onrender.com"><strong>Open Bubble</strong></a> ·
   <a href="docs/HANDOVER.md">Handover</a> ·
   <a href="docs/SAFETY.md">Safety and privacy</a> ·
@@ -19,6 +23,7 @@
   <a href="https://github.com/andre3oo0/Bubble/actions/workflows/ci.yml"><img src="https://github.com/andre3oo0/Bubble/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/andre3oo0/Bubble/releases"><img src="https://img.shields.io/github/v/release/andre3oo0/Bubble?color=0b5394&label=release" alt="Latest release"></a>
   <a href="https://bubble-1-kafq.onrender.com"><img src="https://img.shields.io/badge/live-onrender.com-0b6bb8" alt="Live site"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0b3d66" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-0b3d66" alt="Node 20 or newer">
   <img src="https://img.shields.io/badge/installable-PWA%20%2B%20Android-0b3d66" alt="Installable as a PWA and Android app">
 </p>
@@ -153,6 +158,10 @@ docs/           Handover, deployment, safety and privacy, images
 | [Contributing](CONTRIBUTING.md) | Branches, checks, commit style and the rules every change follows |
 | [Security](SECURITY.md) | How to report a vulnerability |
 
-## Credits
+## Who makes Bubble
 
-Bubble began as [Immanah/BubbleBackend](https://github.com/Immanah/BubbleBackend) by Immanah Makitla, whose design document sets out the product vision. This repository continues that work and is maintained by [andre3oo0](https://github.com/andre3oo0).
+Bubble is a shared project by [Immanah Makitla](https://github.com/Immanah) and [andre3oo0](https://github.com/andre3oo0). It belongs to both of them: the vision comes from the design document Immanah wrote, and they build the app together. Bubble's earliest history is in [Immanah/BubbleBackend](https://github.com/Immanah/BubbleBackend), where the project started.
+
+## License
+
+[MIT](LICENSE), © 2025-2026 Immanah Makitla and andre3oo0.

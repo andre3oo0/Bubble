@@ -53,7 +53,7 @@ export default function AvatarPanel({
 
       {/* Preview section */}
       <div className={`${cardClass} p-6 flex flex-col items-center`}>
-        <BubbleAvatar mood={currentMood} size="lg" animate={true} />
+        <BubbleAvatar mood={currentMood} size="lg" />
         <p className="text-white mt-4 text-center">
           This is how your Bubble looks with the current mood and settings
         </p>
