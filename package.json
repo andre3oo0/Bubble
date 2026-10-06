@@ -1,6 +1,6 @@
 {
   "name": "bubble",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -13,6 +13,7 @@
     "check": "tsc",
     "test": "vitest run",
     "try-chat": "node scripts/try-chat.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"
   },
@@ -54,6 +55,7 @@
     "cross-env": "^7.0.3",
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.25.0",
+    "playwright-core": "^1.63.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.1",

@@ -1,15 +1,15 @@
 # Bubble handover
 
-Status as of 5 October 2026. Read this before changing anything.
+Status as of 6 October 2026. Read this before changing anything. The README is the public overview; [SAFETY.md](SAFETY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) cover crisis handling, privacy and hosting in detail.
 
 ## What Bubble is
 
-An emotional-support web app: an AI chat companion ("Bubble") with crisis safety, a private journal, mood check-ins, a breathing exercise, calming scenes with ambient sound, and an SOS screen with South African helplines. The product vision is in Immanah's design document (the PDD); this repo is at roughly its Phase 1 (MVP).
+An emotional-support web app: an AI chat companion ("Bubble") with crisis safety, a private journal, mood check-ins, a breathing exercise, calming scenes with ambient sound, and a help screen with South African helplines. The product vision is in Immanah's design document (the PDD); this repo is at roughly its Phase 1 (MVP).
 
 ## Where the code came from
 
 - Original app: **Immanah/BubbleBackend** (Immanah Makitla). Despite the name it's the whole app, frontend and backend. Left untouched.
-- This repo: **andre3oo0/Bubble** (private). Cloned from hers, history kept. Her repo is the `upstream` remote, fetch only; pushing to it is disabled on purpose.
+- This repo: **andre3oo0/Bubble** (public). Cloned from hers, history kept. Her repo is the `upstream` remote, fetch only; pushing to it is disabled on purpose.
 - An earlier Python/Flask backend (`andre3oo0/Bubble`, first version) was deleted. Everything is TypeScript now.
 
 ## Stack
@@ -47,13 +47,17 @@ server/
   routes.ts     /api/chat (+ fallback replies, usage cap), scenes, affirmation
   dataRoutes.ts journal, moods, data export (all need a session)
   auth.ts       Better Auth config, requireUser middleware
-  openaiService.ts  the AI calls: chat reply {reply, user_mood, risk}, chat reflection, entry reflection
+  openaiService.ts  the AI calls: chat reply {reply, user_mood, risk}, chat reflection, entry reflection;
+                strict structured outputs for GPT models, best-effort plus parseBestEffort() for others
   usage.ts      daily chat counter, email.ts transactional email, db.ts database
 shared/
   schema.ts     Drizzle tables (server only), api.ts / chat.ts request + response types,
   safety.ts     crisis keyword check, helplines, crisis reply (used by client AND server)
 migrations/     generated SQL, applied automatically on startup
 scripts/        try-chat.mjs: scripted conversations against a server, to judge how Bubble talks
+docs/           HANDOVER (this), SAFETY (crisis handling, privacy), DEPLOYMENT (free stack, Android),
+                images/ (README banner and screenshots)
+README.md, CONTRIBUTING.md, SECURITY.md   public overview, contributor rules, vulnerability reports
 ```
 
 ## Running it
@@ -138,13 +142,15 @@ npm run try-chat   # four test conversations against the live site; prints Bubbl
 
 ## Workflow
 
-- One branch per piece of work, merged to `main` with fast-forward only, then pushed.
+- One branch per piece of work, merged to `main` with fast-forward only, then pushed. [CONTRIBUTING.md](../CONTRIBUTING.md) has the checks and rules.
 - Commit messages: short, lowercase, imperative, no lists or emoji.
-- Changes to Bubble's prompt are checked after deploy with `npm run try-chat`, comparing against the previous run.
+- Changes to Bubble's prompt are checked after deploy with `npm run try-chat`, comparing against the previous run. It counts against the signed-out daily limit for the network it runs from (40 by default), so a few runs in a day use it up.
+- **Releases:** versions follow `package.json` (0.x until beta). A release is a git tag (`v0.1.0`) plus a GitHub release with short notes on what changed for users.
+- **README screenshots** (`docs/images/`) are taken from the local app with a throwaway in-memory account and made-up journal entries, phone at 390 x 844 and desktop at 1440 x 900, both at 2x. Retake them when a screen in the README changes noticeably.
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. As of 5 October 2026 the live app has: the drawn scenes, the first-visit introduction, the post-chat debrief, journal prompts and "Reflect with Bubble", journal delete with undo and search, chat errors as notices with Retry, and the "Bubble is an AI" notice.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0, the first GitHub release (6 October 2026). The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, and the gentler AI notice and replies.
 
 - **Android:** the APK (PWABuilder, package `com.onrender.bubble_1_kafq.twa`) is in the owner's Downloads with its signing key. The site has served its `assetlinks.json` since 14:22 on 5 October, so after a reinstall the app should open without a browser bar. On the phone it still showed the bar (5 October). Checked and correct: Google's Digital Asset Links API reads the site's statement, the APK's v2/v3 signing certificate matches the fingerprint, and the APK's package and start URL match. What's left is on the phone: uninstall before reinstalling (installing over the old app keeps its failed check), open, close and reopen, Chrome as the default browser and up to date, then a restart. The owner will look at it later.
 - **AI:** Groq `qwen/qwen3.8-27b` since 6 October (was `openai/gpt-oss-120b`; switch back in Render's `OPENAI_MODEL` if needed). First live run: much warmer, varied endings, no interview questions, about 1 s per reply instead of several; a few stock lines remain ("completely understandable", "your anger is valid") and some replies run long. The exam, friend and good-news conversations weren't run yet (the guest daily limit was reached from the work network). History with gpt-oss-120b, reasoning `medium`: A tester found replies quick and helpful but not compassionate enough; the prompt was reworked for warmth on 6 October. The run before it (live, 6 October): nearly every reply ended in a question, it was clever about pain ("a classic test moment"), and the AI once failed on "my gran passed away", which got a cold canned reply. `try-chat` now includes a grief conversation. The warmth rework fixed that (sympathy first, no interview questions) but overcorrected: every reply ended "I'm here if you want to talk…", stock lines crept in ("it's understandable", "sit with that feeling") and it stopped engaging with details. The next round bans those lines, limits "I'm here" to once every few replies, and asks for comfort that's specific, then real conversation. That round (live, 6 October) engaged more but still used banned phrases and ended most replies with a question: this model ignores "never say X" rules. Groq's only other structured-output model worth trying is `qwen/qwen3.8-27b`, which has best-effort mode only, so the server now checks those replies itself (`parseBestEffort`; GPT models keep strict mode). Trying it is a settings change: `OPENAI_MODEL=qwen/qwen3.8-27b` in Render, then `try-chat`; set it back to `openai/gpt-oss-120b` to undo.
