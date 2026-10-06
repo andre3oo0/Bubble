@@ -21,6 +21,64 @@ const REASONING_EFFORT = (() => {
 })();
 const reasoning = REASONING_EFFORT ? { reasoning_effort: REASONING_EFFORT } : {};
 
+// Strict structured outputs guarantee the reply matches the schema, but only some
+// models have them: OpenAI's, and GPT-OSS on Groq. Others (e.g. qwen/qwen3.8-27b on
+// Groq) get best-effort mode, and the reply is checked here instead.
+// OPENAI_STRICT_OUTPUTS=true/false overrides the guess.
+const STRICT_OUTPUTS = (() => {
+  const configured = process.env.OPENAI_STRICT_OUTPUTS;
+  if (configured) return configured === "true";
+  return /gpt|^o\d/.test(MODEL);
+})();
+
+// Best-effort replies can arrive wrapped in a code fence or after the model's
+// thinking; pull out the JSON object and check it against the schema.
+// Throws if it doesn't fit, so the caller falls back.
+export function parseBestEffort<T>(content: string | null | undefined, schema: z.ZodType<T>): T {
+  const text = (content ?? "").replace(/<think>[\s\S]*?<\/think>/g, "");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end < start) throw new Error("No JSON object in the model's reply");
+  return schema.parse(JSON.parse(text.slice(start, end + 1)));
+}
+
+interface StructuredRequest {
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+  maxTokens: number;
+}
+
+// One AI call that returns data in the shape of `schema`, strict or best-effort
+async function structuredCall<T>(
+  schema: z.ZodType<T>,
+  name: string,
+  { messages, maxTokens }: StructuredRequest,
+): Promise<T> {
+  const format = zodResponseFormat(schema, name);
+  if (STRICT_OUTPUTS) {
+    const completion = await openai.beta.chat.completions.parse({
+      model: MODEL,
+      messages,
+      response_format: format,
+      max_completion_tokens: maxTokens,
+      ...reasoning,
+    });
+    const parsed = completion.choices[0]?.message.parsed;
+    if (!parsed) {
+      throw new Error(completion.choices[0]?.message.refusal ?? "Empty response from model");
+    }
+    return parsed as T;
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: MODEL,
+    messages,
+    response_format: { type: "json_schema", json_schema: { ...format.json_schema, strict: false } },
+    max_completion_tokens: maxTokens,
+    ...reasoning,
+  });
+  return parseBestEffort(completion.choices[0]?.message.content, schema);
+}
+
 const bubbleSystemMessage = `
 You are Bubble, the companion in a mental wellbeing app. People come to you when their head feels busy: to vent, untangle a worry, get an honest second opinion, or share something good.
 
@@ -120,43 +178,25 @@ export type AiEntryReflection = z.infer<typeof entryReflectionSchema>;
 
 // Throws on any failure so the caller can fall back
 export async function generateEntryReflection(entry: { title: string; content: string; mood: Mood }): Promise<AiEntryReflection> {
-  const completion = await openai.beta.chat.completions.parse({
-    model: MODEL,
+  return structuredCall(entryReflectionSchema, "bubble_entry_reflection", {
     messages: [
       { role: "system", content: entryReflectionSystemMessage },
       { role: "user", content: `Title: ${entry.title}\nMood they picked: ${entry.mood}\n\n${entry.content}` },
     ],
-    response_format: zodResponseFormat(entryReflectionSchema, "bubble_entry_reflection"),
-    max_completion_tokens: 1400,
-    ...reasoning,
+    maxTokens: 1400,
   });
-
-  const parsed = completion.choices[0]?.message.parsed;
-  if (!parsed) {
-    throw new Error(completion.choices[0]?.message.refusal ?? "Empty response from model");
-  }
-  return parsed;
 }
 
 // Throws on any failure so the caller can fall back
 export async function generateReflection(transcript: ChatTurn[]): Promise<AiReflection> {
   const conversation = transcript.map((turn) => `${turn.role === "user" ? "Person" : "Bubble"}: ${turn.content}`).join("\n");
-  const completion = await openai.beta.chat.completions.parse({
-    model: MODEL,
+  return structuredCall(reflectionSchema, "bubble_reflection", {
     messages: [
       { role: "system", content: reflectionSystemMessage },
       { role: "user", content: `The conversation:\n${conversation}` },
     ],
-    response_format: zodResponseFormat(reflectionSchema, "bubble_reflection"),
-    max_completion_tokens: 1600,
-    ...reasoning,
+    maxTokens: 1600,
   });
-
-  const parsed = completion.choices[0]?.message.parsed;
-  if (!parsed) {
-    throw new Error(completion.choices[0]?.message.refusal ?? "Empty response from model");
-  }
-  return parsed;
 }
 
 export interface ReplyContext {
@@ -169,18 +209,10 @@ export async function generateReply(message: string, history: ChatTurn[], contex
   const system = context.name
     ? `${bubbleSystemMessage}\nThe person's name is ${context.name}. Use it occasionally, not in every message.`
     : bubbleSystemMessage;
-  const completion = await openai.beta.chat.completions.parse({
-    model: MODEL,
+  const parsed = await structuredCall(replySchema, "bubble_reply", {
     messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
-    response_format: zodResponseFormat(replySchema, "bubble_reply"),
-    max_completion_tokens: 1400,
-    ...reasoning,
+    maxTokens: 1400,
   });
-
-  const parsed = completion.choices[0]?.message.parsed;
-  if (!parsed) {
-    throw new Error(completion.choices[0]?.message.refusal ?? "Empty response from model");
-  }
 
   return { reply: parsed.reply, mood: parsed.user_mood, risk: parsed.risk };
 }
