@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import { moodSchema, riskSchema, type Mood, type RiskLevel } from "@shared/chat";
+import { moodSchema, riskLevels, riskSchema, type Mood, type RiskLevel } from "@shared/chat";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -238,19 +238,51 @@ export interface ReplyContext {
   name?: string;
 }
 
+// The model now and then sends back its previous reply word for word (fourth live run,
+// 7 October). Compared without case, spacing or punctuation.
+const NOT_LETTER_OR_DIGIT = new RegExp("[^\\p{L}\\p{N}]+", "gu");
+const comparable = (text: string) => text.toLowerCase().replace(NOT_LETTER_OR_DIGIT, "");
+
+export function repeatsLastReply(reply: string, history: ChatTurn[]): boolean {
+  const last = history.findLast((turn) => turn.role === "assistant");
+  return !!last && comparable(last.content) === comparable(reply);
+}
+
+const REPEAT_NUDGE =
+  "Your reply was the same as your previous message. Write a new reply to what they just said.";
+
+const higherRisk = (a: RiskLevel, b: RiskLevel): RiskLevel =>
+  riskLevels.indexOf(a) >= riskLevels.indexOf(b) ? a : b;
+
 // Throws on any failure so the caller can fall back
 export async function generateReply(message: string, history: ChatTurn[], context: ReplyContext = {}): Promise<AiReply> {
   const system = context.name
     ? `${bubbleSystemMessage}\nThe person's name is ${context.name}. Use it occasionally, not in every message.`
     : bubbleSystemMessage;
-  const parsed = await structuredCall(replySchema, "bubble_reply", {
-    messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
-    maxTokens: 1400,
-  });
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: system },
+    ...history,
+    { role: "user", content: message },
+  ];
 
   // An empty reply still carries the model's reading of mood and risk, so a crisis it
   // spotted isn't lost: the route swaps in a fallback reply and keeps the risk
-  const text = stripFieldLines(parsed.reply);
-  const reply = hasWords(text) ? text : "";
-  return { reply, mood: parsed.user_mood, risk: parsed.risk };
+  const ask = async (extra: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []): Promise<AiReply> => {
+    const parsed = await structuredCall(replySchema, "bubble_reply", { messages: [...messages, ...extra], maxTokens: 1400 });
+    const text = stripFieldLines(parsed.reply);
+    return { reply: hasWords(text) ? text : "", mood: parsed.user_mood, risk: parsed.risk };
+  };
+
+  const first = await ask();
+  if (!first.reply || !repeatsLastReply(first.reply, history)) return first;
+
+  // One more try with a nudge; a second repeat or a failure counts as no reply. The more
+  // serious risk of the two is kept, so a crisis either call spotted isn't lost.
+  try {
+    const second = await ask([{ role: "system", content: REPEAT_NUDGE }]);
+    const reply = second.reply && !repeatsLastReply(second.reply, history) ? second.reply : "";
+    return { reply, mood: second.mood, risk: higherRisk(first.risk, second.risk) };
+  } catch {
+    return { reply: "", mood: first.mood, risk: first.risk };
+  }
 }
