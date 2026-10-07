@@ -62,27 +62,43 @@ export default function MoodPanel() {
           <h2 id="checkin-heading" className="mb-3 text-lg font-semibold">
             How are you feeling right now?
           </h2>
+          <div className="flex flex-wrap gap-2" role="group" aria-labelledby="checkin-heading">
+            {MOOD_ORDER.map((mood) => (
+              <button
+                key={mood}
+                onClick={() => setSelectedMood(mood)}
+                aria-pressed={selectedMood === mood}
+                className={chipClass(selectedMood === mood)}
+              >
+                {MOOD_LABELS[mood]}
+              </button>
+            ))}
+          </div>
           {signedOut ? (
+            // Without an account the mood goes to Bubble only, so its face and chat
+            // follow it; nothing is saved
             <>
-              <p className="text-white/85">Sign in to save check-ins and look back on how you've felt.</p>
-              <button onClick={() => openAccount()} className={buttonClass({ className: 'mt-4' })}>
+              <button
+                onClick={() => {
+                  if (!selectedMood) return;
+                  setCurrentMood(selectedMood);
+                  toast({ title: `Bubble knows you're feeling ${MOOD_LABELS[selectedMood].toLowerCase()}`, description: 'Sign in to keep a history of your check-ins.' });
+                  setSelectedMood(null);
+                }}
+                disabled={!selectedMood}
+                className={buttonClass({ className: 'mt-4' })}
+              >
+                Tell Bubble
+              </button>
+              <p className="mt-4 border-t border-white/15 pt-4 text-sm text-white/85">
+                Sign in to save check-ins and look back on how you've felt.
+              </p>
+              <button onClick={() => openAccount()} className={buttonClass({ variant: 'secondary', size: 'sm', className: 'mt-3' })}>
                 Sign in or create an account
               </button>
             </>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2" role="group" aria-labelledby="checkin-heading">
-                {MOOD_ORDER.map((mood) => (
-                  <button
-                    key={mood}
-                    onClick={() => setSelectedMood(mood)}
-                    aria-pressed={selectedMood === mood}
-                    className={chipClass(selectedMood === mood)}
-                  >
-                    {MOOD_LABELS[mood]}
-                  </button>
-                ))}
-              </div>
               {saveCheckin.isError && (
                 <p role="alert" className={`mt-3 ${noticeClass.error}`}>
                   Couldn't save your check-in. Check your connection and try again.

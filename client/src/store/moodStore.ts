@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Mood } from '@/models/types';
 
-// Single source of truth for the mood shown on Bubble, set by mood check-ins,
-// the avatar panel and what the user says in chat
+// Bubble's own mood, shown on its face: set on the Mood screen (a check-in, or just
+// telling Bubble when signed out) and by what the person says in chat
 interface MoodState {
   currentMood: Mood;
   setCurrentMood: (mood: Mood) => void;
