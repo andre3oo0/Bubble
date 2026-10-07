@@ -210,7 +210,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // The keyword check wins even if the model rated the message lower
     const risk: RiskLevel = detectCrisis(message) ? 'crisis' : ai?.risk ?? 'none';
     const mood = ai?.mood ?? analyzeMood(message);
-    const reply = ai?.reply ?? (risk === 'crisis' ? CRISIS_REPLY : getRandomMoodResponse(mood));
+    // No AI reply, or one with no words in it (see hasWords): a canned one instead
+    const reply = ai?.reply || (risk === 'crisis' ? CRISIS_REPLY : getRandomMoodResponse(mood));
 
     session.history.push({ role: 'user', content: message }, { role: 'assistant', content: reply });
     if (session.history.length > MAX_HISTORY_LENGTH) {
@@ -219,7 +220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const response: ChatResponse = { reply, mood, risk, sessionId };
     if (risk === 'crisis') response.helplines = HELPLINES;
-    if (!ai) response.fallback = true;
+    if (!ai?.reply) response.fallback = true;
 
     res.json(response);
   });

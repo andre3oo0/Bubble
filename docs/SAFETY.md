@@ -12,6 +12,7 @@ Bubble is used by people who may be struggling. This page explains how it keeps 
 - **The server's check wins.** The AI also rates each message (`none`, `concern` or `crisis`), but if the keyword check says crisis, it's a crisis, whatever the model said.
 - **It works when things fail:**
   - The AI is down or slow: the reply is the fixed crisis message plus the helplines.
+  - The AI answers with no words (an empty reply or a row of dots): it gets a canned reply instead, and if the AI rated the message a crisis, that rating is kept, so the reply is the fixed crisis message plus the helplines.
   - The daily chat limit is reached: crisis messages are still answered, with the helplines.
   - The phone is offline: the browser runs the same check and shows the crisis reply and helplines without the server.
   - No connection at all: the installed app's service worker shows `offline.html`, a plain page of helplines with tap-to-call links.

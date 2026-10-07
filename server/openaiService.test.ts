@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { parseBestEffort } from "./openaiService";
+import { hasWords, parseBestEffort, requireWords } from "./openaiService";
 
 // Models without strict structured outputs (e.g. Qwen on Groq) only try to match the
 // schema, so their replies are checked here before Bubble uses them
@@ -24,5 +24,21 @@ describe("parseBestEffort", () => {
     expect(() => parseBestEffort('{"reply":"hi"}', schema)).toThrow();
     expect(() => parseBestEffort('{"reply":"hi","risk":"maybe"}', schema)).toThrow();
     expect(() => parseBestEffort(null, schema)).toThrow();
+  });
+});
+
+describe("hasWords", () => {
+  it("accepts real replies", () => {
+    expect(hasWords("Hi there! I'm here.")).toBe(true);
+    expect(hasWords("Ngiyabonga")).toBe(true);
+    expect(() => requireWords("A title", "A summary")).not.toThrow();
+  });
+
+  it("rejects empty or dots-only replies, so the caller falls back", () => {
+    expect(hasWords("")).toBe(false);
+    expect(hasWords("   ")).toBe(false);
+    expect(hasWords(". .  ...........")).toBe(false);
+    expect(hasWords("\u22ee\n\u22ee")).toBe(false);
+    expect(() => requireWords("A fine title", "")).toThrow();
   });
 });

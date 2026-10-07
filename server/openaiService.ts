@@ -42,6 +42,19 @@ export function parseBestEffort<T>(content: string | null | undefined, schema: z
   return schema.parse(JSON.parse(text.slice(start, end + 1)));
 }
 
+// The model sometimes answers nonsense input ("bubble wobble") with an empty string or
+// a row of dots, which is valid JSON but says nothing. Those count as no reply, so the
+// person gets a fallback instead of an empty bubble.
+const LETTER = new RegExp("\\p{L}", "gu");
+
+export function hasWords(text: string): boolean {
+  return (text.match(LETTER) ?? []).length >= 2;
+}
+
+export function requireWords(...texts: string[]): void {
+  if (!texts.every(hasWords)) throw new Error("The model's reply had no words");
+}
+
 interface StructuredRequest {
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   maxTokens: number;
@@ -102,6 +115,7 @@ How to talk:
 10. Usually two to four sentences. A little longer only when they've shared something big or asked for advice. Never lecture or make lists.
 11. You're a supportive companion, not a therapist or doctor. Don't diagnose or give medical advice. If something sounds serious or long-running, you can gently suggest talking to someone they trust or a professional.
 12. If someone mentions suicide, self-harm or being in danger: take it seriously, respond with warmth, and encourage them to contact a crisis line or someone they trust right now. Never give information about methods. The app shows helpline numbers next to your reply.
+13. Always answer in words. If a message is unclear, playful or nonsense (like "bubble wobble"), reply briefly and warmly: play along a little, or ask what's on their mind. Never reply with only punctuation, dots or nothing.
 
 Four examples of the tone. They only show the feel: never reuse their wording, write your own reply every time.
 Person: "my dog died this morning"
@@ -137,6 +151,7 @@ export interface ChatTurn {
 }
 
 export interface AiReply {
+  // Empty when the model's reply had no words; the caller falls back
   reply: string;
   mood: Mood;
   risk: RiskLevel;
@@ -178,25 +193,29 @@ export type AiEntryReflection = z.infer<typeof entryReflectionSchema>;
 
 // Throws on any failure so the caller can fall back
 export async function generateEntryReflection(entry: { title: string; content: string; mood: Mood }): Promise<AiEntryReflection> {
-  return structuredCall(entryReflectionSchema, "bubble_entry_reflection", {
+  const result = await structuredCall(entryReflectionSchema, "bubble_entry_reflection", {
     messages: [
       { role: "system", content: entryReflectionSystemMessage },
       { role: "user", content: `Title: ${entry.title}\nMood they picked: ${entry.mood}\n\n${entry.content}` },
     ],
     maxTokens: 1400,
   });
+  requireWords(result.reflection, result.question);
+  return result;
 }
 
 // Throws on any failure so the caller can fall back
 export async function generateReflection(transcript: ChatTurn[]): Promise<AiReflection> {
   const conversation = transcript.map((turn) => `${turn.role === "user" ? "Person" : "Bubble"}: ${turn.content}`).join("\n");
-  return structuredCall(reflectionSchema, "bubble_reflection", {
+  const result = await structuredCall(reflectionSchema, "bubble_reflection", {
     messages: [
       { role: "system", content: reflectionSystemMessage },
       { role: "user", content: `The conversation:\n${conversation}` },
     ],
     maxTokens: 1600,
   });
+  requireWords(result.title, result.summary, result.takeaway);
+  return result;
 }
 
 export interface ReplyContext {
@@ -214,5 +233,8 @@ export async function generateReply(message: string, history: ChatTurn[], contex
     maxTokens: 1400,
   });
 
-  return { reply: parsed.reply, mood: parsed.user_mood, risk: parsed.risk };
+  // An empty reply still carries the model's reading of mood and risk, so a crisis it
+  // spotted isn't lost: the route swaps in a fallback reply and keeps the risk
+  const reply = hasWords(parsed.reply) ? parsed.reply.trim() : "";
+  return { reply, mood: parsed.user_mood, risk: parsed.risk };
 }

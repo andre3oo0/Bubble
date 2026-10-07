@@ -69,6 +69,26 @@ describe("POST /api/chat", () => {
     expect(data.helplines).toEqual(HELPLINES);
   });
 
+  it("falls back when the model's reply has no words", async () => {
+    // What generateReply returns for an empty or dots-only reply
+    mockReply.mockResolvedValue({ reply: "", mood: "neutral", risk: "none" });
+
+    const { data } = await chat({ message: "bubble wobble" });
+
+    expect(data.reply.trim()).not.toBe("");
+    expect(data.fallback).toBe(true);
+  });
+
+  it("keeps the model's crisis flag when its reply has no words", async () => {
+    mockReply.mockResolvedValue({ reply: "", mood: "sad", risk: "crisis" });
+
+    const { data } = await chat({ message: "I can't see a way forward" });
+
+    expect(data.reply).toBe(CRISIS_REPLY);
+    expect(data.risk).toBe("crisis");
+    expect(data.helplines).toEqual(HELPLINES);
+  });
+
   it("treats crisis keywords as a crisis even if the model doesn't", async () => {
     mockReply.mockResolvedValue({ reply: "Tell me more.", mood: "sad", risk: "none" });
 
