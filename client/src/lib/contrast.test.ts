@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHECKIN_BAR } from './moods';
+import { MOOD_AMBIENCE, tinted } from './moodAmbience';
 
 // Guards the colours white text sits on, so they keep meeting WCAG AA (4.5:1)
 
@@ -16,6 +17,10 @@ function contrast(a: string, b: string) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+// Scene skies behind headings and the home text (SceneBackdrop.tsx), lightest stop
+// above the horizon. Night only darkens them.
+const SKIES = ['#2a74b0', '#3d7a62', '#a4594b', '#4a3026'];
+
 describe('white text contrast', () => {
   it.each([
     ['#0b6bb8', 'buttons, user chat bubble, selected options'],
@@ -29,6 +34,13 @@ describe('white text contrast', () => {
     ['#4a3026', 'cozy room wall'],
   ])('%s (%s) passes AA', (background) => {
     expect(contrast('#ffffff', background)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // White text over the scene stays readable under every mood tint (moodAmbience.ts)
+  it.each(Object.entries(MOOD_AMBIENCE))('the %s tint keeps every sky at AA', (_mood, ambience) => {
+    for (const sky of SKIES) {
+      expect(contrast('#ffffff', tinted(sky, ambience))).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 

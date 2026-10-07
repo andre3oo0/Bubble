@@ -195,6 +195,12 @@ html.reduce-motion [class*="animated-"] {
   animation: none !important;
 }
 
+/* The mood tint over the scene (MoodAmbience.tsx): a slow fade between moods.
+   Inside .scene-layer, so calm visuals makes it instant */
+.mood-wash {
+  transition: background-color 3s ease, opacity 3s ease;
+}
+
 /* Night: moon and stars instead of the sun, and dimmer colours */
 .scene-night {
   display: none;

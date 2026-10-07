@@ -7,6 +7,7 @@ import BubbleLogo from '@/components/BubbleLogo';
 import SceneBackdrop from '@/components/SceneBackdrop';
 import ChatPanel from '@/components/ChatPanel';
 import JournalPanel from '@/components/JournalPanel';
+import MoodAmbience from '@/components/MoodAmbience';
 import MoodPanel from '@/components/MoodPanel';
 import SettingsPanel from '@/components/SettingsPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
@@ -28,6 +29,7 @@ import { clearGoogleReturn, googleSignInProblem } from '@/lib/googleSignIn';
 import { useAccountDialog } from '@/store/accountStore';
 import { useBreathing } from '@/store/breathingStore';
 import { useMoodStore } from '@/store/moodStore';
+import { usePreferences } from '@/store/preferencesStore';
 import { useSosStore } from '@/store/sosStore';
 import { useIntroStore } from '@/store/introStore';
 
@@ -111,6 +113,7 @@ export default function Home() {
   const { open: openSos, close: closeSos } = useSosStore();
   const { open: openBreathing } = useBreathing();
   const { currentMood } = useMoodStore();
+  const { moodScene } = usePreferences();
   const { open: openAccount } = useAccountDialog();
   const { open: openIntro } = useIntroStore();
   const { data: session } = useSession();
@@ -351,6 +354,7 @@ export default function Home() {
       {/* The scene sits behind everything; calm visuals stops its movement */}
       <div className="scene-layer pointer-events-none absolute inset-0 overflow-hidden">
         <SceneBackdrop scene={selectedEnvironment} />
+        <MoodAmbience mood={currentMood} scene={selectedEnvironment} enabled={moodScene} />
       </div>
     </div>
   );

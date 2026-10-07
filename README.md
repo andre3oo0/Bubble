@@ -69,7 +69,7 @@
 - **Private journal.** Writing prompts, search, delete with undo, a warning before unsaved writing is lost, and "Reflect with Bubble" on any entry. Only the person who wrote it can read it.
 - **Mood check-ins** on a five-step scale, from really low to really good, with optional feelings (anxious, tired, lonely, angry and more), a 14-day view, every check-in from the last 30 days, and the latest one on the home screen.
 - **Breathing exercise.** A slow 4-4-6-2 pace, with a longer out-breath.
-- **Calming scenes.** Ocean, forest, sunset and a cozy room, drawn in SVG, with ambient sound generated in the browser. Calm visuals turns off movement.
+- **Calming scenes.** Ocean, forest, sunset and a cozy room, drawn in SVG, with ambient sound generated in the browser. The scene follows Bubble's mood: it deepens and slows on hard days and livens a little on good ones (a switch in Settings). Calm visuals turns off movement.
 - **Accounts that stay optional.** Email and password or Google. Download or delete everything at any time. A plain-language [privacy policy](https://bubble-1-kafq.onrender.com/privacy) and [terms of use](https://bubble-1-kafq.onrender.com/terms) say what's kept and why.
 - **Feedback by email.** The feedback form opens your own email app, so Bubble's server never stores it.
 - **Installable.** Works as a PWA with an offline helplines page, and as an Android app.

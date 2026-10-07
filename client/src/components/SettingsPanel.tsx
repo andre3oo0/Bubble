@@ -73,6 +73,53 @@ function RowButton({
   );
 }
 
+// A setting that's on or off. Switches keep their rounded shape: it's what makes
+// them read as switches.
+function SwitchRow({
+  id,
+  label,
+  detail,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  id: string;
+  label: string;
+  detail: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3 text-white">
+      <span>
+        <span id={`${id}-label`} className="block font-medium">
+          {label}
+        </span>
+        <span id={`${id}-detail`} className="block text-sm text-white/75">
+          {detail}
+        </span>
+      </span>
+      <button
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={`${id}-detail`}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${
+          checked ? 'bg-[#0b6bb8]' : 'bg-white/25'
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className={`inline-block h-5 w-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+        />
+      </button>
+    </div>
+  );
+}
+
 function Note({ children }: { children: ReactNode }) {
   return <p className="px-4 py-3 text-sm text-white/90">{children}</p>;
 }
@@ -84,7 +131,7 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
   const { open: openIntro } = useIntroStore();
   const { open: openSos } = useSosStore();
   const { playing, volume, play, stop, setVolume } = useSoundStore();
-  const { motion: motionPreference, theme, setMotion, setTheme } = usePreferences();
+  const { motion: motionPreference, theme, moodScene, setMotion, setTheme, setMoodScene } = usePreferences();
   const { currentMood, setCurrentMood } = useMoodStore();
   const [confirmNotice, setConfirmNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -308,35 +355,26 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
           </label>
         </div>
 
-        <div className="flex items-center justify-between gap-4 px-4 py-3 text-white">
-          <span>
-            <span id="calm-visuals-label" className="block font-medium">
-              Calm visuals
-            </span>
-            <span id="calm-visuals-detail" className="block text-sm text-white/75">
-              {deviceReducesMotion
-                ? 'On, because your device asks for less motion. Change it in your device settings.'
-                : 'Stops the moving scenery and bubble effects.'}
-            </span>
-          </span>
-          {/* Switches keep their rounded shape: it's what makes them read as switches */}
-          <button
-            role="switch"
-            aria-checked={calmVisuals}
-            aria-labelledby="calm-visuals-label"
-            aria-describedby="calm-visuals-detail"
-            disabled={deviceReducesMotion}
-            onClick={() => setMotion(calmVisuals ? 'system' : 'reduced')}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${
-              calmVisuals ? 'bg-[#0b6bb8]' : 'bg-white/25'
-            }`}
-          >
-            <span
-              aria-hidden="true"
-              className={`inline-block h-5 w-5 rounded-full bg-white transition-transform ${calmVisuals ? 'translate-x-6' : 'translate-x-1'}`}
-            />
-          </button>
-        </div>
+        <SwitchRow
+          id="calm-visuals"
+          label="Calm visuals"
+          detail={
+            deviceReducesMotion
+              ? 'On, because your device asks for less motion. Change it in your device settings.'
+              : 'Stops the moving scenery and bubble effects.'
+          }
+          checked={calmVisuals}
+          disabled={deviceReducesMotion}
+          onChange={(on) => setMotion(on ? 'reduced' : 'system')}
+        />
+
+        <SwitchRow
+          id="mood-scene"
+          label="Scene follows Bubble's mood"
+          detail="Softens and slows the scene on hard days, and livens it a little on good ones."
+          checked={moodScene}
+          onChange={setMoodScene}
+        />
 
         {/* The divider goes on a wrapper: a legend sits on its fieldset's top border */}
         <div className="px-4 py-3">
