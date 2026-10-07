@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MOOD_TONES } from './moods';
+import { CHECKIN_BAR } from './moods';
 
 // Guards the colours white text sits on, so they keep meeting WCAG AA (4.5:1)
 
@@ -32,11 +32,11 @@ describe('white text contrast', () => {
   });
 });
 
-// Mood words in the history are drawn in their tone on the dark frosted panel.
-// #1d2b40 is roughly that panel over the lightest scene.
-describe('mood tone contrast', () => {
-  it.each(Object.entries(MOOD_TONES))('%s (%s) passes AA on the panel', (_mood, tone) => {
-    expect(contrast(tone, '#1d2b40')).toBeGreaterThanOrEqual(4.5);
+// The 14-day view's bars on the dark frosted panel (#1d2b40 is roughly that panel over
+// the lightest scene). Graphics need 3:1 (WCAG 1.4.11).
+describe('check-in bar contrast', () => {
+  it('passes 3:1 on the panel', () => {
+    expect(contrast(CHECKIN_BAR, '#1d2b40')).toBeGreaterThanOrEqual(3);
   });
 });
 

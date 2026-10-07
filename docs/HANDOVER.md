@@ -92,7 +92,7 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 | `POST /api/chat` | `{message, sessionId?}` → `{reply, mood, risk, sessionId, helplines?, fallback?, limited?}`. Works signed out. |
 | `GET/POST /api/journal`, `PATCH/DELETE /api/journal/:id` | Signed in only, always scoped to the session's user |
 | `POST /api/journal/:id/reflect` | → `{reflection, question, helplines?, fallback?}`. "Reflect with Bubble" on one of your own entries; counts towards the daily limit, nothing stored |
-| `GET/POST /api/moods` | Check-ins, last 30 days by default |
+| `GET/POST /api/moods` | Check-ins (`{level: 1-5, tags?}`), last 30 days by default |
 | `GET /api/me/export` | JSON download of everything stored for the user: account, consent record, journal, moods, sign-in methods, sessions |
 | `POST /api/me/consent` | `{version}` → 204. Agree to the current terms and privacy policy; only `LEGAL_VERSION` is accepted |
 | `/api/auth/*` | Better Auth: sign up/in/out, request-password-reset, reset-password, verify-email, delete-user |
@@ -131,6 +131,7 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean. `surface` is 46% navy (7 October, was 34%) so the sun or moon behind a panel doesn't bloom through as a glow. **Dialogs are never glass**: white (help screen, account, consent, confirmations) or the opaque navy sheet (`darkSheetClass`: intro, end of chat, breathing, phone menu).
 - **One set of control styles** (`components/ui/controls.ts`, 7 October, from a UI/UX review): buttons in four kinds (primary blue `#0b6bb8`, secondary outline, tertiary text, danger red) for dark and light surfaces, fields with visible labels, mood chips, notices. 8 px corners on every control, panel and dialog; full rounding only for the switch, avatars, the breathing circle and the sheet's grab bar; 16 px for chat messages. Every screen starts with `PageHeader` (title left, back arrow left of it, one action right; focus moves to the title when the view changes). Helplines are always drawn by `HelplineList`. Dates and times always go through `lib/dates.ts` ("Today, 15:42", "Tue 6 Oct").
 - **Chat on phones gives the conversation the room**: no visible title (the tab says where you are), the AI notice in the owner's full wording before the first message and one line after ("Bubble is an AI and isn't a substitute for a therapist. In danger? Tap Get help.", owner's choice 7 October), Breathe and I'm done for now as small outline buttons, Send the only filled button. Bubble's messages are its own fill colour, with its face beside the last message of each turn.
+- **Mood check-ins use a five-step scale** (7 October, the owner's 5 October decision): Really low, Low, Okay, Good, Really good, plus up to five optional feelings (happy, calm, hopeful, tired, anxious, stressed, overwhelmed, sad, lonely, angry), defined in `shared/checkin.ts`. The Mood screen shows a 14-day view (one bar per day, the day's average; tap a day for it in words) above every check-in from the last 30 days. Bubble's face follows a check-in through `moodForCheckin`: a picked feeling says more than the level. Migration 0004 mapped the old single-word check-ins (happy 5, calm and "better" 4, neutral 3, sad, anxious and stressed 2, the word kept as a tag where one matches) and kept the old word in the `mood` column so the mapping can be redone; drop that column once the owner is happy with it. Chat and the journal keep their seven mood words.
 - **Bubble has its own mood**, shown on its face on Home and beside its chat messages. Anyone can pick how Bubble looks in Settings ("Bubble's mood", at the top, with a preview; brought back 7 October at the owner's request after the Settings redesign dropped it), and check-ins and chat change it too. An always-calm face was tried on 7 October and the owner brought the mood back the same day. Home says "Hi Sam" or "Hi, I'm Bubble", and for signed-in people the last check-in and the journal, one tap each.
 - **Journal editor** asks before losing unsaved writing (Cancel or back), and always starts a new entry blank. Unsaved writing and where you were in the journal live in `journalEditorStore` (memory only, never on the device), so switching tabs keeps them; sign-out (`forgetDevice`) and a different person, or nobody, signed in clear them (7 October). Mood check-ins start with nothing selected (never Bubble's guess from chat) and confirm with a toast. Signed out, the same mood buttons with "Tell Bubble" set Bubble's mood without saving anything (owner, 7 October: people must always be able to set Bubble's mood).
 - **Feedback goes by email** from the person's own email app (owner's choice, 7 October): the form fills in a `mailto:` to `LEGAL_CONTACT`. Bubble's server never sees it; the privacy policy and SAFETY.md say so.
@@ -180,7 +181,7 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
-**Next action item: the owner picks the next app item** (app work before more AI tuning, owner's choice 7 October). Candidates: the five-step mood scale with feeling tags and a 14-day view (decided 5 October, needs a database change), optional past chats (decided 5 October, needs a table, a privacy policy and terms update and a `LEGAL_VERSION` bump), or a mood-driven background (first on the Phase 1 list). Journal drafts now survive switching tabs (7 October).
+**Next action item: the owner picks the next app item** (app work before more AI tuning, owner's choice 7 October). Candidates: optional past chats (decided 5 October, needs a table, a privacy policy and terms update and a `LEGAL_VERSION` bump) or a mood-driven background (first on the Phase 1 list). Done on 7 October: journal drafts survive switching tabs, and the five-step mood scale.
 
 **AI, later** (Qwen on Groq, thinking off). The fourth live run (7 October, see "AI" below) confirmed the crisis-flag fix: no false alarms on grief or "am I overreacting", and the model still flagged four indirect warning signs as crisis. The keyword check missed all four, so it now also catches them and close variants (giving things away, goodbye or suicide letters and notes, wanting everything or the pain to stop for good, no point carrying on or keeping going, nobody noticing or caring if they were gone, better off if they weren't here), with tests that keep grief and everyday phrases out ("no point carrying on with this essay", "I want to stop smoking for good"). Deliberately broad: "giving away all my stuff" before a move also gets the helplines. A reply that repeats Bubble's previous one word for word now gets one more try with a nudge (`repeatsLastReply` in `openaiService.ts`), then a canned reply; a crisis rating from either try is kept. A reply that stops mid-sentence is trimmed back to its last full sentence (`trimUnfinished`). A reply that ends on an opening quote mark is trimmed too (fifth run). Still to do:
 1. Banned lines still get through with thinking off: "Your feelings are valid" (word for word on the list), "sit with" twice and "I can imagine how lonely that must feel" in the fifth run; "completely valid" and "holding space" in the fourth; plus one lowercase reply and joined-up words ("Itmakes", "Imhope"). Try `OPENAI_REASONING_EFFORT=low` in Render with a paced `try-chat` run; if that doesn't help, ask the model again when a reply uses a banned line.
@@ -235,19 +236,17 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 - **Scenes:** keep the drawn, animated scenes
 - **Past chats:** yes. Optional chat history, off by default, kept 30 days. Needs a privacy-notice update (POPIA, health data), a database table, deletion after 30 days and isolation tests
 - **Helplines:** South Africa only for now. Another country is added only once a person has checked its numbers
-- **Mood:** yes to a five-step scale with optional feeling tags and a 14-day view. Existing check-ins get mapped onto the scale
+- **Mood:** yes to a five-step scale with optional feeling tags and a 14-day view. Existing check-ins get mapped onto the scale (built 7 October)
 
 ## Outstanding work
 
 **Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
 1. Dynamic Ambiance Engine: mood drives the background colours and motion
 2. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
-3. Add anger and overwhelm as moods (fits the planned feeling tags)
-4. Mirror Moment: grounding overlay on the model's "concern" risk level
-5. Streaming replies
-6. A rain sound
-7. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
-8. Mood trend chart (covered by the 14-day view in the planned five-step mood scale)
+3. Mirror Moment: grounding overlay on the model's "concern" risk level
+4. Streaming replies
+5. A rain sound
+6. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
 
 **From testing the APK (owner, 5 October):**
 - Sign-up was hard to find: now offered on the first page of the introduction, at the top of the phone menu, at the bottom of the desktop sidebar, and as "Create a free account" on the home screen. Testers found sign-in easy (6 October)

@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AddressInfo } from "net";
 import type { Server } from "http";
-import { eq } from "drizzle-orm";
+import { readFileSync } from "fs";
+import { eq, sql } from "drizzle-orm";
 import type { JournalEntry, MoodCheckin } from "@shared/api";
 import { account, journalEntries, moodCheckins, session, user } from "@shared/schema";
 import { HELPLINES } from "@shared/safety";
 import { LEGAL_VERSION } from "@shared/legal";
+import { LEGACY_MOOD_MAPPING } from "@shared/checkin";
+import type { Mood } from "@shared/chat";
 
 // Capture outgoing email instead of sending or printing it
 vi.mock("./email", async (importOriginal) => ({
@@ -200,19 +203,53 @@ describe("mood check-ins", () => {
     const alice = await signUp();
     const bob = await signUp();
 
-    const created = await request("POST", "/api/moods", { cookie: alice.cookie, body: { mood: "anxious" } });
+    const created = await request("POST", "/api/moods", { cookie: alice.cookie, body: { level: 2, tags: ["anxious", "tired"] } });
     expect(created.status).toBe(201);
 
     const aliceMoods = (await (await request("GET", "/api/moods", { cookie: alice.cookie })).json()) as MoodCheckin[];
-    expect(aliceMoods.map((m) => m.mood)).toEqual(["anxious"]);
+    expect(aliceMoods.map(({ level, tags }) => ({ level, tags }))).toEqual([{ level: 2, tags: ["anxious", "tired"] }]);
     const bobMoods = (await (await request("GET", "/api/moods", { cookie: bob.cookie })).json()) as MoodCheckin[];
     expect(bobMoods).toEqual([]);
   });
 
-  it("rejects an unknown mood", async () => {
+  it("takes a level on its own", async () => {
     const { cookie } = await signUp();
-    const res = await request("POST", "/api/moods", { cookie, body: { mood: "furious" } });
-    expect(res.status).toBe(400);
+    const res = await request("POST", "/api/moods", { cookie, body: { level: 4 } });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ level: 4, tags: [] });
+  });
+
+  it.each([
+    ["no level", { tags: ["calm"] }],
+    ["a level below the scale", { level: 0 }],
+    ["a level above the scale", { level: 6 }],
+    ["half a step", { level: 2.5 }],
+    ["an unknown feeling", { level: 3, tags: ["furious"] }],
+    ["the same feeling twice", { level: 3, tags: ["sad", "sad"] }],
+    ["more than five feelings", { level: 3, tags: ["happy", "calm", "hopeful", "tired", "anxious", "sad"] }],
+    ["the old mood word", { mood: "calm" }],
+  ])("rejects %s", async (_case, body) => {
+    const { cookie } = await signUp();
+    expect((await request("POST", "/api/moods", { cookie, body })).status).toBe(400);
+  });
+
+  it("maps check-ins from before the scale as LEGACY_MOOD_MAPPING says", async () => {
+    const { email, cookie } = await signUp();
+    const [me] = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
+    const words = Object.keys(LEGACY_MOOD_MAPPING) as Mood[];
+    await db.insert(moodCheckins).values(words.map((mood) => ({ userId: me.id, mood, level: 0 })));
+
+    // Run migration 0004's mapping again, on this person's rows only
+    const migration = readFileSync(new URL("../migrations/0004_mood_scale.sql", import.meta.url), "utf8");
+    const update = migration.split("--> statement-breakpoint").map((part) => part.trim()).find((part) => part.startsWith("UPDATE"))!;
+    await db.execute(sql.raw(`${update.replace(/;$/, "")} WHERE "user_id" = '${me.id}'`));
+
+    const rows = (await (await request("GET", "/api/moods", { cookie })).json()) as MoodCheckin[];
+    const stored = await db.select().from(moodCheckins).where(eq(moodCheckins.userId, me.id));
+    expect(rows).toHaveLength(words.length);
+    for (const row of stored) {
+      expect({ level: row.level, tags: row.tags }).toEqual(LEGACY_MOOD_MAPPING[row.mood as Mood]);
+    }
   });
 });
 
@@ -423,7 +460,7 @@ describe("export and delete", () => {
     const bob = await signUp();
     await addEntry(alice.cookie, "alice's entry");
     await addEntry(bob.cookie, "bob's entry");
-    await request("POST", "/api/moods", { cookie: alice.cookie, body: { mood: "calm" } });
+    await request("POST", "/api/moods", { cookie: alice.cookie, body: { level: 4, tags: ["calm"] } });
 
     const res = await request("GET", "/api/me/export", { cookie: alice.cookie });
     expect(res.status).toBe(200);
@@ -443,8 +480,9 @@ describe("export and delete", () => {
     const alice = await signUp();
     const bob = await signUp();
     await addEntry(alice.cookie);
-    await request("POST", "/api/moods", { cookie: alice.cookie, body: { mood: "sad" } });
+    await request("POST", "/api/moods", { cookie: alice.cookie, body: { level: 2 } });
     await addEntry(bob.cookie);
+    const [aliceBefore] = await db.select({ id: user.id }).from(user).where(eq(user.email, alice.email));
 
     const wrong = await request("POST", "/api/auth/delete-user", { cookie: alice.cookie, body: { password: "not-my-password" } });
     expect(wrong.status).not.toBe(200);
@@ -457,7 +495,7 @@ describe("export and delete", () => {
     const [bobRow] = await db.select().from(user).where(eq(user.email, bob.email));
     const leftover = await db.select().from(journalEntries).where(eq(journalEntries.userId, bobRow.id));
     expect(leftover).toHaveLength(1);
-    const orphanMoods = await db.select().from(moodCheckins).where(eq(moodCheckins.mood, "sad"));
+    const orphanMoods = await db.select().from(moodCheckins).where(eq(moodCheckins.userId, aliceBefore.id));
     expect(orphanMoods).toHaveLength(0);
 
     expect((await request("GET", "/api/journal", { cookie: alice.cookie })).status).toBe(401);
@@ -655,9 +693,9 @@ describe("security", () => {
   it("caps mood check-ins per day", async () => {
     const { email, cookie } = await signUp();
     const [me] = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
-    await db.insert(moodCheckins).values(Array.from({ length: 50 }, () => ({ userId: me.id, mood: "calm" })));
+    await db.insert(moodCheckins).values(Array.from({ length: 50 }, () => ({ userId: me.id, level: 4 })));
 
-    const res = await request("POST", "/api/moods", { cookie, body: { mood: "calm" } });
+    const res = await request("POST", "/api/moods", { cookie, body: { level: 4 } });
     expect(res.status).toBe(429);
   });
 

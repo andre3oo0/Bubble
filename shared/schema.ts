@@ -1,4 +1,5 @@
 import { boolean, date, index, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // Server-only: database tables. The client uses the types in ./api.ts instead.
 
@@ -100,7 +101,12 @@ export const moodCheckins = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    mood: text("mood").notNull(),
+    // 1 (really low) to 5 (really good), and optional feeling tags (shared/checkin.ts)
+    level: integer("level").notNull(),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    // The single mood word check-ins had before the scale (migration 0004 mapped it
+    // onto level and tags). Kept so the mapping can be redone; new check-ins leave it empty.
+    mood: text("mood"),
     createdAt: createdAt(),
   },
   (table) => [index("mood_checkin_user_created_idx").on(table.userId, table.createdAt)],

@@ -1,5 +1,4 @@
-import type { EntryReflection, JournalEntry, JournalEntryInput, MoodCheckin } from '@shared/api';
-import type { Mood } from '@shared/chat';
+import type { EntryReflection, JournalEntry, JournalEntryInput, MoodCheckin, MoodCheckinInput } from '@shared/api';
 import { apiRequest } from './queryClient';
 
 export const queryKeys = {
@@ -40,8 +39,8 @@ export async function fetchMoods(): Promise<MoodCheckin[]> {
   return (await apiRequest('GET', '/api/moods?days=30')).json();
 }
 
-export async function saveMoodCheckin(mood: Mood): Promise<MoodCheckin> {
-  return (await apiRequest('POST', '/api/moods', { mood })).json();
+export async function saveMoodCheckin(input: MoodCheckinInput): Promise<MoodCheckin> {
+  return (await apiRequest('POST', '/api/moods', input)).json();
 }
 
 // Agree to the current terms and privacy policy (accounts that didn't tick the box at sign-up)

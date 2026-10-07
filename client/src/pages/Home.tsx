@@ -23,7 +23,7 @@ import { useSession } from '@/lib/authClient';
 import { cn } from '@/lib/utils';
 import { fetchJournal, fetchMoods, queryKeys } from '@/lib/api';
 import { formatDay, formatTime } from '@/lib/dates';
-import { MOOD_LABELS } from '@/lib/moods';
+import { LEVEL_LABELS } from '@/lib/moods';
 import { clearGoogleReturn, googleSignInProblem } from '@/lib/googleSignIn';
 import { useAccountDialog } from '@/store/accountStore';
 import { useBreathing } from '@/store/breathingStore';
@@ -69,7 +69,7 @@ function HomeSummary({ onOpen }: { onOpen: (panel: ActivePanel) => void }) {
     : moods.isError
       ? "Couldn't load your check-ins"
       : lastCheckin
-        ? `Last check-in: ${MOOD_LABELS[lastCheckin.mood]}, ${whenText(lastCheckin.createdAt)}`
+        ? `Last check-in: ${LEVEL_LABELS[lastCheckin.level]}, ${whenText(lastCheckin.createdAt)}`
         : 'No check-ins yet';
   const journalDetail = journal.isPending
     ? 'Loading…'

@@ -1,7 +1,7 @@
 import type { Mood } from '@shared/chat';
+import type { FeelingTag, MoodLevel } from '@shared/checkin';
 
-// One place for how moods are shown. Words, not emoji faces; the colours are muted
-// so the mood history reads as a pattern without shouting.
+// One place for how moods are shown: words, not emoji faces
 export const MOOD_ORDER: Mood[] = ['happy', 'calm', 'improved', 'neutral', 'sad', 'anxious', 'stressed'];
 
 export const MOOD_LABELS: Record<Mood, string> = {
@@ -14,12 +14,32 @@ export const MOOD_LABELS: Record<Mood, string> = {
   stressed: 'Stressed',
 };
 
-export const MOOD_TONES: Record<Mood, string> = {
-  happy: '#d9b45a',
-  calm: '#7fb3d5',
-  improved: '#8fbf8a',
-  neutral: '#a8b3bf',
-  sad: '#93a7c7',
-  anxious: '#d39a5c',
-  stressed: '#dc8f82',
+// Mood check-ins: the five steps, lowest first, and the optional feelings
+export const LEVEL_LABELS: Record<MoodLevel, string> = {
+  1: 'Really low',
+  2: 'Low',
+  3: 'Okay',
+  4: 'Good',
+  5: 'Really good',
 };
+
+export const TAG_LABELS: Record<FeelingTag, string> = {
+  happy: 'Happy',
+  calm: 'Calm',
+  hopeful: 'Hopeful',
+  tired: 'Tired',
+  anxious: 'Anxious',
+  stressed: 'Stressed',
+  overwhelmed: 'Overwhelmed',
+  sad: 'Sad',
+  lonely: 'Lonely',
+  angry: 'Angry',
+};
+
+// "Good" or "Good · Tired, Hopeful"
+export function describeCheckin(level: MoodLevel, tags: readonly FeelingTag[] = []): string {
+  return tags.length ? `${LEVEL_LABELS[level]} · ${tags.map((tag) => TAG_LABELS[tag]).join(', ')}` : LEVEL_LABELS[level];
+}
+
+// The 14-day view's bars, in Bubble's accent on the dark panel
+export const CHECKIN_BAR = '#5BAEDC';

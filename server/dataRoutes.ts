@@ -12,6 +12,7 @@ import {
   type MoodCheckin,
 } from "@shared/api";
 import type { Mood } from "@shared/chat";
+import { feelingTags, type FeelingTag, type MoodLevel } from "@shared/checkin";
 import { HELPLINES, detectCrisis } from "@shared/safety";
 import { LEGAL_VERSION } from "@shared/legal";
 import { db } from "./db";
@@ -77,7 +78,12 @@ function toJournalEntry(row: typeof journalEntries.$inferSelect): JournalEntry {
 }
 
 function toMoodCheckin(row: typeof moodCheckins.$inferSelect): MoodCheckin {
-  return { id: row.id, mood: row.mood as Mood, createdAt: row.createdAt.toISOString() };
+  return {
+    id: row.id,
+    level: row.level as MoodLevel,
+    tags: row.tags.filter(isFeelingTag),
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
 export function registerDataRoutes(app: Express) {
@@ -257,7 +263,7 @@ export function registerDataRoutes(app: Express) {
 
   app.post("/api/moods", handle(async (req, res) => {
     const parsed = moodCheckinInputSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "A valid mood is required" });
+    if (!parsed.success) return res.status(400).json({ error: "A level from 1 to 5 is required, with up to 5 different feelings" });
 
     const [today] = await db
       .select({ total: count() })
@@ -269,8 +275,12 @@ export function registerDataRoutes(app: Express) {
 
     const [row] = await db
       .insert(moodCheckins)
-      .values({ mood: parsed.data.mood, userId: res.locals.userId })
+      .values({ level: parsed.data.level, tags: parsed.data.tags, userId: res.locals.userId })
       .returning();
     res.status(201).json(toMoodCheckin(row));
   }));
+}
+
+function isFeelingTag(tag: string): tag is FeelingTag {
+  return (feelingTags as readonly string[]).includes(tag);
 }

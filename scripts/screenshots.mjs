@@ -75,7 +75,9 @@ await p.evaluate(async ({ password, version }) => {
     { title: 'Long day', mood: 'stressed', content: 'Too many messages, not enough hours. Tomorrow: one thing at a time.' },
   ];
   for (const entry of entries) await post('/api/journal', entry);
-  for (const mood of ['calm', 'anxious', 'happy']) await post('/api/moods', { mood });
+  for (const checkin of [{ level: 4, tags: ['calm'] }, { level: 2, tags: ['anxious', 'tired'] }, { level: 5, tags: ['happy'] }]) {
+    await post('/api/moods', checkin);
+  }
 }, { password, version: LEGAL_VERSION });
 await introSeen(p);
 

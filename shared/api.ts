@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { moodSchema, type Helpline, type Mood } from "./chat";
+import { feelingTagSchema, MAX_TAGS, moodLevelSchema, type FeelingTag, type MoodLevel } from "./checkin";
 
 // Request validation and response shapes shared by client and server
 
@@ -24,11 +25,21 @@ export interface JournalEntry {
   updatedAt: string;
 }
 
-export const moodCheckinInputSchema = z.object({ mood: moodSchema });
+export const moodCheckinInputSchema = z.object({
+  level: moodLevelSchema,
+  // Optional; each feeling once
+  tags: z
+    .array(feelingTagSchema)
+    .max(MAX_TAGS)
+    .refine((tags) => new Set(tags).size === tags.length, "Each feeling once")
+    .default([]),
+});
+export type MoodCheckinInput = z.input<typeof moodCheckinInputSchema>;
 
 export interface MoodCheckin {
   id: string;
-  mood: Mood;
+  level: MoodLevel;
+  tags: FeelingTag[];
   createdAt: string;
 }
 
