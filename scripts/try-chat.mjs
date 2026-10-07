@@ -46,6 +46,7 @@ for (const [name, messages] of Object.entries(conversations)) {
   for (const message of messages) {
     console.log(`YOU:    ${message}`);
     try {
+      const started = Date.now();
       const res = await fetch(`${base}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-bubble-device': device },
@@ -53,8 +54,9 @@ for (const [name, messages] of Object.entries(conversations)) {
       });
       const data = await res.json();
       sessionId = data.sessionId;
+      const seconds = ((Date.now() - started) / 1000).toFixed(1);
       const flags = [data.fallback && 'FALLBACK', data.limited && 'LIMITED'].filter(Boolean).join(' ');
-      console.log(`BUBBLE: ${data.reply ?? data.error}   [mood=${data.mood} risk=${data.risk}${flags ? ' ' + flags : ''}]`);
+      console.log(`BUBBLE: ${data.reply ?? data.error}   [${seconds}s mood=${data.mood} risk=${data.risk}${flags ? ' ' + flags : ''}]`);
     } catch (error) {
       console.log(`ERROR:  ${error.message}`);
     }

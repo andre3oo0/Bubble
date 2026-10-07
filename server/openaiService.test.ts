@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { hasWords, parseBestEffort, requireWords } from "./openaiService";
+import { hasWords, parseBestEffort, reasoningFor, requireWords } from "./openaiService";
 
 // Models without strict structured outputs (e.g. Qwen on Groq) only try to match the
 // schema, so their replies are checked here before Bubble uses them
@@ -40,5 +40,26 @@ describe("hasWords", () => {
     expect(hasWords(". .  ...........")).toBe(false);
     expect(hasWords("\u22ee\n\u22ee")).toBe(false);
     expect(() => requireWords("A fine title", "")).toThrow();
+  });
+});
+
+describe("reasoningFor", () => {
+  it("turns Qwen's thinking off, which made replies slow", () => {
+    expect(reasoningFor("qwen/qwen3.8-27b")).toEqual({ reasoning_effort: "none" });
+  });
+
+  it("keeps medium for gpt-oss and o-series models", () => {
+    expect(reasoningFor("openai/gpt-oss-120b")).toEqual({ reasoning_effort: "medium" });
+    expect(reasoningFor("o4-mini")).toEqual({ reasoning_effort: "medium" });
+  });
+
+  it("sends nothing to models that reject the setting", () => {
+    expect(reasoningFor("gpt-4.1-mini")).toEqual({});
+  });
+
+  it("follows OPENAI_REASONING_EFFORT", () => {
+    expect(reasoningFor("qwen/qwen3.8-27b", "medium")).toEqual({ reasoning_effort: "medium" });
+    expect(reasoningFor("openai/gpt-oss-120b", "low")).toEqual({ reasoning_effort: "low" });
+    expect(reasoningFor("openai/gpt-oss-120b", "none")).toEqual({});
   });
 });
