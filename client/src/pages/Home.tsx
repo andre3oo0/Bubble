@@ -27,6 +27,7 @@ import { MOOD_LABELS } from '@/lib/moods';
 import { clearGoogleReturn, googleSignInProblem } from '@/lib/googleSignIn';
 import { useAccountDialog } from '@/store/accountStore';
 import { useBreathing } from '@/store/breathingStore';
+import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
 import { useIntroStore } from '@/store/introStore';
 
@@ -109,6 +110,7 @@ export default function Home() {
   const [selectedEnvironment, setSelectedEnvironment] = useState<SceneId>('ocean');
   const { open: openSos, close: closeSos } = useSosStore();
   const { open: openBreathing } = useBreathing();
+  const { currentMood } = useMoodStore();
   const { open: openAccount } = useAccountDialog();
   const { open: openIntro } = useIntroStore();
   const { data: session } = useSession();
@@ -167,9 +169,9 @@ export default function Home() {
         return (
           <div className="flex min-h-full flex-col items-center py-6 text-center md:py-8">
             <div className="my-auto flex w-full max-w-sm flex-col items-center">
-              {/* Bubble's face, calm and still here whatever the last mood was */}
+              {/* Bubble's face shows its mood (from check-ins and chat), and stays still */}
               <div className="mb-6" aria-hidden="true">
-                <BubbleAvatar size="lg" mood="calm" />
+                <BubbleAvatar size="lg" mood={currentMood} />
               </div>
               <h1 className="text-3xl font-bold text-white">
                 {session ? `Hi ${session.user.name.trim().split(' ')[0]}` : "Hi, I'm Bubble"}

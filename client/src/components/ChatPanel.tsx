@@ -353,7 +353,7 @@ export default function ChatPanel() {
                   <div className={`flex items-end gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {fromBubble && (
                       <span className="w-8 shrink-0" aria-hidden="true">
-                        {showAvatar && <BubbleAvatar size="xs" mood="calm" />}
+                        {showAvatar && <BubbleAvatar size="xs" mood={currentMood} />}
                       </span>
                     )}
                     <div className={`flex max-w-[85%] flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
