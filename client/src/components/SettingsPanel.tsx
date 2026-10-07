@@ -2,16 +2,19 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Download, FileText, Info, KeyRound, LifeBuoy, LogOut, MailCheck, Pause, Play, ScrollText, Trash2, Volume2 } from 'lucide-react';
+import BubbleAvatar from './BubbleAvatar';
 import PageHeader from './PageHeader';
 import SceneBackdrop from './SceneBackdrop';
-import { buttonClass, focusRing as focusRings } from './ui/controls';
+import { buttonClass, chipClass, focusRing as focusRings } from './ui/controls';
 import { AccountSkeleton } from './Skeleton';
 import { SCENES, type SceneId } from './scenes';
 import { authClient, sendVerificationEmail, useSession } from '@/lib/authClient';
 import { useDeviceReducesMotion } from '@/lib/motion';
+import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
 import { signOutHere } from '@/lib/signOut';
 import { useAccountDialog } from '@/store/accountStore';
 import { useIntroStore } from '@/store/introStore';
+import { useMoodStore } from '@/store/moodStore';
 import { usePreferences, type ThemePreference } from '@/store/preferencesStore';
 import { useSosStore } from '@/store/sosStore';
 import { useSoundStore } from '@/store/soundStore';
@@ -82,6 +85,7 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
   const { open: openSos } = useSosStore();
   const { playing, volume, play, stop, setVolume } = useSoundStore();
   const { motion: motionPreference, theme, setMotion, setTheme } = usePreferences();
+  const { currentMood, setCurrentMood } = useMoodStore();
   const [confirmNotice, setConfirmNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -127,6 +131,33 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
   return (
     <div className="pb-2">
       <PageHeader title="Settings" />
+
+      {/* Bubble's look: its face follows its mood, which people can set here any time.
+          Check-ins and chat change it too. */}
+      <Section title="Bubble's mood">
+        <div className="flex flex-col items-center gap-4 px-4 pb-4 pt-2 sm:flex-row sm:items-start">
+          <div className="shrink-0" aria-hidden="true">
+            <BubbleAvatar size="md" mood={currentMood} />
+          </div>
+          <div className="w-full min-w-0">
+            <p className="mb-3 text-sm text-white/90">
+              Choose how Bubble looks. It also changes when you check in or chat.
+            </p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Bubble's mood">
+              {MOOD_ORDER.map((mood) => (
+                <button
+                  key={mood}
+                  onClick={() => setCurrentMood(mood)}
+                  aria-pressed={currentMood === mood}
+                  className={chipClass(currentMood === mood)}
+                >
+                  {MOOD_LABELS[mood]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
 
       <Section title="Account">
         {sessionPending ? (
