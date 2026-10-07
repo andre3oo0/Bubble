@@ -8,7 +8,7 @@ Bubble is used by people who may be struggling. This page explains how it keeps 
 
 **The rule: a message that needs helplines always gets them, whatever else is going wrong.**
 
-- **A keyword check, not the AI, decides.** `shared/safety.ts` looks for signs of suicidal thoughts, self-harm and danger, including slang and softer phrasings ("kms", "unalive", "don't want to wake up", "won't be here tomorrow"). It's deliberately broad: a false alarm only shows helpline numbers, while a miss is far worse. The same code runs on the server and in the browser.
+- **A keyword check, not the AI, decides.** `shared/safety.ts` looks for signs of suicidal thoughts, self-harm and danger, including slang and softer phrasings ("kms", "unalive", "don't want to wake up", "won't be here tomorrow") and indirect warning signs ("giving my things away", "goodbye letters", "want everything to stop for good", "nobody would notice if I was gone"). It's deliberately broad: a false alarm only shows helpline numbers, while a miss is far worse. The same code runs on the server and in the browser.
 - **The server's check wins.** The AI also rates each message (`none`, `concern` or `crisis`), but if the keyword check says crisis, it's a crisis, whatever the model said. A `crisis` rating from the AI also brings the helplines and the help screen, so it can catch phrasings the keywords miss. The AI is told that grief, anger, conflict, loneliness or feeling low aren't a crisis on their own (a false alarm opens the help screen on someone who's sad, not in danger), and to choose crisis whenever the signs are there, even indirectly.
 - **It works when things fail:**
   - The AI is down or slow: the reply is the fixed crisis message plus the helplines.

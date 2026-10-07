@@ -26,7 +26,8 @@ const CRISIS_PATTERNS: RegExp[] = [
   /\bwant(ed)? to die\b/,
   /\bwish i (was|were) dead\b/,
   /\b(don'?t|do not) want to (live|be alive|be here|exist)( anymore)?\b/,
-  /\bno (reason|point) (to|in) (live|living|going on)\b/,
+  // "no point carrying on with this essay" isn't a crisis
+  /\bno (reason|point) (to |in )?(live|living|go on|going on|carry on|carrying on|keep going)\b(?! with)/,
   /\bbetter off (dead|without me)\b/,
   /\b(hurt|harm|cut|cutting|hurting|harming) my ?self\b/,
   /\bself[- ]?harm/,
@@ -38,6 +39,15 @@ const CRISIS_PATTERNS: RegExp[] = [
   /\b(don'?t|do not) want to wake up\b/,
   /\bnot (be|being) (here|around|alive) (tomorrow|anymore|much longer)\b/,
   /\bcan'?t (go on|do this) anymore\b/,
+  // Warning signs the AI caught but this list missed (7 October): getting affairs in
+  // order, wanting it to stop for good, and feeling nobody would notice they were gone
+  /\bgiv(e|ing|en) (away (all )?(of )?my (things|stuff|belongings|possessions)|(all )?(of )?my (things|stuff|belongings|possessions) away)\b/,
+  /\b(goodbye|suicide) (letter|note)s?\b/,
+  /\b(it all|everything|the pain) to (stop|end) for good\b/,
+  /\bstop (it all|everything) for good\b/,
+  /\b(nobody|no ?one|no-one) (would|will|'d|'ll)? ?(even )?(notice|care|miss me)\b.*\bif i('m| am| was| were)? ?(gone|dead|died|disappeared|not (here|around))\b/,
+  /\b(would|will) (anyone|anybody) (even )?(notice|care|miss me)\b.*\bif i\b/,
+  /\bbetter off if i ((was|were) (gone|dead)|(wasn'?t|weren'?t) (here|around|alive))\b/,
 ];
 
 export function detectCrisis(text: string): boolean {
