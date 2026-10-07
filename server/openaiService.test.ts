@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { hasWords, parseBestEffort, reasoningFor, requireWords, stripFieldLines } from "./openaiService";
+import { hasWords, parseBestEffort, reasoningFor, requireWords, stripFieldLines, trimUnfinished } from "./openaiService";
 
 // Models without strict structured outputs (e.g. Qwen on Groq) only try to match the
 // schema, so their replies are checked here before Bubble uses them
@@ -75,5 +75,36 @@ describe("stripFieldLines", () => {
   it("leaves ordinary replies alone", () => {
     const reply = "Some risk is part of trying something new, and your mood today makes sense.";
     expect(stripFieldLines(reply)).toBe(reply);
+  });
+});
+
+describe("trimUnfinished", () => {
+  it("trims a reply cut off mid-sentence back to its last full sentence", () => {
+    expect(
+      trimUnfinished(
+        'It\'s protecting you, not helping your grade.\n\nTry practising under "pressure" rather than at a desk. Set a timer for 20 minutes, treating those 20 minutes as if',
+      ),
+    ).toBe('It\'s protecting you, not helping your grade.\n\nTry practising under "pressure" rather than at a desk.');
+    expect(trimUnfinished("That's such a lot. Is it the first question? What does your")).toBe(
+      "That's such a lot. Is it the first question?",
+    );
+  });
+
+  it("leaves finished replies alone", () => {
+    for (const reply of [
+      "I'm so sorry. I'm right here.",
+      "Honest answer? No, you're not overreacting!",
+      'You said it yourself: "one step at a time."',
+      "Long days can leave you tired (the good kind, I hope)",
+      "That's brilliant news 🎉",
+    ]) {
+      expect(trimUnfinished(reply)).toBe(reply);
+    }
+  });
+
+  it("keeps a reply with no full sentence to fall back to", () => {
+    expect(trimUnfinished("long days can leave you with a different kind of tired")).toBe(
+      "long days can leave you with a different kind of tired",
+    );
   });
 });

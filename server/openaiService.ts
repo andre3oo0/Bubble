@@ -70,6 +70,19 @@ export function stripFieldLines(reply: string): string {
   return reply.replace(FIELD_LINE, "").replace(/[\s}]+$/, "").trim();
 }
 
+// The model sometimes closes the reply mid-sentence ("treating those 20 minutes as if"),
+// as valid JSON, so it isn't the token limit. Such a reply is trimmed back to its last
+// full sentence; one with no full sentence to fall back to is left as it is.
+const FINISHED = new RegExp("[.!?…)\"'”’\\p{Extended_Pictographic}]$", "u");
+const SENTENCE_END = /[.!?…]["'”’)]*(?=\s)/g;
+
+export function trimUnfinished(reply: string): string {
+  if (FINISHED.test(reply)) return reply;
+  const ends = Array.from(reply.matchAll(SENTENCE_END));
+  const last = ends.at(-1);
+  return last ? reply.slice(0, last.index + last[0].length) : reply;
+}
+
 interface StructuredRequest {
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   maxTokens: number;
@@ -269,7 +282,7 @@ export async function generateReply(message: string, history: ChatTurn[], contex
   // spotted isn't lost: the route swaps in a fallback reply and keeps the risk
   const ask = async (extra: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []): Promise<AiReply> => {
     const parsed = await structuredCall(replySchema, "bubble_reply", { messages: [...messages, ...extra], maxTokens: 1400 });
-    const text = stripFieldLines(parsed.reply);
+    const text = trimUnfinished(stripFieldLines(parsed.reply));
     return { reply: hasWords(text) ? text : "", mood: parsed.user_mood, risk: parsed.risk };
   };
 
