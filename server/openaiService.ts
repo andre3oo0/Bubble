@@ -73,7 +73,9 @@ export function stripFieldLines(reply: string): string {
 // The model sometimes closes the reply mid-sentence ("treating those 20 minutes as if"),
 // as valid JSON, so it isn't the token limit. Such a reply is trimmed back to its last
 // full sentence; one with no full sentence to fall back to is left as it is.
-const FINISHED = new RegExp("[.!?…)\"'”’\\p{Extended_Pictographic}]$", "u");
+// Finished: sentence punctuation (maybe then a closing quote or bracket), an emoji, or a
+// bracket closing an aside or smiley. A quote mark alone isn't: it can be an opening one.
+const FINISHED = new RegExp("([.!?…][\"'”’)]*|\\p{Extended_Pictographic}|[\\p{L}\\p{N}:;]\\))$", "u");
 const SENTENCE_END = /[.!?…]["'”’)]*(?=\s)/g;
 
 export function trimUnfinished(reply: string): string {

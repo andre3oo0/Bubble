@@ -90,6 +90,12 @@ describe("trimUnfinished", () => {
     );
   });
 
+  it("trims a reply that stops on an opening quote mark", () => {
+    expect(
+      trimUnfinished("The anxiety locks the door on it. Have you tried talking yourself through the '"),
+    ).toBe("The anxiety locks the door on it.");
+  });
+
   it("leaves finished replies alone", () => {
     for (const reply of [
       "I'm so sorry. I'm right here.",
@@ -97,6 +103,8 @@ describe("trimUnfinished", () => {
       'You said it yourself: "one step at a time."',
       "Long days can leave you tired (the good kind, I hope)",
       "That's brilliant news 🎉",
+      "Well done you :)",
+      "Then say it out loud: 'I've got this.'",
     ]) {
       expect(trimUnfinished(reply)).toBe(reply);
     }
