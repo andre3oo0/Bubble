@@ -11,6 +11,7 @@ const { sendChatMessage } = await import('./chatService');
 const { forgetDevice } = await import('./forgetDevice');
 const { useChatStore } = await import('@/store/chatStore');
 const { useMoodStore } = await import('@/store/moodStore');
+const { useJournalEditor } = await import('@/store/journalEditorStore');
 
 beforeEach(() => vi.mocked(apiRequest).mockClear());
 
@@ -25,6 +26,15 @@ describe('forgetDevice', () => {
     expect(useChatStore.getState().messages).toEqual([]);
     expect(useMoodStore.getState().currentMood).toBe('neutral');
     expect(vi.mocked(apiRequest)).toHaveBeenLastCalledWith('POST', '/api/chat/end', { sessionId: 'chat-1' });
+  });
+
+  it('drops unsaved journal writing', async () => {
+    useJournalEditor.getState().reset('user-1');
+    useJournalEditor.getState().update({ view: 'editor', draft: { title: '', content: 'private thoughts', mood: 'sad' } });
+
+    await forgetDevice();
+
+    expect(useJournalEditor.getState()).toMatchObject({ userId: null, view: 'list', draft: { content: '' } });
   });
 
   it('starts a new conversation, with a new device ID, afterwards', async () => {

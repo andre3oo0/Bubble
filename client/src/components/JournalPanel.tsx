@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { JournalEntry } from '@shared/api';
@@ -19,17 +19,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { UNDO_MS, useJournalDelete } from '@/store/journalDeleteStore';
+import { EMPTY_DRAFT, useJournalEditor, type Draft, type JournalView } from '@/store/journalEditorStore';
 
 export { dateTitle };
-
-type View = 'list' | 'entry' | 'editor';
-interface Draft {
-  title: string;
-  content: string;
-  mood: Mood;
-}
-
-const EMPTY_DRAFT: Draft = { title: '', content: '', mood: 'neutral' };
 
 const dialogClass = 'w-[calc(100%-2rem)] max-w-md border-0 p-6';
 
@@ -37,13 +29,11 @@ export default function JournalPanel() {
   const { data: session, isPending: sessionPending } = useSession();
   const { open: openAccount } = useAccountDialog();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<View>('list');
-  const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
-  // The editor works on a draft, compared with what it started from to know whether
-  // leaving would lose anything
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const [startedFrom, setStartedFrom] = useState<Draft>(EMPTY_DRAFT);
-  const [editingExisting, setEditingExisting] = useState(false);
+  // Kept outside this screen, so switching tabs doesn't lose unsaved writing
+  const { userId, view, currentEntry, draft, startedFrom, editingExisting, update, reset } = useJournalEditor();
+  const setView = (next: JournalView) => update({ view: next });
+  const setCurrentEntry = (entry: JournalEntry | null) => update({ currentEntry: entry });
+  const setDraft = (next: Draft) => update({ draft: next });
   const [discardOpen, setDiscardOpen] = useState(false);
   // A starting point for a blank page; using it fills in the title
   const [prompt, setPrompt] = useState(() => pickPrompt());
@@ -53,6 +43,13 @@ export default function JournalPanel() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { hidden, schedule, undo } = useJournalDelete();
   const { toast } = useToast();
+
+  // Someone else signed in, or nobody (a session that ran out on a shared phone):
+  // they mustn't see the last person's unsaved writing
+  const sessionUserId = session?.user.id ?? null;
+  useEffect(() => {
+    if (!sessionPending && userId !== sessionUserId) reset(sessionUserId);
+  }, [sessionPending, sessionUserId, userId, reset]);
 
   const journal = useQuery({
     queryKey: queryKeys.journal,
@@ -83,21 +80,19 @@ export default function JournalPanel() {
     const start = entry ? { title: entry.title, content: entry.content, mood: entry.mood } : EMPTY_DRAFT;
     createEntry.reset();
     updateEntry.reset();
-    setDraft(start);
-    setStartedFrom(start);
-    setEditingExisting(!!entry);
-    setCurrentEntry(entry);
-    setView('editor');
+    update({ draft: start, startedFrom: start, editingExisting: !!entry, currentEntry: entry, view: 'editor' });
   };
 
   // Always clears the draft, so the next new entry starts blank
   const closeEditor = () => {
     setDiscardOpen(false);
-    setDraft(EMPTY_DRAFT);
-    setStartedFrom(EMPTY_DRAFT);
     setPrompt(pickPrompt(prompt));
-    setView(editingExisting && currentEntry ? 'entry' : 'list');
-    setEditingExisting(false);
+    update({
+      draft: EMPTY_DRAFT,
+      startedFrom: EMPTY_DRAFT,
+      view: editingExisting && currentEntry ? 'entry' : 'list',
+      editingExisting: false,
+    });
   };
 
   // Cancel and the back arrow: ask first if there's unsaved writing

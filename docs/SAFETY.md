@@ -38,6 +38,7 @@ Changes to the prompt or model are judged on the live site with `npm run try-cha
 | Chat messages | No | The server keeps the last 24 messages (about 8,000 characters) of a conversation in memory so Bubble can follow along, and forgets them after an hour idle or a restart. "Let go" forgets them straight away. |
 | End-of-chat reflection | Only if saved | The transcript is sent for the reflection and not kept. The reflection is saved only if the person chooses "Save to journal". |
 | Journal entries | Yes, if signed in | Readable only by their author. Every query is scoped to the signed-in user, with isolation tests. |
+| Unsaved journal writing | No | Kept only in the open page's memory, so switching tabs doesn't lose it. Never written to the device or sent anywhere until saved. Gone when the page closes, on sign-out, or when someone else (or nobody) is signed in. |
 | Mood check-ins | Yes, if signed in | Same scoping as the journal. |
 | Account | Yes, if created | Name (up to 50 characters), email and a hashed password (or a Google link). Google's tokens are stored encrypted. Which version of the terms and privacy policy was agreed to, and when. |
 | Sign-in sessions | Yes, if signed in | When each session started and when it expires. Not the IP address or browser. Expired sessions and used email links are deleted every hour. |
