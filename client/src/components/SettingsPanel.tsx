@@ -179,33 +179,6 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
     <div className="pb-2">
       <PageHeader title="Settings" />
 
-      {/* Bubble's look: its face follows its mood, which people can set here any time.
-          Check-ins and chat change it too. */}
-      <Section title="Bubble's mood">
-        <div className="flex flex-col items-center gap-4 px-4 pb-4 pt-2 sm:flex-row sm:items-start">
-          <div className="shrink-0" aria-hidden="true">
-            <BubbleAvatar size="md" mood={currentMood} />
-          </div>
-          <div className="w-full min-w-0">
-            <p className="mb-3 text-sm text-white/90">
-              Choose how Bubble looks. It also changes when you check in or chat.
-            </p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Bubble's mood">
-              {MOOD_ORDER.map((mood) => (
-                <button
-                  key={mood}
-                  onClick={() => setCurrentMood(mood)}
-                  aria-pressed={currentMood === mood}
-                  className={chipClass(currentMood === mood)}
-                >
-                  {MOOD_LABELS[mood]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Section>
-
       <Section title="Account">
         {sessionPending ? (
           <AccountSkeleton />
@@ -257,52 +230,6 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
             </div>
           </div>
         )}
-      </Section>
-
-      <Section title="Privacy">
-        <Note>
-          Your chats aren't saved. Bubble keeps the latest part of a conversation for up to an hour so it can follow along,
-          and forgets it as soon as you choose Let go. Your journal and moods are only ever shown to you.
-        </Note>
-        <Link href="/privacy" className={rowClass}>
-          <FileText className={rowIcon} aria-hidden="true" />
-          <span className="min-w-0 flex-1 font-medium">Privacy policy</span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
-        </Link>
-        <Link href="/terms" className={rowClass}>
-          <ScrollText className={rowIcon} aria-hidden="true" />
-          <span className="min-w-0 flex-1 font-medium">Terms of use</span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
-        </Link>
-        {session && (
-          <>
-            {/* Plain link: same-origin, so the session cookie goes along and the browser saves the file */}
-            <a href="/api/me/export" download className={rowClass}>
-              <Download className={rowIcon} aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">Download my data</span>
-                <span className="block text-sm text-white/75">Everything Bubble keeps about you, as a file</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
-            </a>
-            <RowButton
-              icon={Trash2}
-              label="Delete my account"
-              detail="Removes your journal and mood history for good"
-              onClick={() => openAccount('login', { action: 'delete' })}
-              danger
-            />
-          </>
-        )}
-      </Section>
-
-      <Section title="Safety">
-        <Note>
-          Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please call 112 or tap Get help to
-          reach someone right away.
-        </Note>
-        <RowButton icon={LifeBuoy} label="Get help" detail="Helplines you can call any time" onClick={openSos} />
-        <RowButton icon={Info} label="Show the introduction again" onClick={openIntro} />
       </Section>
 
       <Section title="Display">
@@ -403,6 +330,79 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
             <p className="mt-2 text-sm text-white/75">Night uses darker colours for late evenings. Automatic follows your device.</p>
           </fieldset>
         </div>
+      </Section>
+
+      {/* Bubble's look: its face follows its mood, which people can set here any time.
+          Check-ins and chat change it too. */}
+      <Section title="Bubble's mood">
+        <div className="flex flex-col items-center gap-4 px-4 pb-4 pt-2 sm:flex-row sm:items-start">
+          <div className="shrink-0" aria-hidden="true">
+            <BubbleAvatar size="md" mood={currentMood} />
+          </div>
+          <div className="w-full min-w-0">
+            <p className="mb-3 text-sm text-white/90">
+              Choose how Bubble looks. It also changes when you check in or chat.
+            </p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Bubble's mood">
+              {MOOD_ORDER.map((mood) => (
+                <button
+                  key={mood}
+                  onClick={() => setCurrentMood(mood)}
+                  aria-pressed={currentMood === mood}
+                  className={chipClass(currentMood === mood)}
+                >
+                  {MOOD_LABELS[mood]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Safety">
+        <Note>
+          Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please call 112 or tap Get help to
+          reach someone right away.
+        </Note>
+        <RowButton icon={LifeBuoy} label="Get help" detail="Helplines you can call any time" onClick={openSos} />
+        <RowButton icon={Info} label="Show the introduction again" onClick={openIntro} />
+      </Section>
+
+      <Section title="Privacy">
+        <Note>
+          Your chats aren't saved. Bubble keeps the latest part of a conversation for up to an hour so it can follow along,
+          and forgets it as soon as you choose Let go. Your journal and moods are only ever shown to you.
+        </Note>
+        <Link href="/privacy" className={rowClass}>
+          <FileText className={rowIcon} aria-hidden="true" />
+          <span className="min-w-0 flex-1 font-medium">Privacy policy</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
+        </Link>
+        <Link href="/terms" className={rowClass}>
+          <ScrollText className={rowIcon} aria-hidden="true" />
+          <span className="min-w-0 flex-1 font-medium">Terms of use</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
+        </Link>
+        {session && (
+          <>
+            {/* Plain link: same-origin, so the session cookie goes along and the browser saves the file */}
+            <a href="/api/me/export" download className={rowClass}>
+              <Download className={rowIcon} aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">Download my data</span>
+                <span className="block text-sm text-white/75">Everything Bubble keeps about you, as a file</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
+            </a>
+            <RowButton
+              icon={Trash2}
+              label="Delete my account"
+              detail="Removes your journal and mood history for good"
+              onClick={() => openAccount('login', { action: 'delete' })}
+              danger
+            />
+          </>
+        )}
       </Section>
     </div>
   );
