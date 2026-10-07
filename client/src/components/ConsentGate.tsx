@@ -5,6 +5,7 @@ import { agreeToTerms } from '@/lib/api';
 import { useSession } from '@/lib/authClient';
 import { signOutHere } from '@/lib/signOut';
 import { LEGAL_VERSION, MIN_AGE } from '@shared/legal';
+import { buttonClass, noticeClass } from './ui/controls';
 
 const linkClass = 'font-medium text-[#0b5394] underline underline-offset-2';
 
@@ -76,7 +77,7 @@ export default function ConsentGate() {
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               disabled={busy}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-[#0b5394]"
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[#0b6bb8]"
             />
             <span>
               I'm {MIN_AGE} or older and I agree to the terms of use and privacy policy, including my messages being sent to
@@ -85,7 +86,7 @@ export default function ConsentGate() {
           </label>
 
           {error && (
-            <p role="alert" className="mt-3 rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p role="alert" className={`mt-3 ${noticeClass.error}`}>
               {error}
             </p>
           )}
@@ -93,14 +94,14 @@ export default function ConsentGate() {
           <button
             onClick={agree}
             disabled={!agreed || busy}
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-[8px] bg-[#0b5394] font-semibold text-white hover:bg-[#0b3d66] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#0b5394]/40 disabled:opacity-60"
+            className={buttonClass({ tone: 'light', className: 'mt-5 min-h-12 w-full' })}
           >
             Agree and continue
           </button>
           <button
             onClick={signOutInstead}
             disabled={busy}
-            className="mt-2 flex h-11 w-full items-center justify-center rounded-[8px] font-medium text-gray-800 hover:bg-gray-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-gray-300 disabled:opacity-60"
+            className={buttonClass({ tone: 'light', variant: 'secondary', className: 'mt-2 w-full' })}
           >
             Not now, sign me out
           </button>

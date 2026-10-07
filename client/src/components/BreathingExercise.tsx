@@ -1,206 +1,152 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, MotionConfig } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { useSoundStore } from '@/store/soundStore';
+import { useBreathing } from '@/store/breathingStore';
 import { nextBreathingStep, PHASE_DURATIONS, type BreathingPhase } from '@/lib/breathing';
+import { BUBBLE_COLOURS } from './BubbleAvatar';
+import { buttonClass, darkSheetClass, iconButtonClass } from './ui/controls';
 
-interface BreathingExerciseProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-// Only stop the breathing tone, not scenery sounds someone started in the Avatar tab
+// Only stop the breathing tone, not scenery sounds someone started in Settings
 function stopBreathingSound() {
   const sound = useSoundStore.getState();
   if (sound.playing === 'breathing') sound.stop();
 }
 
-export default function BreathingExercise({ isOpen, onClose }: BreathingExerciseProps) {
+const INSTRUCTIONS: Record<BreathingPhase, string> = {
+  inhale: 'Breathe in',
+  hold: 'Hold',
+  exhale: 'Breathe out slowly',
+  rest: 'Rest',
+};
+
+// The circle grows on the in-breath and shrinks on the out-breath
+const circleVariants = {
+  idle: { scale: 1, transition: { duration: 0.6 } },
+  inhale: { scale: 1.45, transition: { duration: PHASE_DURATIONS.inhale, ease: 'easeInOut' } },
+  hold: { scale: 1.45, transition: { duration: PHASE_DURATIONS.hold, ease: 'linear' } },
+  exhale: { scale: 1, transition: { duration: PHASE_DURATIONS.exhale, ease: 'easeInOut' } },
+  rest: { scale: 1, transition: { duration: PHASE_DURATIONS.rest, ease: 'linear' } },
+};
+
+export default function BreathingExercise() {
+  const { isOpen, close } = useBreathing();
   const [phase, setPhase] = useState<BreathingPhase>('inhale');
   const [count, setCount] = useState(PHASE_DURATIONS.inhale);
   const [rounds, setRounds] = useState(0);
   const [isActive, setIsActive] = useState(false);
-  const [totalTime, setTotalTime] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // The interval callback reads these, so it never sees a stale phase
   const phaseRef = useRef<BreathingPhase>('inhale');
   const countRef = useRef(PHASE_DURATIONS.inhale);
 
-  // Animation properties for the breathing circle
-  const circleVariants = {
-    inhale: {
-      scale: 1.5,
-      transition: { duration: PHASE_DURATIONS.inhale, ease: "easeInOut" }
-    },
-    hold: {
-      scale: 1.5,
-      transition: { duration: PHASE_DURATIONS.hold, ease: "linear" }
-    },
-    exhale: {
-      scale: 1,
-      transition: { duration: PHASE_DURATIONS.exhale, ease: "easeInOut" }
-    },
-    rest: {
-      scale: 1,
-      transition: { duration: PHASE_DURATIONS.rest, ease: "linear" }
-    }
-  };
-
-  // Text instructions for each phase
-  const getInstructions = () => {
-    switch (phase) {
-      case 'inhale': return 'Breathe in...';
-      case 'hold': return 'Hold...';
-      case 'exhale': return 'Breathe out slowly...';
-      case 'rest': return 'Rest...';
-      default: return '';
-    }
-  };
-
-  // Start the breathing exercise
-  const startExercise = () => {
-    phaseRef.current = 'inhale';
-    countRef.current = PHASE_DURATIONS.inhale;
-    setIsActive(true);
-    setPhase('inhale');
-    setCount(PHASE_DURATIONS.inhale);
-    setRounds(0);
-    setTotalTime(0);
-
-    // Play breathing ambient sound
-    useSoundStore.getState().play('breathing');
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    intervalRef.current = setInterval(() => {
-      const step = nextBreathingStep(phaseRef.current, countRef.current);
-      phaseRef.current = step.phase;
-      countRef.current = step.count;
-
-      setPhase(step.phase);
-      setCount(step.count);
-      if (step.completedRound) setRounds(prevRounds => prevRounds + 1);
-      setTotalTime(prevTime => prevTime + 1);
-    }, 1000);
-  };
-
-  // Stop the breathing exercise
-  const stopExercise = () => {
-    setIsActive(false);
+  const clearTimer = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+  };
 
-    // Stop the ambient sound
+  const startExercise = () => {
+    phaseRef.current = 'inhale';
+    countRef.current = PHASE_DURATIONS.inhale;
+    setPhase('inhale');
+    setCount(PHASE_DURATIONS.inhale);
+    setRounds(0);
+    setIsActive(true);
+    useSoundStore.getState().play('breathing');
+
+    clearTimer();
+    intervalRef.current = setInterval(() => {
+      const step = nextBreathingStep(phaseRef.current, countRef.current);
+      phaseRef.current = step.phase;
+      countRef.current = step.count;
+      setPhase(step.phase);
+      setCount(step.count);
+      if (step.completedRound) setRounds((n) => n + 1);
+    }, 1000);
+  };
+
+  const stopExercise = () => {
+    setIsActive(false);
+    clearTimer();
     stopBreathingSound();
   };
 
-  // Format time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Cleanup on component unmount
+  // Closing stops it and starts the next visit fresh
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      // Make sure we stop any sounds when unmounting
-      stopBreathingSound();
-    };
-  }, []);
-
-  // Stop exercise when modal is closed
-  useEffect(() => {
-    if (!isOpen && isActive) {
+    if (!isOpen) {
       stopExercise();
+      setRounds(0);
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  useEffect(
+    () => () => {
+      clearTimer();
+      stopBreathingSound();
+    },
+    [],
+  );
+
+  const status = isActive
+    ? INSTRUCTIONS[phase]
+    : rounds > 0
+      ? `Well done. You breathed through ${rounds} ${rounds === 1 ? 'round' : 'rounds'}.`
+      : "Press Start when you're ready";
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => !open && close()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#06101f]/70" />
+        <DialogPrimitive.Content
+          className={`fixed left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col items-center overflow-y-auto rounded-[8px] p-6 focus:outline-none ${darkSheetClass}`}
         >
-          <motion.div
-            className="surface max-w-lg w-11/12 rounded-3xl p-6 relative"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
-            <button
-              onClick={onClose}
-              aria-label="Close breathing exercise"
-              className="absolute top-4 right-4 text-white hover:text-gray-200"
-            >
-              <X size={24} />
+          <DialogPrimitive.Close aria-label="Close breathing exercise" className={iconButtonClass('dark', 'absolute right-2 top-2')}>
+            <X size={22} aria-hidden="true" />
+          </DialogPrimitive.Close>
+
+          <DialogPrimitive.Title className="text-2xl font-semibold">Breathe with Bubble</DialogPrimitive.Title>
+          <DialogPrimitive.Description className="mt-1 text-sm text-white/80">
+            In for {PHASE_DURATIONS.inhale}, hold for {PHASE_DURATIONS.hold}, out for {PHASE_DURATIONS.exhale}.
+          </DialogPrimitive.Description>
+
+          {/* Fixed-size stage so the grown circle never spills over the text */}
+          <div className="flex h-72 w-full items-center justify-center">
+            {/* The slow growing and shrinking is the guide itself, so it keeps moving
+                even with calm visuals on */}
+            <MotionConfig reducedMotion="never">
+              <motion.div
+                className="flex h-36 w-36 items-center justify-center rounded-full border-4"
+                style={{ backgroundColor: BUBBLE_COLOURS.fill, borderColor: BUBBLE_COLOURS.ring }}
+                variants={circleVariants}
+                animate={isActive ? phase : 'idle'}
+              >
+                {isActive && (
+                  <span className="text-5xl font-bold" style={{ color: BUBBLE_COLOURS.ink }} aria-hidden="true">
+                    {count}
+                  </span>
+                )}
+              </motion.div>
+            </MotionConfig>
+          </div>
+
+          <p className="mb-6 min-h-[3.5rem] text-center text-xl" role="status">
+            {status}
+          </p>
+
+          {isActive ? (
+            <button onClick={stopExercise} className={buttonClass({ variant: 'secondary', className: 'w-40' })}>
+              Stop
             </button>
-
-            <h2 className="text-2xl font-semibold text-white text-center mb-6">
-              Breathe with Bubble
-            </h2>
-
-            <div className="flex flex-col items-center">
-              {/* Fixed-size stage so the circle (scaled 1.5x on inhale, plus its glow)
-                  never spills over the title or the instruction text */}
-              <div className="flex h-[19rem] w-full items-center justify-center">
-                {/* The slow growing/shrinking circle is the guide itself, so it keeps
-                    moving even with calm visuals on */}
-                <MotionConfig reducedMotion="never">
-                  <motion.div
-                    className="w-40 h-40 bg-[#D4F1FF]/70 rounded-full flex items-center justify-center breathe-circle"
-                    variants={circleVariants}
-                    animate={phase}
-                  >
-                    <div className="text-[#2980b9] text-5xl font-bold">{count}</div>
-                  </motion.div>
-                </MotionConfig>
-              </div>
-
-              <p className="text-white text-xl mb-4">{getInstructions()}</p>
-
-              <dl className="mb-6 grid w-full grid-cols-2 divide-x divide-white/20 text-center text-white">
-                <div>
-                  <dt className="text-sm text-white/85">Time</dt>
-                  <dd className="font-semibold">{formatTime(totalTime)}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-white/85">Rounds</dt>
-                  <dd className="font-semibold">{rounds}</dd>
-                </div>
-              </dl>
-
-              {!isActive ? (
-                <button
-                  onClick={startExercise}
-                  className="bg-[#0b6bb8] hover:bg-[#095a9c] text-white px-6 py-3 rounded-full font-medium"
-                >
-                  Start
-                </button>
-              ) : (
-                <button
-                  onClick={stopExercise}
-                  className="surface-soft surface-soft-hover text-white px-6 py-3 rounded-full font-medium"
-                >
-                  Stop
-                </button>
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          ) : (
+            <button onClick={startExercise} className={buttonClass({ className: 'w-40' })}>
+              {rounds > 0 ? 'Start again' : 'Start'}
+            </button>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

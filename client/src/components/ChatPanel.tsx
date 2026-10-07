@@ -1,24 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { DoorOpen, Phone, RotateCcw, SendHorizontal, Wind } from 'lucide-react';
+import { DoorOpen, RotateCcw, SendHorizontal, Wind } from 'lucide-react';
 import { prefersReducedMotion } from '@/lib/motion';
 import { Message, Mood } from '@/models/types';
 import { useChatStore } from '@/store/chatStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSosStore } from '@/store/sosStore';
+import { useBreathing } from '@/store/breathingStore';
 import { v4 as uuidv4 } from 'uuid';
 import { endChat, sendChatMessage } from '@/lib/chatService';
 import { chatTermsSeen, rememberChatTerms } from '@/lib/chatConsent';
 import { useSession } from '@/lib/authClient';
+import { formatDayAndTime } from '@/lib/dates';
+import { cn } from '@/lib/utils';
 import { LEGAL_VERSION, MIN_AGE } from '@shared/legal';
 import ChatDebrief from './ChatDebrief';
 import BubbleAvatar from './BubbleAvatar';
+import HelplineList from './HelplineList';
+import PageHeader from './PageHeader';
+import { buttonClass, focusRing } from './ui/controls';
 import { CRISIS_REPLY, HELPLINES, detectCrisis } from '@shared/safety';
-
-interface ChatPanelProps {
-  showBreathingExercise: boolean;
-  setShowBreathingExercise: (show: boolean) => void;
-}
 
 const BREATHING_OFFER_MOODS: Mood[] = ['anxious', 'stressed'];
 
@@ -34,13 +35,6 @@ const LET_GO_MS = 1600;
 // A time label goes above a message when this much time has passed since the last one
 const TIME_GAP_MS = 10 * 60 * 1000;
 
-function timeLabel(date: Date) {
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const today = new Date();
-  if (date.toDateString() === today.toDateString()) return `Today, ${time}`;
-  return `${date.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}, ${time}`;
-}
-
 // On touch keyboards Enter makes a new line and the button sends; elsewhere Enter sends
 const touchKeyboard = () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
@@ -48,16 +42,18 @@ function openSosForCrisis() {
   setTimeout(() => useSosStore.getState().openForCrisis(), SOS_OPEN_DELAY_MS);
 }
 
-export default function ChatPanel({
-  showBreathingExercise,
-  setShowBreathingExercise
-}: ChatPanelProps) {
+// Bubble's own words, as opposed to the app's notices
+const isBubbleVoice = (message?: Message) => message?.sender === 'bubble' && message.kind !== 'notice';
+
+export default function ChatPanel() {
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isBreathingPromptVisible, setIsBreathingPromptVisible] = useState(false);
   const [debriefOpen, setDebriefOpen] = useState(false);
   const [releasing, setReleasing] = useState(false);
   const { messages, addMessage, updateMessage, clearMessages } = useChatStore();
+  const { open: openBreathing } = useBreathing();
+  const { open: openSos } = useSosStore();
   const { data: session } = useSession();
   // Before the first message: who Bubble is for, and what sending means. Account holders
   // agreed at sign-up; on this device it's shown until a message has been sent.
@@ -257,54 +253,49 @@ export default function ChatPanel({
     finishChat("Saved to your journal. I'm here whenever you want to talk again.");
   };
 
-  // Function to start breathing exercise
   const startBreathingExercise = () => {
-    setShowBreathingExercise(true);
+    openBreathing();
     setIsBreathingPromptVisible(false);
-
-    // Add confirmation message
-    const confirmationMessage: Message = {
+    addMessage({
       id: uuidv4(),
       content: "Great! Let's begin a breathing exercise to help you relax. Take your time with it.",
       sender: 'bubble',
       timestamp: new Date()
-    };
-
-    addMessage(confirmationMessage);
+    });
   };
 
-  // Function to decline breathing exercise
   const declineBreathingExercise = () => {
     setIsBreathingPromptVisible(false);
-
-    // Add acknowledgment message
-    const acknowledgmentMessage: Message = {
+    addMessage({
       id: uuidv4(),
       content: "That's okay. I'm here whenever you need to talk or try a relaxation exercise.",
       sender: 'bubble',
       timestamp: new Date()
-    };
-
-    addMessage(acknowledgmentMessage);
+    });
   };
 
+  // Who Bubble is and where help is: in full before the first message, then one line
+  // so the conversation gets the room
+  const helpLink = (
+    <button onClick={openSos} aria-haspopup="dialog" className={cn('rounded font-semibold underline underline-offset-2', focusRing.dark)}>
+      Get help
+    </button>
+  );
+  const aiNotice = hasConversation ? (
+    <>Bubble is an AI and isn't a substitute for a therapist. In danger? Tap {helpLink}.</>
+  ) : (
+    <>
+      Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please tap {helpLink} to reach
+      someone right away.
+    </>
+  );
+
   return (
-    <motion.div
-      className="h-full flex flex-col"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">Chat</h1>
+    <div className="flex h-full flex-col">
+      <PageHeader title="Chat" hideOnPhone />
 
-      {/* Breathing Exercise is now handled by the parent component */}
-
-      {/* Chat messages area */}
-      <div className="flex-1 overflow-y-auto mb-4 surface rounded-3xl p-4">
-        <p className="mb-4 border-b border-white/15 pb-3 text-center text-xs text-white/85">
-          Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please tap Get help to reach someone
-          right away.
-        </p>
+      <div className="surface min-h-0 flex-1 overflow-y-auto rounded-[8px] p-3 md:p-4">
+        <p className="mb-3 border-b border-white/15 pb-2.5 text-center text-xs text-white/85">{aiNotice}</p>
         {messages.length === 0 && (
           <div className="flex min-h-[70%] flex-col items-center justify-center px-2 text-center text-white">
             <p className="mb-1 text-lg font-semibold">This is your space</p>
@@ -317,7 +308,7 @@ export default function ChatPanel({
                   key={starter}
                   onClick={() => handleSendMessage(starter)}
                   disabled={isSending}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                  className={buttonClass({ variant: 'secondary', size: 'sm', className: 'font-medium' })}
                 >
                   {starter}
                 </button>
@@ -341,96 +332,82 @@ export default function ChatPanel({
         <div className="flex flex-col space-y-3">
           {messages.map((message, index) => {
             const previous = messages[index - 1];
-            const showTime =
-              !previous || message.timestamp.getTime() - previous.timestamp.getTime() > TIME_GAP_MS;
+            const showTime = !previous || message.timestamp.getTime() - previous.timestamp.getTime() > TIME_GAP_MS;
+            const fromBubble = isBubbleVoice(message);
+            // Bubble's face sits beside the last message of each of its turns
+            const showAvatar = fromBubble && !isBubbleVoice(messages[index + 1]);
             return (
-            <motion.div
-              key={message.id}
-              className="flex flex-col"
-              // "Let go": each message drifts up and fades, top first
-              animate={releasing ? { y: -140, opacity: 0, scale: 0.92 } : { y: 0, opacity: 1, scale: 1 }}
-              transition={releasing ? { duration: 1.1, delay: Math.min(index * 0.06, 0.5), ease: 'easeIn' } : { duration: 0 }}
-            >
-              {showTime && (
-                <p className="mb-2 text-center text-xs text-white/80">{timeLabel(message.timestamp)}</p>
-              )}
-              {message.kind === 'notice' ? (
-                <p role="status" className="mx-auto max-w-[90%] text-center text-sm text-white/90">
-                  {message.content}
-                </p>
-              ) : (
-              <div className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                  message.sender === 'user'
-                    ? 'bg-[#0b6bb8] text-white rounded-tr-none'
-                    : 'bg-[#9AD9EA] text-gray-800 rounded-tl-none'
-                }`}
+              <motion.div
+                key={message.id}
+                className="flex flex-col"
+                // "Let go": each message drifts up and fades, top first
+                animate={releasing ? { y: -140, opacity: 0, scale: 0.92 } : { y: 0, opacity: 1, scale: 1 }}
+                transition={releasing ? { duration: 1.1, delay: Math.min(index * 0.06, 0.5), ease: 'easeIn' } : { duration: 0 }}
               >
-                <span className="whitespace-pre-wrap">{message.content}</span>
-
-                {/* Breathing exercise prompt buttons */}
-                {message.helplines && (
-                  <div className="mt-3 space-y-2">
-                    {message.helplines.map((line) => (
-                      <a
-                        key={line.phone}
-                        href={`tel:${line.phone.replace(/\s/g, '')}`}
-                        className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-gray-800"
+                {showTime && <p className="mb-2 text-center text-xs text-white/80">{formatDayAndTime(message.timestamp)}</p>}
+                {message.kind === 'notice' ? (
+                  <p role="status" className="mx-auto max-w-[90%] text-center text-sm text-white/90">
+                    {message.content}
+                  </p>
+                ) : (
+                  <div className={`flex items-end gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {fromBubble && (
+                      <span className="w-8 shrink-0" aria-hidden="true">
+                        {showAvatar && <BubbleAvatar size="xs" mood="calm" />}
+                      </span>
+                    )}
+                    <div className={`flex max-w-[85%] flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div
+                        className={`rounded-2xl px-4 py-2 ${
+                          message.sender === 'user'
+                            ? 'rounded-tr-none bg-[#0b6bb8] text-white'
+                            : 'rounded-tl-none bg-[#C9ECFF] text-[#0b3d66]'
+                        }`}
                       >
-                        <Phone className="h-4 w-4 shrink-0 text-[#0077b6]" aria-hidden="true" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">{line.name}</span>
-                          <span className="block whitespace-nowrap text-base font-bold text-[#0077b6]">{line.phone}</span>
-                          <span className="block text-xs text-gray-600">{line.hours}</span>
-                        </span>
-                      </a>
-                    ))}
-                  </div>
-                )}
+                        <span className="whitespace-pre-wrap">{message.content}</span>
 
-                {message.kind === 'breathing-offer' && isBreathingPromptVisible && (
-                  <div className="mt-2 flex space-x-2">
-                    <button
-                      onClick={startBreathingExercise}
-                      className="bg-[#0b6bb8] text-white px-3 py-1 rounded-full text-sm"
-                    >
-                      Try it now
-                    </button>
-                    <button
-                      onClick={declineBreathingExercise}
-                      className="bg-[#B8DFFC] text-gray-700 px-3 py-1 rounded-full text-sm"
-                    >
-                      No thanks
-                    </button>
+                        {message.helplines && <HelplineList lines={message.helplines} className="mt-3" />}
+
+                        {message.kind === 'breathing-offer' && isBreathingPromptVisible && (
+                          <div className="mt-2 flex gap-2">
+                            <button onClick={startBreathingExercise} className={buttonClass({ tone: 'light', size: 'sm' })}>
+                              Try it now
+                            </button>
+                            <button
+                              onClick={declineBreathingExercise}
+                              className={buttonClass({ tone: 'light', variant: 'secondary', size: 'sm', className: 'border-[#8CCBEB]' })}
+                            >
+                              No thanks
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {message.status === 'failed' && (
+                        <p className="mt-1 flex items-center gap-2 text-xs text-white/90" role="alert">
+                          {message.failure === 'too-fast' ? 'Not sent yet.' : 'Not sent. Check your connection.'}
+                          <button
+                            onClick={() => sendMessage(message.content, message.id)}
+                            disabled={isSending}
+                            className={buttonClass({ variant: 'secondary', size: 'sm', className: 'min-h-8 gap-1 px-2 text-xs' })}
+                          >
+                            <RotateCcw size={12} aria-hidden="true" />
+                            Retry
+                          </button>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-              {message.status === 'failed' && (
-                <p className="mt-1 flex items-center gap-2 text-xs text-white/90" role="alert">
-                  {message.failure === 'too-fast' ? 'Not sent yet.' : 'Not sent. Check your connection.'}
-                  <button
-                    onClick={() => sendMessage(message.content, message.id)}
-                    disabled={isSending}
-                    className="flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-                  >
-                    <RotateCcw size={12} aria-hidden="true" />
-                    Retry
-                  </button>
-                </p>
-              )}
-              </div>
-              )}
-            </motion.div>
+              </motion.div>
             );
           })}
           {isSending && (
             <div className="flex items-end justify-start gap-2" role="status" aria-label="Bubble is typing">
-              <BubbleAvatar size="sm" face="thinking" />
-              <div className="flex items-center gap-1 rounded-2xl rounded-tl-none bg-[#9AD9EA] px-4 py-3" aria-hidden="true">
-                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700" />
-                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700 [animation-delay:150ms]" />
-                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-gray-700 [animation-delay:300ms]" />
+              <BubbleAvatar size="xs" face="thinking" />
+              <div className="flex items-center gap-1 rounded-2xl rounded-tl-none bg-[#C9ECFF] px-4 py-3" aria-hidden="true">
+                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-[#0b3d66]" />
+                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-[#0b3d66] [animation-delay:150ms]" />
+                <span className="animated-typing h-1.5 w-1.5 rounded-full bg-[#0b3d66] [animation-delay:300ms]" />
               </div>
             </div>
           )}
@@ -438,37 +415,29 @@ export default function ChatPanel({
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap justify-center gap-3">
-        <button
-          onClick={() => setShowBreathingExercise(true)}
-          className="flex items-center gap-2 rounded-full bg-[#0b6bb8] px-4 py-2 font-medium text-white hover:bg-[#095a9c] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-        >
-          <Wind size={20} aria-hidden="true" />
+      {/* Quieter than Send, so there's one obvious thing to press */}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <button onClick={openBreathing} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+          <Wind size={16} aria-hidden="true" />
           Breathe
         </button>
         {hasConversation && (
           <button
             onClick={() => setDebriefOpen(true)}
             disabled={releasing || isSending}
-            className="flex items-center gap-2 rounded-full px-4 py-2 font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 disabled:opacity-60"
+            className={buttonClass({ variant: 'secondary', size: 'sm' })}
           >
-            <DoorOpen size={20} aria-hidden="true" />
+            <DoorOpen size={16} aria-hidden="true" />
             I'm done for now
           </button>
         )}
       </div>
 
-      <ChatDebrief
-        open={debriefOpen}
-        messages={messages}
-        onClose={() => setDebriefOpen(false)}
-        onLetGo={letGo}
-        onSaved={saved}
-      />
+      <ChatDebrief open={debriefOpen} messages={messages} onClose={() => setDebriefOpen(false)} onLetGo={letGo} onSaved={saved} />
 
       {/* Input area. The mic button was removed: it did nothing, and browser speech
           recognition sends audio to a third-party service, which needs consent first */}
-      <div className="flex items-end gap-2 surface rounded-3xl p-2 pl-4">
+      <div className="surface mt-2 flex items-end gap-2 rounded-[8px] p-1.5 pl-3">
         <textarea
           ref={composerRef}
           rows={1}
@@ -492,12 +461,14 @@ export default function ChatPanel({
           onClick={() => handleSendMessage()}
           disabled={!inputMessage.trim() || isSending || releasing}
           aria-label="Send message"
-          className="shrink-0 rounded-full bg-[#0b6bb8] p-2.5 text-white hover:bg-[#095a9c] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 disabled:bg-white/15 disabled:text-white/70"
+          className={buttonClass({ className: 'h-11 w-11 px-0 disabled:bg-white/15 disabled:text-white/70 disabled:opacity-100' })}
         >
           <SendHorizontal size={20} aria-hidden="true" />
         </button>
       </div>
-      <p className="mt-1 hidden text-center text-xs text-white/80 md:block">Enter to send · Shift + Enter for a new line</p>
-    </motion.div>
+      {!hasConversation && (
+        <p className="mt-1 hidden text-center text-xs text-white/80 md:block">Enter to send · Shift + Enter for a new line</p>
+      )}
+    </div>
   );
 }

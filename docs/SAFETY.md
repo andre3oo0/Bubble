@@ -43,13 +43,14 @@ Changes to the prompt or model are judged on the live site with `npm run try-cha
 | Logs | Yes | Request lines (method, path, status, timing) and the kind of error, never its details: a failed database query or a broken request can contain what someone wrote. Logs never contain chat or journal content, names, emails or IP addresses. |
 | Preferences | On the device | Scene, sound volume, calm visuals, theme and whether the introduction was seen, in the browser's local storage. |
 
-People can download everything stored about them (Settings, then the account screen, then **Download my data**): account, journal, moods, sign-in methods and sessions. They can delete their account, which removes the journal, moods and sessions with it. Signing out, or deleting the account, also clears the chat and the current mood from the device, so the next person on a shared phone doesn't see them.
+People can download everything stored about them (Settings, under Privacy, **Download my data**): account, journal, moods, sign-in methods and sessions. They can delete their account, which removes the journal, moods and sessions with it. Signing out, or deleting the account, also clears the chat and the current mood from the device, so the next person on a shared phone doesn't see them.
 
 ## Where data goes
 
 - **Hosting and database:** Render and Neon, both in Frankfurt.
 - **AI:** chat messages, reflections and journal entries the person asks Bubble to reflect on are sent to Groq to generate a reply. Groq was chosen over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations.
 - **Email:** Brevo sends account emails (confirmation, password reset). No chat or journal content is ever emailed.
+- **Feedback:** the Feedback screen opens the person's own email app with their message filled in, addressed to the contact email. Bubble's server never receives or stores it; the email arrives like any other, with their address.
 - **Sign-in:** Google, only for people who choose "Continue with Google". Bubble asks for name and email only.
 - **Password checks:** when someone chooses a password on the live site, the first 5 characters of its SHA-1 hash go to [Have I Been Pwned](https://haveibeenpwned.com/Passwords) to check it hasn't appeared in a data breach. The password itself never leaves the server, and the service can't work it out from those 5 characters. If the service is down, the password is accepted.
 - **Nothing else:** no analytics, no ads, and no third-party fonts or scripts in the app.

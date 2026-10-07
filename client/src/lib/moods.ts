@@ -7,7 +7,7 @@ export const MOOD_ORDER: Mood[] = ['happy', 'calm', 'improved', 'neutral', 'sad'
 export const MOOD_LABELS: Record<Mood, string> = {
   happy: 'Happy',
   calm: 'Calm',
-  improved: 'Better',
+  improved: 'Better than before',
   neutral: 'Neutral',
   sad: 'Sad',
   anxious: 'Anxious',

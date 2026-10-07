@@ -5,7 +5,7 @@
 // Uses the installed Chrome (or CHROME_PATH). Only runs against localhost: it creates
 // an account, which must never happen on the live site.
 import { chromium } from 'playwright-core';
-import { mkdirSync } from 'fs';
+import { mkdirSync, readFileSync } from 'fs';
 import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,7 +15,10 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(BASE)) {
   console.error(`Refusing to run against ${BASE}: screenshots create an account, so local servers only.`);
   process.exit(1);
 }
-const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../docs/images');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = path.join(ROOT, 'docs/images');
+// Sign-up needs the current terms version ticked, as the account dialog sends it
+const LEGAL_VERSION = readFileSync(path.join(ROOT, 'shared/legal.ts'), 'utf8').match(/LEGAL_VERSION = "([^"]+)"/)[1];
 mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({
@@ -59,10 +62,12 @@ await shot(p, 'phone-welcome');
 
 // A throwaway account with a few journal entries and check-ins
 const password = randomBytes(16).toString('hex');
-await p.evaluate(async ({ password }) => {
+await p.evaluate(async ({ password, version }) => {
   const post = (url, body) =>
     fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  await post('/api/auth/sign-up/email', { name: 'Sam', email: 'sam@example.com', password });
+  await post('/api/auth/sign-up/email', { name: 'Sam', email: 'sam@example.com', password, acceptedTerms: version });
+  // Sign-up doesn't sign in by itself
+  await post('/api/auth/sign-in/email', { email: 'sam@example.com', password });
   const entries = [
     { title: 'Before the exam', mood: 'anxious', content: "Couldn't sleep, kept running through algebra in my head. Wrote down the three things I actually know how to do and that helped a bit." },
     { title: 'Sunday walk', mood: 'calm', content: 'Walked to the dam with the dog. Phone stayed in my pocket the whole time. Want to do this more.' },
@@ -71,7 +76,7 @@ await p.evaluate(async ({ password }) => {
   ];
   for (const entry of entries) await post('/api/journal', entry);
   for (const mood of ['calm', 'anxious', 'happy']) await post('/api/moods', { mood });
-}, { password });
+}, { password, version: LEGAL_VERSION });
 await introSeen(p);
 
 await setPanel(p, 'home', 'sunset');

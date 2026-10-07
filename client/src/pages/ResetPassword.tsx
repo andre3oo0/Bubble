@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { KeyRound } from 'lucide-react';
 import { resetPassword } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
 import { MIN_PASSWORD_LENGTH } from '@shared/account';
+import { buttonClass, fieldClass, labelClass, noticeClass } from '@/components/ui/controls';
 
-const inputClass =
-  'w-full rounded-xl bg-[#D4F1FF] p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-[#0b6bb8]/40';
+const inputClass = fieldClass.light;
+const primaryClass = buttonClass({ tone: 'light', className: 'min-h-12 w-full' });
 
 // Opened from the reset email. Better Auth redirects here with ?token=... or
 // ?error=INVALID_TOKEN when the link is expired or already used.
@@ -43,13 +43,12 @@ export default function ResetPassword() {
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#1a6fc4] to-[#0b5394] dark:from-[#0b1d3a] dark:to-[#050d1a] p-4"
+      className="flex min-h-screen items-center justify-center bg-[#0b2a4a] p-4"
       style={{ minHeight: '100dvh' }}
     >
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 text-gray-900">
-        <div className="mb-4 flex items-center gap-2">
-          <KeyRound className="h-6 w-6 text-[#0b5394]" aria-hidden="true" />
-          <h1 className="text-2xl font-bold">
+      <div className="w-full max-w-md rounded-[8px] bg-white p-6 text-gray-900 sm:p-8">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-[#0b3d66]">
             {done ? 'Password changed' : linkBroken ? 'This link has expired' : 'Choose a new password'}
           </h1>
         </div>
@@ -59,7 +58,7 @@ export default function ResetPassword() {
             <p className="mb-4 text-gray-700">
               Your password has been changed and you've been signed out everywhere else. Sign in with your new password.
             </p>
-            <Link href="/" onClick={() => openAccount()} className="block w-full rounded-xl bg-[#0b5394] py-3 text-center font-medium text-white">
+            <Link href="/" onClick={() => openAccount()} className={primaryClass}>
               Go to sign in
             </Link>
           </>
@@ -68,14 +67,14 @@ export default function ResetPassword() {
             <p className="mb-4 text-gray-700">
               Reset links work for one hour and only once. Ask for a new one from the sign-in screen.
             </p>
-            <Link href="/" onClick={() => openAccount()} className="block w-full rounded-xl bg-[#0b5394] py-3 text-center font-medium text-white">
+            <Link href="/" onClick={() => openAccount()} className={primaryClass}>
               Back to Bubble
             </Link>
           </>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-gray-800">
+              <label htmlFor="new-password" className={labelClass.light}>
                 New password
               </label>
               <input
@@ -92,7 +91,7 @@ export default function ResetPassword() {
               <p className="mt-1 text-xs text-gray-600">At least {MIN_PASSWORD_LENGTH} characters. A few words together is easy to remember.</p>
             </div>
             <div>
-              <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium text-gray-800">
+              <label htmlFor="confirm-password" className={labelClass.light}>
                 Type it again
               </label>
               <input
@@ -108,16 +107,12 @@ export default function ResetPassword() {
               />
             </div>
             {errorMessage && (
-              <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+              <p role="alert" className={noticeClass.error}>
                 {errorMessage}
               </p>
             )}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-xl bg-[#0b5394] py-3 font-medium text-white hover:bg-[#09457c] disabled:opacity-70"
-            >
-              Save new password
+            <button type="submit" disabled={isLoading} className={primaryClass}>
+              {isLoading ? 'Saving…' : 'Save new password'}
             </button>
           </form>
         )}

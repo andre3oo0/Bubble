@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, KeyRound, LogIn, LogOut, MailCheck, Trash2, UserPlus } from 'lucide-react';
+import { KeyRound, LogIn, Trash2, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   authClient,
   changePassword,
   deleteUser,
   requestPasswordReset,
-  sendVerificationEmail,
   signIn,
   signUp,
   useSession,
@@ -15,17 +14,15 @@ import {
 import { useAccountDialog } from '@/store/accountStore';
 import { useToast } from '@/hooks/use-toast';
 import { forgetDevice } from '@/lib/forgetDevice';
-import { signOutHere } from '@/lib/signOut';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from '@shared/account';
 import { LEGAL_VERSION, MIN_AGE } from '@shared/legal';
 import GoogleButton, { useGoogleSignIn } from './GoogleButton';
+import { buttonClass, fieldClass, labelClass, noticeClass } from './ui/controls';
 
-const inputClass =
-  'w-full rounded-xl bg-[#D4F1FF] p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-[#0b6bb8]/40';
-const primaryButtonClass =
-  'flex w-full items-center justify-center gap-2 rounded-xl bg-[#0b5394] py-3 font-medium text-white hover:bg-[#09457c] focus:outline-none focus:ring-4 focus:ring-[#0b5394]/40 disabled:opacity-70';
-const secondaryButtonClass =
-  'flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-medium text-gray-800 hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-300 disabled:opacity-70';
+const inputClass = fieldClass.light;
+const primaryButtonClass = buttonClass({ tone: 'light', className: 'min-h-12 w-full' });
+const secondaryButtonClass = buttonClass({ tone: 'light', variant: 'secondary', className: 'min-h-12 w-full' });
+const linkButtonClass = buttonClass({ tone: 'light', variant: 'tertiary', size: 'sm', className: 'px-0' });
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -146,20 +143,6 @@ export default function AuthenticationModal() {
     handleClose();
   };
 
-  const handleSignOut = async () => {
-    setIsLoading(true);
-    await signOutHere(queryClient);
-    handleClose();
-  };
-
-  const handleResendVerification = async () => {
-    if (!session) return;
-    setIsLoading(true);
-    const { error } = await sendVerificationEmail({ email: session.user.email, callbackURL: '/' });
-    setIsLoading(false);
-    setNotice(error ? "Couldn't send the email. Please try again later." : 'Sent. Check your inbox and spam folder.');
-  };
-
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -216,14 +199,14 @@ export default function AuthenticationModal() {
       return (
         <>
           <DialogHeader className="text-left">
-            <DialogTitle className="text-2xl font-bold">Delete your account?</DialogTitle>
+            <DialogTitle className="pr-10 text-2xl font-bold text-[#0b3d66]">Delete your account?</DialogTitle>
             <DialogDescription className="text-base text-gray-700">
               This permanently deletes your account, journal and mood history. It can't be undone. You may want to
               download your data first.
             </DialogDescription>
           </DialogHeader>
           {needsFreshSignIn && (
-            <div className="space-y-3 rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-900">
+            <div className={`space-y-3 ${noticeClass.warning} py-3`}>
               <p>To keep your account safe, please sign in with Google again first. Then come back here to delete it.</p>
               <GoogleButton />
             </div>
@@ -231,7 +214,7 @@ export default function AuthenticationModal() {
           <form onSubmit={handleDelete} className="space-y-4">
             {hasPassword && (
             <div>
-              <label htmlFor="delete-password" className="mb-1 block text-sm font-medium text-gray-800">
+              <label htmlFor="delete-password" className={labelClass.light}>
                 Enter your password to confirm
               </label>
               <input
@@ -247,19 +230,15 @@ export default function AuthenticationModal() {
             </div>
             )}
             {errorMessage && (
-              <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+              <p role="alert" className={noticeClass.error}>
                 {errorMessage}
               </p>
             )}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-700 py-3 font-medium text-white hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-300 disabled:opacity-70"
-            >
+            <button type="submit" disabled={isLoading} className={buttonClass({ tone: 'light', variant: 'danger', className: 'min-h-12 w-full' })}>
               <Trash2 size={18} aria-hidden="true" />
               Delete my account permanently
             </button>
-            <button type="button" onClick={resetForm} className={secondaryButtonClass} disabled={isLoading}>
+            <button type="button" onClick={handleClose} className={secondaryButtonClass} disabled={isLoading}>
               Keep my account
             </button>
           </form>
@@ -271,14 +250,14 @@ export default function AuthenticationModal() {
       return (
         <>
           <DialogHeader className="text-left">
-            <DialogTitle className="text-2xl font-bold">Change your password</DialogTitle>
+            <DialogTitle className="pr-10 text-2xl font-bold text-[#0b3d66]">Change your password</DialogTitle>
             <DialogDescription className="text-base text-gray-700">
               Other devices signed in to this account will be signed out.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div>
-              <label htmlFor="current-password" className="mb-1 block text-sm font-medium text-gray-800">
+              <label htmlFor="current-password" className={labelClass.light}>
                 Current password
               </label>
               <input
@@ -293,7 +272,7 @@ export default function AuthenticationModal() {
               />
             </div>
             <div>
-              <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-gray-800">
+              <label htmlFor="new-password" className={labelClass.light}>
                 New password
               </label>
               <input
@@ -310,12 +289,12 @@ export default function AuthenticationModal() {
               <p className="mt-1 text-xs text-gray-600">At least {MIN_PASSWORD_LENGTH} characters. A few words together is easy to remember.</p>
             </div>
             {errorMessage && (
-              <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+              <p role="alert" className={noticeClass.error}>
                 {errorMessage}
               </p>
             )}
             {notice && (
-              <p role="status" className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-900">
+              <p role="status" className={noticeClass.success}>
                 {notice}
               </p>
             )}
@@ -323,81 +302,31 @@ export default function AuthenticationModal() {
               <KeyRound size={18} aria-hidden="true" />
               Change password
             </button>
-            <button
-              type="button"
-              onClick={handleEmailResetLink}
-              disabled={isLoading}
-              className="w-full text-sm font-medium text-[#0b5394] underline underline-offset-2"
-            >
+            <button type="button" onClick={handleEmailResetLink} disabled={isLoading} className={`${linkButtonClass} w-full underline`}>
               Forgot your current password? Email me a reset link
             </button>
-            <button type="button" onClick={resetForm} className={secondaryButtonClass} disabled={isLoading}>
-              Back
+            <button type="button" onClick={handleClose} className={secondaryButtonClass} disabled={isLoading}>
+              Cancel
             </button>
           </form>
         </>
       );
     }
 
+    // Everything about the account lives in Settings; this dialog only handles signing
+    // in, the password and deleting
     return (
       <>
         <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl font-bold">Your account</DialogTitle>
+          <DialogTitle className="pr-10 text-2xl font-bold text-[#0b3d66]">You're signed in</DialogTitle>
           <DialogDescription className="text-base text-gray-700">
-            Signed in as <span className="font-semibold">{session.user.name}</span> ({session.user.email})
+            As <span className="font-semibold">{session.user.name}</span> ({session.user.email}). Your account, data and
+            sign-out are in Settings.
           </DialogDescription>
         </DialogHeader>
-
-        {!session.user.emailVerified && (
-          <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <p>Please confirm your email so you can reset your password if you ever forget it.</p>
-            <button
-              onClick={handleResendVerification}
-              disabled={isLoading}
-              className="mt-1 flex items-center gap-1 font-semibold underline-offset-2 hover:underline"
-            >
-              <MailCheck size={16} aria-hidden="true" />
-              Send the confirmation email again
-            </button>
-          </div>
-        )}
-        {notice && <p className="text-sm text-gray-700">{notice}</p>}
-
-        <div className="space-y-3">
-          {/* Plain link: same-origin, so the session cookie goes along and the browser saves the file */}
-          <a href="/api/me/export" download className={secondaryButtonClass}>
-            <Download size={18} aria-hidden="true" />
-            Download my data
-          </a>
-          {hasPassword && (
-            <button
-              onClick={() => {
-                setChangingPassword(true);
-                setPassword('');
-                setErrorMessage('');
-                setNotice('');
-              }}
-              className={secondaryButtonClass}
-            >
-              <KeyRound size={18} aria-hidden="true" />
-              Change password
-            </button>
-          )}
-          <button onClick={handleSignOut} disabled={isLoading} className={secondaryButtonClass}>
-            <LogOut size={18} aria-hidden="true" />
-            Sign out
-          </button>
-          <button
-            onClick={() => {
-              setConfirmingDelete(true);
-              setPassword('');
-              setErrorMessage('');
-            }}
-            className="w-full py-2 text-sm font-medium text-red-700 underline-offset-2 hover:underline"
-          >
-            Delete my account
-          </button>
-        </div>
+        <button onClick={handleClose} className={primaryButtonClass}>
+          Done
+        </button>
       </>
     );
   };
@@ -411,7 +340,7 @@ export default function AuthenticationModal() {
   const renderSignedOut = () => (
     <>
       <DialogHeader className="text-left">
-        <DialogTitle className="text-2xl font-bold">{titles[mode]}</DialogTitle>
+        <DialogTitle className="pr-10 text-2xl font-bold text-[#0b3d66]">{titles[mode]}</DialogTitle>
         <DialogDescription className="text-base text-gray-700">
           {mode === 'forgot'
             ? "Enter your email and we'll send you a link to choose a new password."
@@ -420,7 +349,7 @@ export default function AuthenticationModal() {
       </DialogHeader>
 
       {message && mode !== 'forgot' && (
-        <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p role="alert" className={noticeClass.warning}>
           {message}
         </p>
       )}
@@ -445,7 +374,7 @@ export default function AuthenticationModal() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'register' && (
           <div>
-            <label htmlFor="auth-name" className="mb-1 block text-sm font-medium text-gray-800">
+            <label htmlFor="auth-name" className={labelClass.light}>
               What should Bubble call you?
             </label>
             <input
@@ -462,7 +391,7 @@ export default function AuthenticationModal() {
         )}
 
         <div>
-          <label htmlFor="auth-email" className="mb-1 block text-sm font-medium text-gray-800">
+          <label htmlFor="auth-email" className={labelClass.light}>
             Email
           </label>
           <input
@@ -480,7 +409,7 @@ export default function AuthenticationModal() {
 
         {mode !== 'forgot' && (
           <div>
-            <label htmlFor="auth-password" className="mb-1 block text-sm font-medium text-gray-800">
+            <label htmlFor="auth-password" className={labelClass.light}>
               Password
             </label>
             <input
@@ -499,11 +428,7 @@ export default function AuthenticationModal() {
               <p className="mt-1 text-xs text-gray-600">At least {MIN_PASSWORD_LENGTH} characters. A few words together is easy to remember.</p>
             )}
             {mode === 'login' && (
-              <button
-                type="button"
-                onClick={() => switchMode('forgot')}
-                className="mt-2 text-sm font-medium text-[#0b5394] underline underline-offset-2"
-              >
+              <button type="button" onClick={() => switchMode('forgot')} className={`${linkButtonClass} mt-1 underline`}>
                 Forgot your password?
               </button>
             )}
@@ -518,7 +443,7 @@ export default function AuthenticationModal() {
               onChange={(e) => setAgreed(e.target.checked)}
               required
               disabled={isLoading}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-[#0b5394]"
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[#0b6bb8]"
             />
             <span>
               I'm {MIN_AGE} or older and I agree to the{' '}
@@ -536,19 +461,19 @@ export default function AuthenticationModal() {
         )}
 
         {errorMessage && (
-          <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p role="alert" className={noticeClass.error}>
             {errorMessage}
           </p>
         )}
         {notice && (
-          <p role="status" className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-900">
+          <p role="status" className={noticeClass.success}>
             {notice}
           </p>
         )}
 
         <button type="submit" className={primaryButtonClass} disabled={isLoading}>
           {isLoading ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            mode === 'login' ? 'Signing in…' : mode === 'register' ? 'Creating your account…' : 'Sending…'
           ) : (
             <>
               {mode === 'register' ? <UserPlus size={18} aria-hidden="true" /> : <LogIn size={18} aria-hidden="true" />}
@@ -560,7 +485,7 @@ export default function AuthenticationModal() {
 
       <button
         onClick={() => switchMode(mode === 'register' ? 'login' : mode === 'forgot' ? 'login' : 'register')}
-        className="text-sm text-[#0b5394] hover:underline"
+        className={`${linkButtonClass} self-start`}
         disabled={isLoading}
       >
         {mode === 'login'
@@ -574,7 +499,7 @@ export default function AuthenticationModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-3xl border-0 bg-white p-6 text-gray-900 sm:rounded-3xl">
+      <DialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto border-0 p-6">
         {session ? renderSignedIn() : renderSignedOut()}
       </DialogContent>
     </Dialog>

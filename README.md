@@ -66,11 +66,12 @@
 - **Chat with Bubble.** A warm AI companion that listens first, comforts before it advises, and answers honestly when asked. Works without an account.
 - **Crisis safety that doesn't depend on the AI.** A keyword check runs on the server and in the browser, so a message about suicide or self-harm always gets the helplines, even when the AI is down, the daily limit is reached, or the phone is offline. The help screen is one tap away on every page.
 - **End-of-chat choices.** "I'm done for now" offers to let the conversation go, reflect on it, or save a short reflection to the journal.
-- **Private journal.** Writing prompts, search, delete with undo, and "Reflect with Bubble" on any entry. Only the person who wrote it can read it.
-- **Mood check-ins** with a history of the last 30 days.
+- **Private journal.** Writing prompts, search, delete with undo, a warning before unsaved writing is lost, and "Reflect with Bubble" on any entry. Only the person who wrote it can read it.
+- **Mood check-ins** with a history of the last 30 days, and the latest one on the home screen.
 - **Breathing exercise.** A slow 4-4-6-2 pace, with a longer out-breath.
 - **Calming scenes.** Ocean, forest, sunset and a cozy room, drawn in SVG, with ambient sound generated in the browser. Calm visuals turns off movement.
 - **Accounts that stay optional.** Email and password or Google. Download or delete everything at any time. A plain-language [privacy policy](https://bubble-1-kafq.onrender.com/privacy) and [terms of use](https://bubble-1-kafq.onrender.com/terms) say what's kept and why.
+- **Feedback by email.** The feedback form opens your own email app, so Bubble's server never stores it.
 - **Installable.** Works as a PWA with an offline helplines page, and as an Android app.
 
 ## How it works

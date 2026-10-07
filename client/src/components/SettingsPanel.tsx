@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Download, FileText, Info, KeyRound, LifeBuoy, LogOut, MailCheck, Pause, Play, ScrollText, Trash2, Volume2 } from 'lucide-react';
+import PageHeader from './PageHeader';
 import SceneBackdrop from './SceneBackdrop';
+import { buttonClass, focusRing as focusRings } from './ui/controls';
 import { AccountSkeleton } from './Skeleton';
 import { SCENES, type SceneId } from './scenes';
 import { authClient, sendVerificationEmail, useSession } from '@/lib/authClient';
+import { useDeviceReducesMotion } from '@/lib/motion';
 import { signOutHere } from '@/lib/signOut';
 import { useAccountDialog } from '@/store/accountStore';
 import { useIntroStore } from '@/store/introStore';
@@ -25,16 +27,15 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'night', label: 'Night' },
 ];
 
-const focusRing = 'focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60';
+const focusRing = `focus:outline-none ${focusRings.dark}`;
 const rowClass = `flex w-full items-center gap-3 px-4 py-3 text-left text-white hover:bg-white/10 ${focusRing} focus-visible:ring-inset`;
 const rowIcon = 'h-5 w-5 shrink-0 text-[#9fd3f5]';
-const buttonClass = `flex h-11 items-center justify-center gap-2 rounded-[8px] px-4 font-semibold ${focusRing}`;
 
 // One flat panel per topic: a heading, then rows split by hairlines
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section aria-labelledby={`settings-${title}`} className="surface mb-4 overflow-hidden rounded-[8px]">
-      <h2 id={`settings-${title}`} className="px-4 pb-1 pt-4 text-sm font-semibold uppercase tracking-wide text-white/75">
+      <h2 id={`settings-${title}`} className="px-4 pb-1 pt-4 text-sm font-semibold text-white/80">
         {title}
       </h2>
       <div className="divide-y divide-white/10">{children}</div>
@@ -99,7 +100,9 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
 
   const scene = SCENES.find((s) => s.id === selectedEnvironment) ?? SCENES[0];
   const sceneSoundPlaying = playing === scene.id;
-  const calmVisuals = motionPreference === 'reduced';
+  // The device's own setting already stops the motion, so the switch shows that
+  const deviceReducesMotion = useDeviceReducesMotion();
+  const calmVisuals = deviceReducesMotion || motionPreference === 'reduced';
 
   const pickScene = (id: SceneId) => {
     setSelectedEnvironment(id);
@@ -122,8 +125,8 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
   };
 
   return (
-    <motion.div className="pb-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <h1 className="mb-4 text-center text-2xl font-semibold tracking-tight text-white md:text-3xl">Settings</h1>
+    <div className="pb-2">
+      <PageHeader title="Settings" />
 
       <Section title="Account">
         {sessionPending ? (
@@ -167,13 +170,10 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
               Chat works without an account. Sign in to keep a private journal and see how your moods change.
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button onClick={() => openAccount('login')} className={`${buttonClass} bg-[#0b6bb8] text-white hover:bg-[#095a9c]`}>
+              <button onClick={() => openAccount('login')} className={buttonClass()}>
                 Sign in
               </button>
-              <button
-                onClick={() => openAccount('register')}
-                className={`${buttonClass} border border-white/30 text-white hover:bg-white/10`}
-              >
+              <button onClick={() => openAccount('register')} className={buttonClass({ variant: 'secondary' })}>
                 Create a free account
               </button>
             </div>
@@ -223,7 +223,7 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
           Bubble is an AI and isn't a substitute for a therapist. If you're in danger, please call 112 or tap Get help to
           reach someone right away.
         </Note>
-        <RowButton icon={LifeBuoy} label="Get help now" detail="Helplines you can call any time" onClick={openSos} />
+        <RowButton icon={LifeBuoy} label="Get help" detail="Helplines you can call any time" onClick={openSos} />
         <RowButton icon={Info} label="Show the introduction again" onClick={openIntro} />
       </Section>
 
@@ -257,7 +257,7 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
           <button
             onClick={() => (sceneSoundPlaying ? stop() : play(scene.id))}
             aria-pressed={sceneSoundPlaying}
-            className={`${buttonClass} border border-white/30 text-white hover:bg-white/10`}
+            className={buttonClass({ variant: 'secondary' })}
           >
             {sceneSoundPlaying ? <Pause size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
             {sceneSoundPlaying ? 'Pause sound' : `Play ${scene.name.toLowerCase()} sound`}
@@ -278,10 +278,14 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
         </div>
 
         <div className="flex items-center justify-between gap-4 px-4 py-3 text-white">
-          <span id="calm-visuals-label">
-            <span className="block font-medium">Calm visuals</span>
-            <span className="block text-sm text-white/75">
-              Stops the moving scenery and bubble effects. Already on if your device asks for less motion.
+          <span>
+            <span id="calm-visuals-label" className="block font-medium">
+              Calm visuals
+            </span>
+            <span id="calm-visuals-detail" className="block text-sm text-white/75">
+              {deviceReducesMotion
+                ? 'On, because your device asks for less motion. Change it in your device settings.'
+                : 'Stops the moving scenery and bubble effects.'}
             </span>
           </span>
           {/* Switches keep their rounded shape: it's what makes them read as switches */}
@@ -289,8 +293,10 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
             role="switch"
             aria-checked={calmVisuals}
             aria-labelledby="calm-visuals-label"
+            aria-describedby="calm-visuals-detail"
+            disabled={deviceReducesMotion}
             onClick={() => setMotion(calmVisuals ? 'system' : 'reduced')}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${focusRing} ${
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${
               calmVisuals ? 'bg-[#0b6bb8]' : 'bg-white/25'
             }`}
           >
@@ -329,6 +335,6 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
           </fieldset>
         </div>
       </Section>
-    </motion.div>
+    </div>
   );
 }

@@ -82,7 +82,7 @@ const FACES: Record<BubbleFace, ReactNode> = {
   ),
 };
 
-const SIZES = { sm: 40, md: 96, lg: 140 };
+const SIZES = { xs: 32, sm: 40, md: 96, lg: 140 };
 
 interface BubbleAvatarProps {
   mood?: Mood;

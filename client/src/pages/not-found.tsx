@@ -1,6 +1,6 @@
 import { Link } from "wouter";
-import { Phone } from "lucide-react";
-import { HELPLINES } from "@shared/safety";
+import HelplineList from "@/components/HelplineList";
+import { buttonClass } from "@/components/ui/controls";
 
 export default function NotFound() {
   return (
@@ -13,7 +13,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="mt-5 inline-flex h-11 items-center rounded-[8px] bg-[#0b5394] px-4 font-semibold text-white hover:bg-[#0b3d66] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#0b5394]/40"
+          className={buttonClass({ tone: "light", className: "mt-5" })}
         >
           Back to Bubble
         </Link>
@@ -22,23 +22,7 @@ export default function NotFound() {
         <h2 className="mt-8 border-t border-gray-200 pt-5 text-sm font-semibold text-gray-900">
           Need to talk to someone now?
         </h2>
-        <ul className="divide-y divide-gray-200">
-          {HELPLINES.map((line) => (
-            <li key={line.phone}>
-              <a
-                href={`tel:${line.phone.replace(/\s/g, "")}`}
-                className="flex items-center gap-3 py-3 text-gray-900 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#0b5394]/40"
-              >
-                <Phone className="h-4 w-4 shrink-0 text-[#0b5394]" aria-hidden="true" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{line.name}</span>
-                  <span className="block text-xs text-gray-600">{line.hours}</span>
-                </span>
-                <span className="whitespace-nowrap font-bold text-[#0b5394]">{line.phone}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
+        <HelplineList className="mt-2" />
       </div>
     </main>
   );

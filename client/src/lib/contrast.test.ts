@@ -39,3 +39,15 @@ describe('mood tone contrast', () => {
     expect(contrast(tone, '#1d2b40')).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+// Bubble's chat messages, the helplines inside them and the breathing count all sit on
+// Bubble's own light fill
+describe("text on Bubble's fill", () => {
+  it.each([
+    ['#0b3d66', "Bubble's messages and the breathing count"],
+    ['#0b5394', 'helpline numbers in a message'],
+    ['#374151', 'helpline hours in a message (gray-700)'],
+  ])('%s (%s) passes AA on #C9ECFF', (text) => {
+    expect(contrast(text, '#C9ECFF')).toBeGreaterThanOrEqual(4.5);
+  });
+});

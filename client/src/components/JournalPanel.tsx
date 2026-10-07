@@ -1,45 +1,50 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Edit, Lightbulb, Lock, Plus, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
+import { Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { JournalEntry } from '@shared/api';
 import { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
-
-import {
-  createJournalEntry,
-  deleteJournalEntry,
-  fetchJournal,
-  queryKeys,
-  updateJournalEntry,
-} from '@/lib/api';
+import { createJournalEntry, deleteJournalEntry, fetchJournal, queryKeys, updateJournalEntry } from '@/lib/api';
+import { dateTitle, formatDay, formatDayAndTime } from '@/lib/dates';
+import { cn } from '@/lib/utils';
 import { useAccountDialog } from '@/store/accountStore';
 import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
 import { pickPrompt } from '@/lib/journalPrompts';
+import EmptyState from './EmptyState';
 import EntryReflection from './EntryReflection';
+import PageHeader from './PageHeader';
 import { JournalSkeleton } from './Skeleton';
+import { buttonClass, chipClass, fieldClass, focusRing, labelClass, noticeClass } from './ui/controls';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { UNDO_MS, useJournalDelete } from '@/store/journalDeleteStore';
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
+export { dateTitle };
 
-// Used as the title when someone leaves it blank, e.g. "Sunday 5 October"
-export const dateTitle = (date: Date) =>
-  `${date.toLocaleDateString('en-ZA', { weekday: 'long' })} ${date.getDate()} ${date.toLocaleDateString('en-ZA', { month: 'long' })}`;
+type View = 'list' | 'entry' | 'editor';
+interface Draft {
+  title: string;
+  content: string;
+  mood: Mood;
+}
+
+const EMPTY_DRAFT: Draft = { title: '', content: '', mood: 'neutral' };
+
+const dialogClass = 'w-[calc(100%-2rem)] max-w-md border-0 p-6';
 
 export default function JournalPanel() {
   const { data: session, isPending: sessionPending } = useSession();
   const { open: openAccount } = useAccountDialog();
   const queryClient = useQueryClient();
-  const [showNewEntry, setShowNewEntry] = useState(false);
-  const [isViewingEntry, setIsViewingEntry] = useState(false);
-  const [isEditingEntry, setIsEditingEntry] = useState(false);
-  const [newEntryTitle, setNewEntryTitle] = useState('');
-  const [newEntryContent, setNewEntryContent] = useState('');
-  const [selectedMood, setSelectedMood] = useState<Mood>('neutral');
+  const [view, setView] = useState<View>('list');
   const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
+  // The editor works on a draft, compared with what it started from to know whether
+  // leaving would lose anything
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [startedFrom, setStartedFrom] = useState<Draft>(EMPTY_DRAFT);
+  const [editingExisting, setEditingExisting] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   // A starting point for a blank page; using it fills in the title
   const [prompt, setPrompt] = useState(() => pickPrompt());
   const [search, setSearch] = useState('');
@@ -65,50 +70,64 @@ export default function JournalPanel() {
 
   const createEntry = useMutation({ mutationFn: createJournalEntry, onSuccess: onSaved });
   const updateEntry = useMutation({
-    mutationFn: ({ id, ...input }: { id: string; title: string; content: string; mood: Mood }) =>
-      updateJournalEntry(id, input),
+    mutationFn: ({ id, ...input }: { id: string; title: string; content: string; mood: Mood }) => updateJournalEntry(id, input),
     onSuccess: onSaved,
   });
 
   const isSaving = createEntry.isPending || updateEntry.isPending;
   const saveError = createEntry.error || updateEntry.error;
+  const isDirty =
+    draft.title !== startedFrom.title || draft.content !== startedFrom.content || draft.mood !== startedFrom.mood;
 
-  // Save new journal entry
-  const saveJournalEntry = async () => {
-    if (newEntryContent.trim() === '') {
-      return; // Don't save empty entries
-    }
+  const openEditor = (entry: JournalEntry | null) => {
+    const start = entry ? { title: entry.title, content: entry.content, mood: entry.mood } : EMPTY_DRAFT;
+    createEntry.reset();
+    updateEntry.reset();
+    setDraft(start);
+    setStartedFrom(start);
+    setEditingExisting(!!entry);
+    setCurrentEntry(entry);
+    setView('editor');
+  };
 
+  // Always clears the draft, so the next new entry starts blank
+  const closeEditor = () => {
+    setDiscardOpen(false);
+    setDraft(EMPTY_DRAFT);
+    setStartedFrom(EMPTY_DRAFT);
+    setPrompt(pickPrompt(prompt));
+    setView(editingExisting && currentEntry ? 'entry' : 'list');
+    setEditingExisting(false);
+  };
+
+  // Cancel and the back arrow: ask first if there's unsaved writing
+  const leaveEditor = () => (isDirty ? setDiscardOpen(true) : closeEditor());
+
+  const saveDraft = async () => {
+    if (draft.content.trim() === '' || isSaving) return;
     // The title is optional: a blank one becomes the entry's date
     const title =
-      newEntryTitle.trim() ||
-      dateTitle(isEditingEntry && currentEntry ? new Date(currentEntry.createdAt) : new Date());
-    const input = { title, content: newEntryContent, mood: selectedMood };
+      draft.title.trim() || dateTitle(editingExisting && currentEntry ? new Date(currentEntry.createdAt) : new Date());
+    const input = { title, content: draft.content, mood: draft.mood };
     try {
-      if (isEditingEntry && currentEntry) {
-        await updateEntry.mutateAsync({ id: currentEntry.id, ...input });
-        setCurrentEntry(null);
-        setIsEditingEntry(false);
-        setShowNewEntry(false);
-        setIsViewingEntry(false);
+      if (editingExisting && currentEntry) {
+        const updated = await updateEntry.mutateAsync({ id: currentEntry.id, ...input });
+        setCurrentEntry(updated);
       } else {
         await createEntry.mutateAsync(input);
-        setNewEntryTitle('');
-        setNewEntryContent('');
-        setSelectedMood('neutral');
-        setShowNewEntry(false);
+        toast({ title: 'Entry saved', description: 'Only you can see it.' });
       }
+      closeEditor();
     } catch {
-      // shown below the form via saveError; the draft is kept so nothing is lost
+      // shown in the form via saveError; the draft is kept so nothing is lost
     }
   };
 
   // Delete after confirming, with a few seconds to undo
   const deleteEntry = (entry: JournalEntry) => {
     setDeleteDialogOpen(false);
-    setIsViewingEntry(false);
-    setIsEditingEntry(false);
     setCurrentEntry(null);
+    setView('list');
     schedule(
       entry.id,
       async () => {
@@ -128,282 +147,258 @@ export default function JournalPanel() {
     });
   };
 
-  // View a specific entry
   const viewEntry = (entry: JournalEntry) => {
     setCurrentEntry(entry);
-    setIsViewingEntry(true);
-    setShowNewEntry(false);
+    setView('entry');
   };
 
-  // Edit a specific entry
-  const editEntry = (entry: JournalEntry) => {
-    setCurrentEntry(entry);
-    setNewEntryTitle(entry.title);
-    setNewEntryContent(entry.content);
-    setSelectedMood(entry.mood);
-    setIsEditingEntry(true);
-    setShowNewEntry(true);
-    setIsViewingEntry(false);
-  };
-
-  const applyPrompt = () => {
-    setNewEntryTitle(prompt);
-    document.getElementById('journal-entry-text')?.focus();
-  };
-
-  const resetForm = () => {
-    setNewEntryTitle('');
-    setNewEntryContent('');
-    setSelectedMood('neutral');
-    setIsEditingEntry(false);
-    setCurrentEntry(null);
-    setShowNewEntry(false);
-    setPrompt(pickPrompt(prompt));
-  };
+  const header =
+    view === 'editor' ? (
+      <PageHeader title="Journal" onBack={leaveEditor} backLabel="Back" focusKey={view} />
+    ) : view === 'entry' ? (
+      <PageHeader
+        title="Journal"
+        onBack={() => {
+          setCurrentEntry(null);
+          setView('list');
+        }}
+        backLabel="Back to your entries"
+        focusKey={view}
+      />
+    ) : (
+      <PageHeader
+        title="Journal"
+        focusKey={view}
+        action={
+          session && journalEntries.length > 0 ? (
+            <button onClick={() => openEditor(null)} className={buttonClass({ size: 'sm' })}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New entry
+            </button>
+          ) : undefined
+        }
+      />
+    );
 
   return (
-    <motion.div
-      className="h-full flex flex-col"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center">Journal</h1>
-        {session && !isViewingEntry && !showNewEntry && (
-          <button
-            onClick={() => setShowNewEntry(true)}
-            className="flex items-center gap-1.5 rounded-full bg-[#0b6bb8] px-4 py-2 text-sm font-medium text-white hover:bg-[#095a9c] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            New entry
-          </button>
-        )}
-        {(isViewingEntry || showNewEntry) && (
-          <button
-            onClick={() => {
-              setIsViewingEntry(false);
-              setShowNewEntry(false);
-              setIsEditingEntry(false);
-              setCurrentEntry(null);
-            }}
-            aria-label="Back to your entries"
-            className="rounded-full p-2 text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-          >
-            <ArrowLeft className="w-6 h-6" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+    <div className="flex h-full flex-col">
+      {header}
 
-      {showNewEntry ? (
-        // New entry form
-        <div className="flex-1 surface rounded-3xl p-4 flex flex-col">
-          {!isEditingEntry && !newEntryTitle && !newEntryContent && (
-            <div className="mb-4 flex items-start gap-3 text-white">
-              <Lightbulb className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-white/85">Not sure where to start?</p>
-                <p className="font-medium">{prompt}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    onClick={applyPrompt}
-                    className="rounded-full bg-white px-3 py-1 text-sm font-medium text-[#0b3d66] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-                  >
-                    Use this
-                  </button>
-                  <button
-                    onClick={() => setPrompt(pickPrompt(prompt))}
-                    className="flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                    Another one
-                  </button>
-                </div>
+      {view === 'editor' ? (
+        <form
+          className="surface flex flex-1 flex-col gap-4 rounded-[8px] p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveDraft();
+          }}
+        >
+          {!editingExisting && !draft.title && !draft.content && (
+            <div className="border-b border-white/15 pb-4 text-white">
+              <p className="text-sm text-white/85">Not sure where to start? Try this:</p>
+              <p className="mt-0.5 font-medium">{prompt}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft({ ...draft, title: prompt });
+                    document.getElementById('journal-entry-text')?.focus();
+                  }}
+                  className={buttonClass({ variant: 'secondary', size: 'sm' })}
+                >
+                  Use this
+                </button>
+                <button type="button" onClick={() => setPrompt(pickPrompt(prompt))} className={buttonClass({ variant: 'tertiary', size: 'sm' })}>
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                  Another one
+                </button>
               </div>
             </div>
           )}
-          <input
-            type="text"
-            value={newEntryTitle}
-            onChange={(e) => setNewEntryTitle(e.target.value)}
-            placeholder="Title (optional)"
-            aria-label="Title, optional"
-            className="w-full bg-white/20 border-none outline-none text-white placeholder-white/80 mb-4 p-3 rounded-full"
-          />
 
-          <textarea
-            id="journal-entry-text"
-            aria-label="Entry"
-            value={newEntryContent}
-            onChange={(e) => setNewEntryContent(e.target.value)}
-            placeholder="Write your thoughts here..."
-            className="flex-1 w-full bg-white/20 border-none outline-none text-white placeholder-white/80 p-4 rounded-3xl resize-none mb-4"
-          />
+          <div>
+            <label htmlFor="journal-entry-title" className={labelClass.dark}>
+              Title <span className="font-normal text-white/75">(optional)</span>
+            </label>
+            <input
+              id="journal-entry-title"
+              type="text"
+              value={draft.title}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              maxLength={200}
+              className={fieldClass.dark}
+            />
+          </div>
 
-          <div className="mb-4">
-            <div className="text-white mb-2">How were you feeling?</div>
+          <div className="flex flex-1 flex-col">
+            <label htmlFor="journal-entry-text" className={labelClass.dark}>
+              Entry
+            </label>
+            <textarea
+              id="journal-entry-text"
+              value={draft.content}
+              onChange={(e) => setDraft({ ...draft, content: e.target.value })}
+              placeholder="Write your thoughts here…"
+              className={cn(fieldClass.dark, 'min-h-[10rem] flex-1 resize-none leading-relaxed')}
+            />
+          </div>
+
+          <fieldset>
+            <legend className={labelClass.dark}>How were you feeling?</legend>
             <div className="flex flex-wrap gap-2">
               {MOOD_ORDER.map((mood) => (
                 <button
                   key={mood}
-                  onClick={() => setSelectedMood(mood)}
-                  aria-pressed={selectedMood === mood}
-                  className={`rounded-full px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
-                    selectedMood === mood ? 'bg-white text-[#0b3d66]' : 'surface-soft surface-soft-hover text-white'
-                  }`}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, mood })}
+                  aria-pressed={draft.mood === mood}
+                  className={chipClass(draft.mood === mood)}
                 >
                   {MOOD_LABELS[mood]}
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {saveError && (
-            <p role="alert" className="mb-3 rounded-xl bg-white/90 px-3 py-2 text-sm text-red-800">
-              Couldn't save that. Your text is still here, please try again.
+            <p role="alert" className={noticeClass.error}>
+              Couldn't save that. Your writing is still here, please try again.
             </p>
           )}
 
-          <div className="flex justify-between">
-            <button
-              onClick={resetForm}
-              className="bg-white/20 text-white rounded-full px-4 py-2 flex items-center"
-            >
-              <X className="w-5 h-5 mr-2" />
+          <div className="flex justify-between gap-3">
+            <button type="button" onClick={leaveEditor} className={buttonClass({ variant: 'secondary' })}>
               Cancel
             </button>
-            <button
-              onClick={saveJournalEntry}
-              className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
-              disabled={!newEntryContent.trim() || isSaving}
-            >
-              <Save className="w-5 h-5 mr-2" />
-              Save entry
+            <button type="submit" disabled={!draft.content.trim() || isSaving} className={buttonClass({ className: 'px-6' })}>
+              {isSaving ? 'Saving…' : editingExisting ? 'Save changes' : 'Save entry'}
             </button>
           </div>
-        </div>
-      ) : isViewingEntry && currentEntry ? (
-        // View specific entry
-        <div className="flex-1 surface rounded-3xl p-6 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-white text-2xl font-bold">{currentEntry.title}</h2>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => editEntry(currentEntry)}
-                aria-label="Edit entry"
-                className="text-white hover:text-sky-100"
-              >
-                <Edit className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => {
-                  setConfirmingDelete(currentEntry);
-                  setDeleteDialogOpen(true);
-                }}
-                aria-label="Delete entry"
-                className="text-white hover:text-red-300"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            </div>
+        </form>
+      ) : view === 'entry' && currentEntry ? (
+        <article className="surface flex-1 overflow-y-auto rounded-[8px] p-5 text-white">
+          <div className="flex items-start gap-3">
+            <h2 className="min-w-0 flex-1 break-words text-2xl font-semibold">{currentEntry.title}</h2>
+            <button onClick={() => openEditor(currentEntry)} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              Edit
+            </button>
           </div>
+          <p className="mt-1 text-sm text-white/80">
+            {formatDayAndTime(new Date(currentEntry.createdAt))}
+            <span aria-hidden="true" className="mx-2">·</span>
+            {MOOD_LABELS[currentEntry.mood]}
+          </p>
 
-          <div className="flex items-center text-white/90 text-sm mb-4">
-            <span>{formatDate(currentEntry.createdAt)}</span>
-            <span className="mx-2">•</span>
-            <span>{MOOD_LABELS[currentEntry.mood]}</span>
-          </div>
-
-          <div className="text-white whitespace-pre-wrap">
-            {currentEntry.content}
-          </div>
+          <div className="mt-4 whitespace-pre-wrap leading-relaxed">{currentEntry.content}</div>
 
           <EntryReflection key={currentEntry.id} entry={currentEntry} onEntryUpdated={setCurrentEntry} />
-        </div>
+
+          <div className="mt-6 border-t border-white/15 pt-4">
+            <button
+              onClick={() => {
+                setConfirmingDelete(currentEntry);
+                setDeleteDialogOpen(true);
+              }}
+              className={buttonClass({ variant: 'danger', size: 'sm' })}
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Delete entry
+            </button>
+          </div>
+        </article>
       ) : (
-        // Journal entries list
-        <div className="flex-1 overflow-y-auto space-y-3">
+        <div className="flex-1 space-y-3 overflow-y-auto">
           {!session && !sessionPending ? (
-            <div className="text-white text-center py-16 px-4">
-              <Lock className="w-8 h-8 mx-auto mb-3 opacity-80" aria-hidden="true" />
-              <p className="mb-1 text-lg font-semibold">Your journal is private</p>
-              <p className="mb-5 text-white/80">Sign in so your entries are saved to your account and only you can read them.</p>
-              <button
-                onClick={() => openAccount()}
-                className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2"
-              >
-                Sign in or create an account
-              </button>
-            </div>
+            <EmptyState
+              icon={Lock}
+              title="Your journal is private"
+              action={
+                <button onClick={() => openAccount()} className={buttonClass()}>
+                  Sign in or create an account
+                </button>
+              }
+            >
+              Sign in so your entries are saved to your account and only you can read them.
+            </EmptyState>
           ) : journal.isPending ? (
             <JournalSkeleton />
           ) : journal.isError ? (
-            <div className="text-white text-center py-20">
-              <p className="mb-4">Couldn't load your journal.</p>
-              <button onClick={() => journal.refetch()} className="bg-white/20 rounded-full px-6 py-2">
-                Try again
-              </button>
-            </div>
+            <EmptyState
+              title="Couldn't load your journal"
+              action={
+                <button onClick={() => journal.refetch()} className={buttonClass({ variant: 'secondary' })}>
+                  Try again
+                </button>
+              }
+            >
+              Check your connection and try again. Your entries are safe.
+            </EmptyState>
           ) : journalEntries.length === 0 ? (
-            <div className="text-white/90 text-center py-20">
-              <p className="mb-4">No journal entries yet</p>
-              <button
-                onClick={() => setShowNewEntry(true)}
-                className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 inline-flex items-center"
-              >
-                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                Write your first entry
-              </button>
-            </div>
+            <EmptyState
+              title="No entries yet"
+              action={
+                <button onClick={() => openEditor(null)} className={buttonClass()}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Write your first entry
+                </button>
+              }
+            >
+              Your entries will show up here. Write about your day, or use a prompt to get started.
+            </EmptyState>
           ) : (
             <>
-            <label className="flex items-center gap-2 rounded-full px-4 py-2 text-white surface focus-within:ring-4 focus-within:ring-white/40">
-              <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="sr-only">Search your journal</span>
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your journal"
-                className="w-full bg-transparent text-white outline-none placeholder-white/80"
-              />
-            </label>
-            {shownEntries.length === 0 && (
-              <div className="py-12 text-center text-white">
-                <p className="mb-3">No entries match "{search.trim()}".</p>
-                <button
-                  onClick={() => setSearch('')}
-                  className="rounded-full px-4 py-2 text-sm font-medium surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-                >
-                  Clear search
-                </button>
+              <div className="relative">
+                <label htmlFor="journal-search" className="sr-only">
+                  Search your journal
+                </label>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/80" aria-hidden="true" />
+                <input
+                  id="journal-search"
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search your journal"
+                  className={cn(fieldClass.dark, 'pl-9')}
+                />
               </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {shownEntries.map((entry) => (
-                <button
-                  key={entry.id}
-                  className="surface rounded-3xl p-4 text-left text-white hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-                  onClick={() => viewEntry(entry)}
-                >
-                  <h3 className="font-bold mb-2 truncate">{entry.title}</h3>
-                  <p className="text-sm text-white/90 mb-4 line-clamp-2">{entry.content}</p>
-                  <div className="flex justify-between items-center text-xs text-white/90">
-                    <span>{MOOD_LABELS[entry.mood]}</span>
-                    <span>{formatDate(entry.createdAt)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+              {shownEntries.length === 0 ? (
+                <EmptyState
+                  title={`No entries match "${search.trim()}"`}
+                  action={
+                    <button onClick={() => setSearch('')} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+                      Clear search
+                    </button>
+                  }
+                />
+              ) : (
+                // A list, not a grid of cards: journals are read in date order
+                <ul className="surface divide-y divide-white/10 overflow-hidden rounded-[8px]">
+                  {shownEntries.map((entry) => (
+                    <li key={entry.id}>
+                      <button
+                        className={cn('block w-full px-4 py-3 text-left text-white hover:bg-white/10 focus-visible:ring-inset', focusRing.dark)}
+                        onClick={() => viewEntry(entry)}
+                      >
+                        <span className="flex justify-between gap-3 text-xs text-white/80">
+                          <span>{formatDay(new Date(entry.createdAt))}</span>
+                          <span>{MOOD_LABELS[entry.mood]}</span>
+                        </span>
+                        <span className="mt-0.5 block truncate font-semibold">{entry.title}</span>
+                        <span className="block truncate text-sm text-white/80">{entry.content}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </div>
       )}
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-3xl border-0 bg-white p-6 text-gray-900 sm:rounded-3xl">
+        <DialogContent className={dialogClass}>
           <DialogHeader className="text-left">
-            <DialogTitle className="pr-6 text-xl font-bold">Delete "{confirmingDelete?.title}"?</DialogTitle>
+            <DialogTitle className="pr-10 text-xl font-bold text-[#0b3d66]">Delete "{confirmingDelete?.title}"?</DialogTitle>
             <DialogDescription className="text-base text-gray-700">
               It will be removed from your journal. You'll have a few seconds to undo.
             </DialogDescription>
@@ -411,20 +406,38 @@ export default function JournalPanel() {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => confirmingDelete && deleteEntry(confirmingDelete)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-700 py-3 font-medium text-white hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-300"
+              className={buttonClass({ tone: 'light', variant: 'danger', className: 'w-full' })}
             >
               <Trash2 size={18} aria-hidden="true" />
               Delete entry
             </button>
-            <button
-              onClick={() => setDeleteDialogOpen(false)}
-              className="w-full rounded-xl bg-gray-100 py-3 font-medium text-gray-800 hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-300"
-            >
+            <button onClick={() => setDeleteDialogOpen(false)} className={buttonClass({ tone: 'light', variant: 'secondary', className: 'w-full' })}>
               Keep it
             </button>
           </div>
         </DialogContent>
       </Dialog>
-    </motion.div>
+
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent className={dialogClass}>
+          <DialogHeader className="text-left">
+            <DialogTitle className="pr-10 text-xl font-bold text-[#0b3d66]">
+              {editingExisting ? 'Discard your changes?' : 'Discard this entry?'}
+            </DialogTitle>
+            <DialogDescription className="text-base text-gray-700">
+              What you've written here hasn't been saved and will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <button onClick={() => setDiscardOpen(false)} className={buttonClass({ tone: 'light', className: 'w-full' })}>
+              Keep writing
+            </button>
+            <button onClick={closeEditor} className={buttonClass({ tone: 'light', variant: 'danger', className: 'w-full' })}>
+              Discard
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

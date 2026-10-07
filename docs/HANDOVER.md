@@ -1,6 +1,6 @@
 # Bubble handover
 
-Status as of 6 October 2026. Read this before changing anything. The README is the public overview; [SAFETY.md](SAFETY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) cover crisis handling, privacy and hosting in detail.
+Status as of 7 October 2026. Read this before changing anything. The README is the public overview; [SAFETY.md](SAFETY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) cover crisis handling, privacy and hosting in detail.
 
 ## What Bubble is
 
@@ -24,7 +24,7 @@ Bubble is a shared project by **Immanah Makitla** and **andre3oo0**, and it's bo
 | Auth | Better Auth: email and password, plus Google when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set. Sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `qwen/qwen3.8-27b` (best-effort structured outputs, checked by `parseBestEffort`), via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest 4 (178 tests), in-memory database, AI, email and the breached-password check mocked |
+| Tests | Vitest 4 (189 tests), in-memory database, AI, email and the breached-password check mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -38,11 +38,15 @@ client/src/
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar (Bubble's face), BubbleLogo,
                 SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
                 OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones),
-                GoogleButton
-  store/        Zustand: mood (shared app mood), sos, sound, preferences, account dialog, chat,
-                intro (seen once), journalDelete (6-second undo)
+                GoogleButton, PageHeader (every screen's title, back arrow and one action), HelplineList (the
+                one way helplines are drawn), EmptyState
+  components/ui/ controls.ts (the shared button, field, chip and dialog styles: use these, don't restyle),
+                dialog and toast (Radix)
+  store/        Zustand: mood (shared app mood), sos, breathing (the one breathing exercise), sound, preferences,
+                account dialog, chat, intro (seen once), journalDelete (6-second undo)
   lib/          api.ts, chatService.ts, online.ts (browser's online flag), googleSignIn.ts, authClient.ts, audioHandler.ts (generated ambient sound),
-                breathing.ts, motion.ts, moods.ts (labels and muted colours), journalPrompts.ts
+                breathing.ts, motion.ts, moods.ts (labels and muted colours), journalPrompts.ts, dates.ts (en-ZA dates
+                and 24-hour times everywhere), feedback.ts (the feedback email link)
 client/public/  manifest, favicon.svg and PNG icons (from the logo), sw.js (service worker), offline.html (helplines with no connection)
 server/
   index.ts      startup: migrations, app, Vite (dev) or static files (prod), graceful shutdown
@@ -117,15 +121,20 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **Security audit, 6 October** (local file, not committed). Fixed: the dev server listens on 127.0.0.1 with Vite 6's host check on and a block on `.env` and key files; errors are logged by kind only, never the error object; session rows don't keep IPs or browsers (cleared by migration 0002, expired ones pruned hourly); names (50 characters, no links) are kept out of emails; at most 3 emails per address a day and an app-wide email budget; IPv6 guests counted per /56; an app-wide AI budget; per-person caps on journal and mood writes; 10-character passwords checked against Have I Been Pwned (fails open, production only); 5 wrong passwords per email per 15 minutes; an Origin check on API writes; `Cache-Control: no-store` on `/api`; a Permissions-Policy; no Google Fonts (Inter was loaded but never used); sign-out clears the chat and mood on the device; more crisis phrasings; CI runs `npm audit` with a read-only token. Not done: optional two-factor sign-in, Cloudflare Turnstile on sign-up, a check on the AI's own replies, field-level journal encryption.
 - **Daily AI cap** (150 per user, 40 per guest, 20 per minute, 900 for the whole app via `AI_DAILY_LIMIT`; all configurable). Signed-out people are counted per device (6 October): the browser makes a random ID (`client/src/lib/deviceId.ts`, local storage, cleared on sign-out) and sends it in the `x-bubble-device` header; the server counts a keyed hash of it (40 a day) and also caps the whole network at 200 a day (`CHAT_DAILY_LIMIT_NETWORK`, keyed hash of the IP, IPv6 per /56), so fresh IDs can't get round it. No ID or a malformed one falls back to the network count at 40. Never the raw IP. A limit of 0 is valid. `try-chat` sends its own ID per run.
 - **Ambient sound is generated with the Web Audio API**, not audio files: no hosting, licensing or data cost. It only plays when the user presses play.
-- **Calm visuals** (reduced motion) follows the device setting or an in-app switch. The breathing circle keeps moving because it is the exercise.
+- **Calm visuals** (reduced motion) follows the device setting or an in-app switch; when the device asks for less motion the switch shows on and can't be turned off in the app. The breathing circle keeps moving because it is the exercise. There's one breathing exercise for the whole app (`breathingStore`), a Radix dialog at the root, so Escape, focus and the tab bar behave.
 - **Colours were deepened for contrast** (WCAG AA). `client/src/lib/contrast.test.ts` fails if a low-contrast pair comes back, including the scene skies.
 - **Scenes are drawn as one inline SVG each** (`SceneBackdrop.tsx`): no image files to host. The drawing is cropped to fill and anchored to the bottom, so phones only see the middle; keep the interesting part near the centre. Night swaps the sun for a moon and stars and dims the drawing, instead of covering it in navy.
 - **No "vibe-coded" UI**: no purple, neon accents, decorative glows or arbitrary shadows, cards inside cards, emoji icons or meaningless status dots. Moods are words with muted colours (`client/src/lib/moods.ts`, contrast-tested). Only dialogs have shadows; nothing floats over the page.
-- **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean.
+- **Panels use neutral frosted glass** (`surface`, `surface-soft`, `surface-bar` in `index.css`) so they read on every scene. Don't bring back blue-tinted panels; they only suited the ocean. `surface` is 46% navy (7 October, was 34%) so the sun or moon behind a panel doesn't bloom through as a glow. **Dialogs are never glass**: white (help screen, account, consent, confirmations) or the opaque navy sheet (`darkSheetClass`: intro, end of chat, breathing, phone menu).
+- **One set of control styles** (`components/ui/controls.ts`, 7 October, from a UI/UX review): buttons in four kinds (primary blue `#0b6bb8`, secondary outline, tertiary text, danger red) for dark and light surfaces, fields with visible labels, mood chips, notices. 8 px corners on every control, panel and dialog; full rounding only for the switch, avatars, the breathing circle and the sheet's grab bar; 16 px for chat messages. Every screen starts with `PageHeader` (title left, back arrow left of it, one action right; focus moves to the title when the view changes). Helplines are always drawn by `HelplineList`. Dates and times always go through `lib/dates.ts` ("Today, 15:42", "Tue 6 Oct").
+- **Chat on phones gives the conversation the room**: no visible title (the tab says where you are), the AI notice in the owner's full wording before the first message and one line after ("Bubble is an AI and isn't a substitute for a therapist. In danger? Tap Get help.", owner's choice 7 October), Breathe and I'm done for now as small outline buttons, Send the only filled button. Bubble's messages are its own fill colour, with its face beside the last message of each turn.
+- **Home** shows the calm face whatever the mood (owner's choice, 7 October), "Hi Sam" or "Hi, I'm Bubble", and for signed-in people the last check-in and the journal, one tap each.
+- **Journal editor** asks before losing unsaved writing (Cancel or back), and always starts a new entry blank. Mood check-ins start with nothing selected (never Bubble's guess from chat) and confirm with a toast.
+- **Feedback goes by email** from the person's own email app (owner's choice, 7 October): the form fills in a `mailto:` to `LEGAL_CONTACT`. Bubble's server never sees it; the privacy policy and SAFETY.md say so.
 - **Zero-cost hosting until funded**: Groq, Neon, Brevo, Render and UptimeRobot free plans, no card on file. Groq was picked over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations. Going back to OpenAI is a settings change.
 - **The introduction shows once per device** (remembered in local storage, `introStore.ts`) and can be replayed from the home screen, Settings or the phone menu. It has its own help button because it covers the header.
 - **Phones get four tabs** (Home, Chat, Journal, Mood). Settings, Feedback and the account sit behind the menu button in the header (`PhoneMenu`: a dark sheet that slides up, with the account at the top, a scene picker that changes the scene live behind it, a sound button, then the links), which is just the name, "Get help" and that menu. Nothing floats over the content: breathing is on Home, in Chat and on the help screen.
-- **Desktop has one 240 px labelled sidebar** (Home, Chat, Journal, Mood, Settings, Feedback), a permanent "Get help now" under the links, and the account (name and email, or "Sign in") at the bottom. Content is centred and capped at 720 px. Bubble's face is on the Home screen on both phone and desktop, and stays still.
+- **Desktop has one 240 px labelled sidebar** (Home, Chat, Journal, Mood, Settings, Feedback), a permanent "Get help" under the links, and the account (name and email, or "Sign in") at the bottom. Signed in, the account button (and the phone menu's account row) opens Settings, where everything about the account lives; the account dialog only handles signing in, the password and deleting. Content is centred and capped at 720 px. Bubble's face is on the Home screen on both phone and desktop, and stays still.
 - **The help screen is flat and calm**: full screen on phones, the danger line (112) on its own with a red outline, then the helplines as plain rows. The buttons that open it say "Get help" in a quiet outline (`helpButtonClass` in `SosScreen.tsx`); red is only for the danger line.
 - **Installable, with an offline helplines page.** `client/public` has the manifest, icons (drawn from the logo) and `sw.js`. The worker caches only `offline.html`; the app and API always come from the network, so deploys show up straight away. `offline.html` repeats the helplines as plain HTML; `offline.test.ts` fails if it drifts from `shared/safety.ts`.
 - **Android app = the live site in a Trusted Web Activity**, packaged with PWABuilder (free). It updates with every deploy, no new APK needed. `/.well-known/assetlinks.json` proves the APK and the site belong together; without it the app shows a browser bar. It serves the current APK's details (built into `server/app.ts`), overridable with `ANDROID_PACKAGE_NAME` and `ANDROID_CERT_SHA256`. The APK is tied to the address it was built for: moving to a custom domain means rebuilding it. Keep the signing key from PWABuilder's zip safe, since updates to an installed app must be signed with the same key.
@@ -164,7 +173,7 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. Since then (7 October): the fixes from a UI/UX review (`UX-REVIEW.md`, local only): shared control styles and the end of pill shapes (04), journal draft protection and the duplicate-entry fix, feedback by email, a roomier phone chat, one breathing dialog, opaque dialogs, en-ZA dates, mood check-ins without a pre-selected mood, and the home summary. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
@@ -172,9 +181,6 @@ First, the owner's security follow-ups under "Before launch" (new keys, two-fact
 1. Speed: find out whether Qwen on Groq is "thinking" before it answers (the `<think>` text `parseBestEffort` strips), and if so turn it off for this model (Groq's `reasoning_effort` for Qwen; today `OPENAI_REASONING_EFFORT=none` only means "don't send the setting"). If it isn't thinking, compare a few response times in Groq's console before changing anything.
 2. Prompt: fewer replies ending in a question, an actual answer when asked "what should I do" (the celebrate reply dodged it), no advice the first time a worry comes up, and the "completely normal / valid" lines.
 3. Ask the tester whether Bubble feels warmer (owner).
-
-**After that:**
-1. The rest of the redesign's control shapes: mood chips and journal buttons are still pill-shaped (04).
 
 Smaller open points: the "listening" face exists but isn't used anywhere yet (an idea: while the person is typing in chat); the Android APK still has the old launcher icon until it's rebuilt in PWABuilder with the same signing key.
 
@@ -214,9 +220,9 @@ Smaller open points: the "listening" face exists but isn't used anywhere yet (an
 
 From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026, in the project folder but never committed): a 16-point audit and redesigned screens (`Bubble Redesign.dc.html`) plus design tokens. The handoff is styled on Curro's design system; the owner chose to keep its flat approach (hairline-divided lists, small corners on controls, no blur, glow or decorative motion) but in Bubble's own colours and fonts, never Curro's.
 
-**Done:** chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), loading placeholders, an offline banner and a proper 404 (16), the phone layout (06: four tabs, a simpler header, no floating button), a calmer help screen (13), the desktop sidebar with content capped at 720 px (05), and the new Bubble faces and logo, still, in Bubble's colours (03; from a second download of the same name in the owner's Downloads, with SVG assets only). The new screens use 8 px corners; the project's `rounded-lg` is still 24 px until the controls are reworked (04).
+**Done:** the control shapes (04, 7 October: 8 px everywhere, see "One set of control styles"), chat errors as notices with Retry (08), the growing message box with typing dots and time labels (09), the "Bubble is an AI" line on the home screen and in chat (14), journal delete with a confirmation and 6-second undo (10), an optional journal title plus search (11), loading placeholders, an offline banner and a proper 404 (16), the phone layout (06: four tabs, a simpler header, no floating button), a calmer help screen (13), the desktop sidebar with content capped at 720 px (05), and the new Bubble faces and logo, still, in Bubble's colours (03; from a second download of the same name in the owner's Downloads, with SVG assets only).
 
-**Settings (07, 04), done 6 October** from the written plan (the original design file was no longer on disk): one screen with Account (who's signed in, confirm email, change password, sign out; sign-in buttons when signed out), Privacy (what's kept, download my data, delete my account), Safety (the AI notice, Get help, the introduction) and Display (scene, sound, calm visuals as a switch, theme as a segmented control). Flat sections with hairline rows and 8 px corners; only the switch is rounded. Setting Bubble's mood by hand is gone, and the Mood tab's reminder times are hidden until reminders exist. Change password and Delete open the account dialog straight at that step (`open('login', { action })` in `accountStore`). The rest of the app's controls (mood chips, journal buttons) still have pill shapes.
+**Settings (07, 04), done 6 October** from the written plan (the original design file was no longer on disk): one screen with Account (who's signed in, confirm email, change password, sign out; sign-in buttons when signed out), Privacy (what's kept, download my data, delete my account), Safety (the AI notice, Get help, the introduction) and Display (scene, sound, calm visuals as a switch, theme as a segmented control). Flat sections with hairline rows and 8 px corners; only the switch is rounded. Setting Bubble's mood by hand is gone, and the Mood tab's reminder times are hidden until reminders exist. Change password and Delete open the account dialog straight at that step (`open('login', { action })` in `accountStore`).
 
 **Owner's decisions (5 October 2026):**
 - **Rising mood bubbles stay** (6 October): the bubbles that rise in chat when the mood changes are kept, despite the audit suggesting removal (03). They already stop with calm visuals
@@ -243,10 +249,9 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 - The APK showed a browser bar because the site didn't serve its verification file. The current APK's package name and fingerprint are now built into `server/app.ts`, so it opens full screen. The owner wants it to feel like a real app later, not the website in a wrapper
 
 **Known loose ends:**
-- `index.css` still has the old scenery styles (cafe, rain, stars, lamp, the CSS trees and clouds). Nothing uses them; they can be deleted
-- Feedback form only logs to the browser console
 - Mood check-in reminders: the times screen is hidden until notifications exist (old saved times stay in `checkInTimes` on the device and are cleared on sign-out)
-- `ChatInterface` renders a second `BreathingExercise` alongside the one in Home
+- A journal draft is lost if you switch tabs mid-entry (the editor's state lives in the Journal screen); Cancel and back do ask first
+- `AffirmationsTab.tsx` is unused and still in the old rounded style
 - Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed
 
 **Later phases (not started):** community, wearables, sleep system, AR, Orrery, Chronicle, smart home, Teams, therapist portal, monetisation, analytics and safety metrics.

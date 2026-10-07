@@ -1,153 +1,153 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Mood } from '@/models/types';
-import { Save } from 'lucide-react';
+import type { Mood } from '@/models/types';
 import { useSession } from '@/lib/authClient';
-
 import { fetchMoods, queryKeys, saveMoodCheckin } from '@/lib/api';
+import { formatDay, formatTime } from '@/lib/dates';
 import { useAccountDialog } from '@/store/accountStore';
+import { useMoodStore } from '@/store/moodStore';
+import { useToast } from '@/hooks/use-toast';
 import { MOOD_LABELS, MOOD_ORDER, MOOD_TONES } from '@/lib/moods';
+import EmptyState from './EmptyState';
+import PageHeader from './PageHeader';
 import { MoodHistorySkeleton } from './Skeleton';
+import { buttonClass, chipClass, noticeClass } from './ui/controls';
 
-interface MoodCheckIn {
+interface CheckInRow {
   id: string;
-  date: string;
+  day: string;
   time: string;
   mood: Mood;
 }
 
-interface MoodPanelProps {
-  currentMood: Mood;
-  setCurrentMood: (mood: Mood) => void;
-}
-
-export default function MoodPanel({ currentMood, setCurrentMood }: MoodPanelProps) {
+export default function MoodPanel() {
   const { data: session, isPending: sessionPending } = useSession();
   const { open: openAccount } = useAccountDialog();
+  const { setCurrentMood } = useMoodStore();
   const queryClient = useQueryClient();
-  const [selectedMood, setSelectedMood] = useState<Mood>(currentMood);
+  const { toast } = useToast();
+  // Starts empty: a check-in is the person's own answer, never Bubble's guess from chat
+  const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
 
   const moodsQuery = useQuery({ queryKey: queryKeys.moods, queryFn: fetchMoods, enabled: !!session });
-  const moodHistory: MoodCheckIn[] = (moodsQuery.data ?? []).map((checkin) => {
-    const at = new Date(checkin.createdAt);
-    return {
-      id: checkin.id,
-      date: at.toLocaleDateString(),
-      time: at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      mood: checkin.mood,
-    };
-  });
 
   const saveCheckin = useMutation({
     mutationFn: saveMoodCheckin,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.moods }),
+    onSuccess: (checkin) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.moods });
+      setCurrentMood(checkin.mood);
+      setSelectedMood(null);
+      toast({ title: 'Check-in saved', description: `${MOOD_LABELS[checkin.mood]}, ${formatTime(new Date(checkin.createdAt))}` });
+    },
   });
 
-  // Save mood when selected
-  const saveMood = () => {
-    if (selectedMood) {
-      // Bubble's mood updates either way; history needs an account
-      setCurrentMood(selectedMood);
-      if (session) saveCheckin.mutate(selectedMood);
-    }
-  };
+  // Newest first, grouped by day
+  const groups = [...(moodsQuery.data ?? [])]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .reduce<Record<string, CheckInRow[]>>((acc, checkin) => {
+      const at = new Date(checkin.createdAt);
+      const day = formatDay(at);
+      (acc[day] ??= []).push({ id: checkin.id, day, time: formatTime(at), mood: checkin.mood });
+      return acc;
+    }, {});
 
-  // Group mood history by date
-  const groupedHistory = moodHistory.reduce((groups: Record<string, MoodCheckIn[]>, checkIn) => {
-    if (!groups[checkIn.date]) {
-      groups[checkIn.date] = [];
-    }
-    groups[checkIn.date].push(checkIn);
-    return groups;
-  }, {});
+  const signedOut = !session && !sessionPending;
 
   return (
-    <motion.div
-      className="md:h-full flex flex-col"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      {/* Reminder times come back once Bubble can actually send reminders */}
-      <h1 className="text-white text-2xl md:text-3xl font-semibold tracking-tight text-center mb-4">Mood</h1>
+    <div className="flex flex-col pb-2">
+      <PageHeader title="Mood" />
 
-      {/* Current mood selector */}
-      <div className="surface rounded-3xl p-4 mb-6">
-        <h2 className="text-white text-lg mb-3">How are you feeling right now?</h2>
-        <div className="flex flex-wrap gap-2">
-          {MOOD_ORDER.map((mood) => (
-            <button
-              key={mood}
-              onClick={() => setSelectedMood(mood)}
-              aria-pressed={selectedMood === mood}
-              className={`rounded-full px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60 ${
-                selectedMood === mood ? 'bg-white text-[#0b3d66]' : 'surface-soft surface-soft-hover text-white'
-              }`}
-            >
-              {MOOD_LABELS[mood]}
-            </button>
-          ))}
-        </div>
+      <div className="surface rounded-[8px] text-white">
+        <section aria-labelledby="checkin-heading" className="p-4">
+          <h2 id="checkin-heading" className="mb-3 text-lg font-semibold">
+            How are you feeling right now?
+          </h2>
+          {signedOut ? (
+            <>
+              <p className="text-white/85">Sign in to save check-ins and look back on how you've felt.</p>
+              <button onClick={() => openAccount()} className={buttonClass({ className: 'mt-4' })}>
+                Sign in or create an account
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2" role="group" aria-labelledby="checkin-heading">
+                {MOOD_ORDER.map((mood) => (
+                  <button
+                    key={mood}
+                    onClick={() => setSelectedMood(mood)}
+                    aria-pressed={selectedMood === mood}
+                    className={chipClass(selectedMood === mood)}
+                  >
+                    {MOOD_LABELS[mood]}
+                  </button>
+                ))}
+              </div>
+              {saveCheckin.isError && (
+                <p role="alert" className={`mt-3 ${noticeClass.error}`}>
+                  Couldn't save your check-in. Check your connection and try again.
+                </p>
+              )}
+              <button
+                onClick={() => selectedMood && saveCheckin.mutate(selectedMood)}
+                disabled={!selectedMood || saveCheckin.isPending}
+                className={buttonClass({ className: 'mt-4' })}
+              >
+                {saveCheckin.isPending ? 'Saving…' : 'Save check-in'}
+              </button>
+            </>
+          )}
+        </section>
 
-        <div className="mt-4 flex justify-center">
-          <motion.button
-            onClick={saveMood}
-            className="bg-[#0b6bb8] text-white rounded-full px-6 py-2 flex items-center"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            disabled={!selectedMood}
-          >
-            <Save className="w-5 h-5 mr-2" />
-            Save mood
-          </motion.button>
-        </div>
-      </div>
+        {!signedOut && (
+          <section aria-labelledby="history-heading" className="border-t border-white/15 p-4">
+            <h2 id="history-heading" className="text-lg font-semibold">
+              Your check-ins
+            </h2>
+            <p className="mb-3 text-sm text-white/75">The last 30 days</p>
 
-      {/* Mood history */}
-      <div className="md:flex-1 surface rounded-3xl p-4 md:overflow-y-auto">
-        <h2 className="text-white text-lg mb-4">Your mood history</h2>
-
-        {!session && !sessionPending ? (
-          <div className="text-white text-center py-8">
-            <p className="mb-4 text-white/80">Sign in to keep a history of your check-ins and spot patterns over time.</p>
-            <button onClick={() => openAccount()} className="bg-white text-[#0b5394] font-semibold rounded-full px-6 py-2">
-              Sign in or create an account
-            </button>
-          </div>
-        ) : moodsQuery.isError || saveCheckin.isError ? (
-          <div className="text-white text-center py-8">
-            <p className="mb-4">Couldn't reach your mood history.</p>
-            <button onClick={() => moodsQuery.refetch()} className="bg-white/20 rounded-full px-6 py-2">
-              Try again
-            </button>
-          </div>
-        ) : moodsQuery.isPending ? (
-          <MoodHistorySkeleton />
-        ) : Object.keys(groupedHistory).length === 0 ? (
-          <div className="text-white/90 text-center py-8">
-            No check-ins yet. Save how you feel above and it will show up here.
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {Object.entries(groupedHistory).map(([date, checkIns]) => (
-              <section key={date}>
-                <h3 className="mb-1 text-sm font-semibold text-white/85">{date}</h3>
-                <ul className="divide-y divide-white/10">
-                  {checkIns.map((checkIn) => (
-                    <li key={checkIn.id} className="flex items-center justify-between gap-4 py-2">
-                      <span className="whitespace-nowrap text-sm text-white/85">{checkIn.time}</span>
-                      <span className="font-medium" style={{ color: MOOD_TONES[checkIn.mood] }}>
-                        {MOOD_LABELS[checkIn.mood]}
+            {moodsQuery.isPending ? (
+              <MoodHistorySkeleton />
+            ) : moodsQuery.isError ? (
+              <EmptyState
+                title="Couldn't load your check-ins"
+                action={
+                  <button onClick={() => moodsQuery.refetch()} className={buttonClass({ variant: 'secondary' })}>
+                    Try again
+                  </button>
+                }
+              >
+                Check your connection and try again.
+              </EmptyState>
+            ) : Object.keys(groups).length === 0 ? (
+              <p className="py-6 text-center text-white/85">No check-ins yet. Pick how you feel above and save it.</p>
+            ) : (
+              <div className="space-y-5">
+                {Object.entries(groups).map(([day, rows]) => (
+                  <section key={day} aria-label={day}>
+                    <h3 className="mb-1 text-sm font-semibold text-white/85">
+                      {day}
+                      <span className="font-normal text-white/70">
+                        {' '}· {rows.length} {rows.length === 1 ? 'check-in' : 'check-ins'}
                       </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+                    </h3>
+                    <ul className="divide-y divide-white/10">
+                      {rows.map((row) => (
+                        <li key={row.id} className="flex items-center justify-between gap-4 py-2">
+                          <span className="whitespace-nowrap text-sm text-white/85">{row.time}</span>
+                          <span className="font-medium" style={{ color: MOOD_TONES[row.mood] }}>
+                            {MOOD_LABELS[row.mood]}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

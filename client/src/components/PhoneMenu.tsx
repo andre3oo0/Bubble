@@ -50,7 +50,7 @@ export default function PhoneMenu({ onOpenPanel, scene, onSceneChange }: PhoneMe
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger
         aria-label="Menu"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-white surface-soft surface-soft-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
       >
         <Menu size={20} aria-hidden="true" />
       </DialogPrimitive.Trigger>
@@ -68,7 +68,7 @@ export default function PhoneMenu({ onOpenPanel, scene, onSceneChange }: PhoneMe
             <DialogPrimitive.Title className="text-lg font-semibold">Menu</DialogPrimitive.Title>
             <DialogPrimitive.Close
               aria-label="Close menu"
-              className="rounded-full p-2 text-white/80 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-[8px] text-white/80 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
             >
               <X size={20} aria-hidden="true" />
             </DialogPrimitive.Close>
@@ -79,7 +79,7 @@ export default function PhoneMenu({ onOpenPanel, scene, onSceneChange }: PhoneMe
 
           {/* Account */}
           {session ? (
-            <button onClick={() => choose(() => openAccount())} className={row}>
+            <button onClick={() => choose(() => onOpenPanel('avatar'))} className={row}>
               <span
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0b6bb8] text-lg font-semibold"
                 aria-hidden="true"

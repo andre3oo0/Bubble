@@ -7,17 +7,16 @@ const TITLE_WIDTHS = ['55%', '40%', '62%', '48%'];
 
 export function JournalSkeleton() {
   return (
-    <div role="status" aria-busy="true" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div role="status" aria-busy="true" className="surface divide-y divide-white/10 overflow-hidden rounded-[8px]">
       <span className="sr-only">Loading your journal</span>
       {TITLE_WIDTHS.map((width) => (
-        <div key={width} aria-hidden="true" className="surface flex flex-col gap-2.5 rounded-3xl p-4">
-          <span className={`${bar} h-4 bg-white/20`} style={{ width }} />
-          <span className={`${bar} h-2.5 w-full bg-white/10`} />
-          <span className={`${bar} mb-2 h-2.5 w-[70%] bg-white/10`} />
+        <div key={width} aria-hidden="true" className="flex flex-col gap-2 px-4 py-3">
           <span className="flex justify-between">
-            <span className={`${bar} h-3 w-14 bg-white/20`} />
-            <span className={`${bar} h-3 w-16 bg-white/20`} />
+            <span className={`${bar} h-2.5 w-14 bg-white/15`} />
+            <span className={`${bar} h-2.5 w-12 bg-white/15`} />
           </span>
+          <span className={`${bar} h-4 bg-white/20`} style={{ width }} />
+          <span className={`${bar} h-2.5 w-[80%] bg-white/10`} />
         </div>
       ))}
     </div>

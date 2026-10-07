@@ -103,6 +103,10 @@ export function PrivacyPolicy() {
           linked to an account, and signing out clears it.
         </li>
         <li>
+          <strong>Emails you send us</strong>, including feedback. The Feedback screen opens your own email app, so it
+          reaches us as an ordinary email with your address. We use it only to reply and to improve Bubble.
+        </li>
+        <li>
           <strong>Settings on your device</strong>, like your scene, sound and theme, kept in your browser and not sent to
           us.
         </li>
