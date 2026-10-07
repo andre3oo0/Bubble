@@ -128,7 +128,7 @@ The local database lives in `.data/pglite`; delete that folder to start fresh. M
 | `npm test` | Run the tests (in-memory database, no real services) |
 | `npm run build` | Build the frontend and bundle the server into `dist/` |
 | `npm start` | Run the production build |
-| `npm run try-chat` | Run scripted conversations against the live site (or a URL you pass) and print Bubble's replies |
+| `npm run try-chat` | Run scripted conversations against the live site (or a URL you pass) and print Bubble's replies and their times (20 seconds between messages) |
 | `npm run screenshots` | Retake the README screenshots from a local server (uses your installed Chrome) |
 | `npm run db:generate` | Create a migration after changing `shared/schema.ts` |
 | `npm run db:studio` | Browse the database at `DATABASE_URL` |

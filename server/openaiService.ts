@@ -62,6 +62,14 @@ export function requireWords(...texts: string[]): void {
   if (!texts.every(hasWords)) throw new Error("The model's reply had no words");
 }
 
+// Best-effort replies sometimes repeat the other fields at the end of the reply text
+// ("*user_mood*: low", "*risk*: none}"). Those lines are dropped, with any stray brace.
+const FIELD_LINE = /^\s*[*_"`]*\s*(user_mood|risk)\s*[*_"`]*\s*:.*$/gim;
+
+export function stripFieldLines(reply: string): string {
+  return reply.replace(FIELD_LINE, "").replace(/[\s}]+$/, "").trim();
+}
+
 interface StructuredRequest {
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   maxTokens: number;
@@ -143,7 +151,7 @@ This: "Fair question. I'm an AI, so it's not caring the way a friend does, but y
 
 Also classify the user's latest message:
 - user_mood: the mood the USER is expressing, not your own tone. Use "neutral" if it's unclear.
-- risk: "crisis" for any sign of suicidal thoughts, self-harm or immediate danger; "concern" for hopelessness or severe distress without those signs; otherwise "none".
+- risk: "crisis" only when the person shows signs of suicidal thoughts, wanting to die or disappear, self-harm, or being in danger right now (from themselves or someone else). "concern" for hopelessness or severe distress without those signs. Otherwise "none". Grief, a death in the family, anger, arguments, being ignored, loneliness, stress or feeling low are "none" or "concern" on their own, never "crisis": marking them "crisis" opens an emergency screen on someone who is sad, not in danger. When the signs are there, even indirectly, always choose "crisis".
 `;
 
 const replySchema = z.object({
@@ -242,6 +250,7 @@ export async function generateReply(message: string, history: ChatTurn[], contex
 
   // An empty reply still carries the model's reading of mood and risk, so a crisis it
   // spotted isn't lost: the route swaps in a fallback reply and keeps the risk
-  const reply = hasWords(parsed.reply) ? parsed.reply.trim() : "";
+  const text = stripFieldLines(parsed.reply);
+  const reply = hasWords(text) ? text : "";
   return { reply, mood: parsed.user_mood, risk: parsed.risk };
 }

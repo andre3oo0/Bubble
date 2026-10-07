@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { hasWords, parseBestEffort, reasoningFor, requireWords } from "./openaiService";
+import { hasWords, parseBestEffort, reasoningFor, requireWords, stripFieldLines } from "./openaiService";
 
 // Models without strict structured outputs (e.g. Qwen on Groq) only try to match the
 // schema, so their replies are checked here before Bubble uses them
@@ -61,5 +61,19 @@ describe("reasoningFor", () => {
     expect(reasoningFor("qwen/qwen3.8-27b", "medium")).toEqual({ reasoning_effort: "medium" });
     expect(reasoningFor("openai/gpt-oss-120b", "low")).toEqual({ reasoning_effort: "low" });
     expect(reasoningFor("openai/gpt-oss-120b", "none")).toEqual({});
+  });
+});
+
+describe("stripFieldLines", () => {
+  it("drops the other fields when the model repeats them in the reply", () => {
+    expect(
+      stripFieldLines("Thank you for trusting me with that. I'm right here.\n\n*user_mood*: low\n*risk*: none}"),
+    ).toBe("Thank you for trusting me with that. I'm right here.");
+    expect(stripFieldLines('All good.\n"risk": "none"')).toBe("All good.");
+  });
+
+  it("leaves ordinary replies alone", () => {
+    const reply = "Some risk is part of trying something new, and your mood today makes sense.";
+    expect(stripFieldLines(reply)).toBe(reply);
   });
 });

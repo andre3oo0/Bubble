@@ -3,8 +3,13 @@
 //   npm run try-chat                      (the live site)
 //   npm run try-chat -- http://localhost:5000
 // Each message counts towards that server's daily chat limit for your connection.
+// It waits 20 seconds between messages, like someone typing, because back-to-back
+// messages hit Groq's per-minute limit and the times then measure that instead.
+// TRY_CHAT_PAUSE=0 sends them straight away.
 
 const base = process.argv[2] ?? 'https://bubble-1-kafq.onrender.com';
+const pauseMs = Number(process.env.TRY_CHAT_PAUSE ?? 20) * 1000;
+let first = true;
 
 const conversations = {
   'Exam stress': [
@@ -44,6 +49,8 @@ for (const [name, messages] of Object.entries(conversations)) {
   console.log(`\n===== ${name} =====`);
   let sessionId;
   for (const message of messages) {
+    if (!first) await new Promise((resolve) => setTimeout(resolve, pauseMs));
+    first = false;
     console.log(`YOU:    ${message}`);
     try {
       const started = Date.now();
