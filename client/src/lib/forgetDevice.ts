@@ -1,5 +1,6 @@
 import { endChat } from './chatService';
 import { forgetDeviceId } from './deviceId';
+import { useCare } from '@/store/careStore';
 import { useChatStore } from '@/store/chatStore';
 import { useJournalEditor } from '@/store/journalEditorStore';
 import { useMoodStore } from '@/store/moodStore';
@@ -13,6 +14,7 @@ export async function forgetDevice(): Promise<void> {
   useChatStore.getState().clearMessages();
   useMoodStore.getState().setCurrentMood('neutral');
   useJournalEditor.getState().reset(null);
+  useCare.getState().reset();
   PERSONAL_STORAGE_KEYS.forEach((key) => {
     try {
       localStorage.removeItem(key);

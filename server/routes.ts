@@ -202,6 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       ai = await generateReply(message, recentTurns(session.history, MAX_HISTORY_CHARS), {
         name: signedIn?.user.name,
+        care: parsed.data.care,
       });
     } catch (error) {
       console.error('Chat AI error:', describeError(error));

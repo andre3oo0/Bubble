@@ -3,6 +3,7 @@ import type { Message } from '@/models/types';
 import { apiRequest } from './queryClient';
 import { getDeviceId } from './deviceId';
 import { DEVICE_HEADER } from '@shared/device';
+import { currentCare } from '@/store/careStore';
 
 // Signed-out daily limits count per device (an account has its own allowance)
 const deviceHeaders = () => ({ [DEVICE_HEADER]: getDeviceId() });
@@ -11,7 +12,7 @@ const deviceHeaders = () => ({ [DEVICE_HEADER]: getDeviceId() });
 let sessionId: string | undefined;
 
 export async function sendChatMessage(message: string): Promise<ChatResponse> {
-  const response = await apiRequest('POST', '/api/chat', { message, sessionId }, deviceHeaders());
+  const response = await apiRequest('POST', '/api/chat', { message, sessionId, care: currentCare() }, deviceHeaders());
   const data: ChatResponse = await response.json();
   sessionId = data.sessionId;
   return data;

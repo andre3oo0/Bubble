@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import { moodSchema, riskLevels, riskSchema, type Mood, type RiskLevel } from "@shared/chat";
+import { moodSchema, riskLevels, riskSchema, type Care, type Mood, type RiskLevel } from "@shared/chat";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -251,6 +251,39 @@ export async function generateReflection(transcript: ChatTurn[]): Promise<AiRefl
 export interface ReplyContext {
   // Signed-in people's display name, so Bubble can use it now and then
   name?: string;
+  // What they chose under "What helps you" in Settings
+  care?: Care;
+}
+
+const CARE_LINES = {
+  hugs: {
+    yes: "They find virtual hugs comforting. When they're hurting, you can offer one in words now and then (\"sending you a hug\"), not in every reply.",
+    no: "They don't find virtual hugs comforting. Never offer hugs; show you care in other words.",
+  },
+  approach: {
+    listen:
+      "They mostly want to be listened to. Don't offer ideas, tips or next steps unless they ask for them directly; respond to what they share and keep them company.",
+    suggest:
+      "They like practical ideas. Once you've comforted them, offer one or two small, concrete suggestions fitted to their situation without waiting to be asked.",
+  },
+  tone: {
+    gentle: "They prefer a very gentle tone: extra soft and unhurried, never blunt.",
+    direct:
+      "They prefer you to be direct: say plainly and briefly what you think, without cushioning every line, while staying kind.",
+  },
+} as const;
+
+// The person's "What helps you" choices, as instructions for the system message.
+// Empty when everything is left to Bubble.
+export function careInstructions(care?: Care): string {
+  if (!care) return "";
+  const lines = [
+    care.hugs !== "either" && CARE_LINES.hugs[care.hugs],
+    care.approach !== "either" && CARE_LINES.approach[care.approach],
+    care.tone !== "either" && CARE_LINES.tone[care.tone],
+  ].filter(Boolean);
+  if (lines.length === 0) return "";
+  return `\nThe person has told you what helps them. Follow it, but rule 12 always comes first:\n${lines.map((line) => `- ${line}`).join("\n")}`;
 }
 
 // The model now and then sends back its previous reply word for word (fourth live run,
@@ -271,9 +304,8 @@ const higherRisk = (a: RiskLevel, b: RiskLevel): RiskLevel =>
 
 // Throws on any failure so the caller can fall back
 export async function generateReply(message: string, history: ChatTurn[], context: ReplyContext = {}): Promise<AiReply> {
-  const system = context.name
-    ? `${bubbleSystemMessage}\nThe person's name is ${context.name}. Use it occasionally, not in every message.`
-    : bubbleSystemMessage;
+  const named = context.name ? `\nThe person's name is ${context.name}. Use it occasionally, not in every message.` : "";
+  const system = `${bubbleSystemMessage}${named}${careInstructions(context.care)}`;
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: system },
     ...history,

@@ -12,6 +12,7 @@ const { forgetDevice } = await import('./forgetDevice');
 const { useChatStore } = await import('@/store/chatStore');
 const { useMoodStore } = await import('@/store/moodStore');
 const { useJournalEditor } = await import('@/store/journalEditorStore');
+const { useCare } = await import('@/store/careStore');
 
 beforeEach(() => vi.mocked(apiRequest).mockClear());
 
@@ -37,6 +38,16 @@ describe('forgetDevice', () => {
     expect(useJournalEditor.getState()).toMatchObject({ userId: null, view: 'list', draft: { content: '' } });
   });
 
+  it('sends "What helps you" with each message, and forgets it', async () => {
+    useCare.getState().set({ hugs: 'no', approach: 'listen' });
+    await sendChatMessage('rough day');
+    expect(vi.mocked(apiRequest).mock.calls.at(-1)![2]).toMatchObject({ care: { hugs: 'no', approach: 'listen', tone: 'either' } });
+
+    await forgetDevice();
+
+    expect(useCare.getState()).toMatchObject({ hugs: 'either', approach: 'either', tone: 'either' });
+  });
+
   it('starts a new conversation, with a new device ID, afterwards', async () => {
     await sendChatMessage('hello');
     const before = vi.mocked(apiRequest).mock.calls.at(-1)![3]!['x-bubble-device'];
@@ -47,7 +58,7 @@ describe('forgetDevice', () => {
 
     const [, url, body, headers] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe('/api/chat');
-    expect(body).toEqual({ message: 'hello again', sessionId: undefined });
+    expect(body).toMatchObject({ message: 'hello again', sessionId: undefined });
     expect(headers!['x-bubble-device']).toMatch(/^[0-9a-f-]{36}$/);
     expect(headers!['x-bubble-device']).not.toBe(before);
   });

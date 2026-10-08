@@ -170,6 +170,26 @@ describe("POST /api/chat", () => {
     expect(history.at(-1)!.role).toBe("assistant");
   });
 
+  it("passes on what helps the person", async () => {
+    mockReply.mockResolvedValue({ reply: "I'm here.", mood: "sad", risk: "none" });
+    const care = { hugs: "no", approach: "listen", tone: "gentle" };
+
+    await chat({ message: "rough day", care });
+
+    expect(mockReply.mock.calls[0][2]).toMatchObject({ care });
+  });
+
+  it("still answers a crisis when what helps them is malformed", async () => {
+    mockReply.mockRejectedValue(new Error("AI down"));
+
+    const { status, data } = await chat({ message: "I want to kill myself", care: { hugs: "always", tone: 7 } });
+
+    expect(status).toBe(200);
+    expect(data.risk).toBe("crisis");
+    expect(data.helplines).toEqual(HELPLINES);
+    expect(mockReply.mock.calls[0][2]?.care).toBeUndefined();
+  });
+
   it.each([{}, { message: "   " }, { message: "x".repeat(2001) }, { message: "hi", sessionId: "not-a-uuid" }])(
     "rejects invalid body %#",
     async (body) => {

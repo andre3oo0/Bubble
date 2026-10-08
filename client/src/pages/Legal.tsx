@@ -108,7 +108,8 @@ export function PrivacyPolicy() {
         </li>
         <li>
           <strong>Settings on your device</strong>, like your scene, sound and theme, kept in your browser and not sent to
-          us.
+          us. Your "What helps you" choices (hugs, listening or ideas, gentle or direct) are kept there too, and go with
+          each chat message so Bubble can follow them. We don't store them.
         </li>
       </ul>
 
@@ -144,7 +145,7 @@ export function PrivacyPolicy() {
         </li>
         <li>
           <strong>Groq</strong>, in the United States, generates Bubble's replies. Your chat messages are sent there
-          (with the name you gave Bubble, if you're signed in), and so is a journal entry when you tap "Reflect with
+          (with the name you gave Bubble, if you're signed in, and your "What helps you" choices), and so is a journal entry when you tap "Reflect with
           Bubble" on it. They're sent only to write the reply.
         </li>
         <li>

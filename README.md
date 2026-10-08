@@ -64,6 +64,7 @@
 ## What it does
 
 - **Chat with Bubble.** A warm AI companion that listens first, comforts before it advises, and answers honestly when asked. Works without an account.
+- **What helps you.** Tell Bubble whether you'd like virtual hugs, whether it should just listen or suggest ideas, and whether to be gentle or direct. Kept on your device and sent with each message.
 - **Crisis safety that doesn't depend on the AI.** A keyword check runs on the server and in the browser, so a message about suicide or self-harm always gets the helplines, even when the AI is down, the daily limit is reached, or the phone is offline. The help screen is one tap away on every page.
 - **End-of-chat choices.** "I'm done for now" offers to let the conversation go, reflect on it, or save a short reflection to the journal.
 - **Private journal.** Writing prompts, search, delete with undo, a warning before unsaved writing is lost, and "Reflect with Bubble" on any entry. Only the person who wrote it can read it.

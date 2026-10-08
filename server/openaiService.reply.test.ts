@@ -12,7 +12,7 @@ vi.mock("openai", () => ({
   },
 }));
 
-const { generateReply, repeatsLastReply } = await import("./openaiService");
+const { careInstructions, generateReply, repeatsLastReply } = await import("./openaiService");
 
 function modelSays(...replies: { reply: string; user_mood?: string; risk?: string }[]) {
   for (const { reply, user_mood = "sad", risk = "none" } of replies) {
@@ -68,5 +68,23 @@ describe("generateReply", () => {
     modelSays({ reply: previous, risk: "crisis" });
     create.mockRejectedValueOnce(new Error("rate limited"));
     expect(await generateReply("I can't do this", history)).toEqual({ reply: "", mood: "sad", risk: "crisis" });
+  });
+});
+
+describe("What helps you", () => {
+  const systemMessage = () => create.mock.calls[0][0].messages[0].content as string;
+
+  it("tells the model what the person chose", async () => {
+    modelSays({ reply: "That's a heavy day. I'm here." });
+    await generateReply("rough day", [], { care: { hugs: "no", approach: "listen", tone: "either" } });
+    expect(systemMessage()).toContain("Never offer hugs");
+    expect(systemMessage()).toContain("mostly want to be listened to");
+    expect(systemMessage()).toContain("rule 12 always comes first");
+    expect(systemMessage()).not.toContain("prefer you to be direct");
+  });
+
+  it("adds nothing when everything is left to Bubble", () => {
+    expect(careInstructions({ hugs: "either", approach: "either", tone: "either" })).toBe("");
+    expect(careInstructions(undefined)).toBe("");
   });
 });

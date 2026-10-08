@@ -9,9 +9,20 @@ export const riskLevels = ["none", "concern", "crisis"] as const;
 export const riskSchema = z.enum(riskLevels);
 export type RiskLevel = z.infer<typeof riskSchema>;
 
+// "What helps you" in Settings: how the person likes to be supported. Kept on their
+// device and sent with each message. "either" leaves it to Bubble.
+export const careSchema = z.object({
+  hugs: z.enum(["yes", "either", "no"]).default("either"),
+  approach: z.enum(["listen", "either", "suggest"]).default("either"),
+  tone: z.enum(["gentle", "either", "direct"]).default("either"),
+});
+export type Care = z.infer<typeof careSchema>;
+
 export const chatRequestSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   sessionId: z.string().uuid().optional(),
+  // A bad value is dropped rather than refusing the message: support comes first
+  care: careSchema.optional().catch(undefined),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 

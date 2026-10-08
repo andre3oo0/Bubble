@@ -45,13 +45,14 @@ Changes to the prompt or model are judged on the live site with `npm run try-cha
 | Usage counts | Yes, 7 days | Daily counters for the limits: AI messages per account, or for guests per keyed hash of a random ID their browser makes (kept in local storage, never tied to an account, cleared on sign-out) plus a shared count per keyed hash of their network address; emails sent per keyed hash of the address; failed sign-ins per keyed hash of the email. Raw IP and email addresses are never stored in them. |
 | Logs | Yes | Request lines (method, path, status, timing) and the kind of error, never its details: a failed database query or a broken request can contain what someone wrote. Logs never contain chat or journal content, names, emails or IP addresses. |
 | Preferences | On the device | Scene, sound volume, calm visuals, theme and whether the introduction was seen, in the browser's local storage. |
+| What helps you | On the device | Hugs or not, listen or suggest, gentle or direct (Settings), in local storage. Sent with each chat message and added to Bubble's instructions for that reply, never stored on the server. Cleared on sign-out. A malformed value is dropped rather than refusing the message, and the crisis rule always comes first. |
 
 People can download everything stored about them (Settings, under Privacy, **Download my data**): account, journal, moods, sign-in methods and sessions. They can delete their account, which removes the journal, moods and sessions with it. Signing out, or deleting the account, also clears the chat and the current mood from the device, so the next person on a shared phone doesn't see them.
 
 ## Where data goes
 
 - **Hosting and database:** Render and Neon, both in Frankfurt.
-- **AI:** chat messages, reflections and journal entries the person asks Bubble to reflect on are sent to Groq to generate a reply. Groq was chosen over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations.
+- **AI:** chat messages (with the person's "What helps you" choices), reflections and journal entries the person asks Bubble to reflect on are sent to Groq to generate a reply. Groq was chosen over Gemini's free tier because Google may use free-tier prompts to improve its products, which is wrong for health conversations.
 - **Email:** Brevo sends account emails (confirmation, password reset). No chat or journal content is ever emailed.
 - **Feedback:** the Feedback screen opens the person's own email app with their message filled in, addressed to the contact email. Bubble's server never receives or stores it; the email arrives like any other, with their address.
 - **Sign-in:** Google, only for people who choose "Continue with Google". Bubble asks for name and email only.

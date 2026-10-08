@@ -13,6 +13,7 @@ import { useDeviceReducesMotion } from '@/lib/motion';
 import { MOOD_LABELS, MOOD_ORDER } from '@/lib/moods';
 import { signOutHere } from '@/lib/signOut';
 import { useAccountDialog } from '@/store/accountStore';
+import { useCare } from '@/store/careStore';
 import { useIntroStore } from '@/store/introStore';
 import { useMoodStore } from '@/store/moodStore';
 import { usePreferences, type ThemePreference } from '@/store/preferencesStore';
@@ -29,6 +30,37 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'day', label: 'Day' },
   { value: 'night', label: 'Night' },
 ];
+
+// "What helps you": the same three-way choice for each, with "Either" leaving it to Bubble
+const CARE_CHOICES = [
+  {
+    key: 'hugs',
+    legend: 'Virtual hugs',
+    options: [
+      { value: 'yes', label: 'Yes please' },
+      { value: 'either', label: 'Either' },
+      { value: 'no', label: 'No thanks' },
+    ],
+  },
+  {
+    key: 'approach',
+    legend: 'When something is hard',
+    options: [
+      { value: 'listen', label: 'Just listen' },
+      { value: 'either', label: 'Either' },
+      { value: 'suggest', label: 'Suggest ideas' },
+    ],
+  },
+  {
+    key: 'tone',
+    legend: 'How Bubble talks to you',
+    options: [
+      { value: 'gentle', label: 'Gentle' },
+      { value: 'either', label: 'Either' },
+      { value: 'direct', label: 'Direct' },
+    ],
+  },
+] as const;
 
 const focusRing = `focus:outline-none ${focusRings.dark}`;
 const rowClass = `flex w-full items-center gap-3 px-4 py-3 text-left text-white hover:bg-white/10 ${focusRing} focus-visible:ring-inset`;
@@ -120,6 +152,53 @@ function SwitchRow({
   );
 }
 
+// A choice of three, side by side, as radio buttons
+function Segmented<T extends string>({
+  name,
+  legend,
+  options,
+  value,
+  onChange,
+  hint,
+}: {
+  name: string;
+  legend: string;
+  options: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  hint?: string;
+}) {
+  return (
+    // The divider goes on a wrapper: a legend sits on its fieldset's top border
+    <div className="px-4 py-3">
+      <fieldset>
+        <legend className="mb-2 font-medium text-white">{legend}</legend>
+        <div className="grid grid-cols-3 gap-1 rounded-[8px] border border-white/25 p-1">
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer items-center justify-center rounded-[6px] px-1 py-2 text-center text-sm font-medium leading-tight focus-within:ring-4 focus-within:ring-white/60 ${
+                value === option.value ? 'bg-[#0b6bb8] text-white' : 'text-white/85 hover:bg-white/10'
+              }`}
+            >
+              <input
+                type="radio"
+                name={name}
+                value={option.value}
+                checked={value === option.value}
+                onChange={() => onChange(option.value)}
+                className="sr-only"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        {hint && <p className="mt-2 text-sm text-white/75">{hint}</p>}
+      </fieldset>
+    </div>
+  );
+}
+
 function Note({ children }: { children: ReactNode }) {
   return <p className="px-4 py-3 text-sm text-white/90">{children}</p>;
 }
@@ -133,6 +212,7 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
   const { playing, volume, play, stop, setVolume } = useSoundStore();
   const { motion: motionPreference, theme, moodScene, setMotion, setTheme, setMoodScene } = usePreferences();
   const { currentMood, setCurrentMood } = useMoodStore();
+  const care = useCare();
   const [confirmNotice, setConfirmNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -303,33 +383,14 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
           onChange={setMoodScene}
         />
 
-        {/* The divider goes on a wrapper: a legend sits on its fieldset's top border */}
-        <div className="px-4 py-3">
-          <fieldset>
-            <legend className="mb-2 font-medium text-white">Theme</legend>
-            <div className="grid grid-cols-3 gap-1 rounded-[8px] border border-white/25 p-1">
-              {THEME_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className={`cursor-pointer rounded-[6px] py-2 text-center text-sm font-medium focus-within:ring-4 focus-within:ring-white/60 ${
-                    theme === option.value ? 'bg-[#0b6bb8] text-white' : 'text-white/85 hover:bg-white/10'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="theme"
-                    value={option.value}
-                    checked={theme === option.value}
-                    onChange={() => setTheme(option.value)}
-                    className="sr-only"
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-sm text-white/75">Night uses darker colours for late evenings. Automatic follows your device.</p>
-          </fieldset>
-        </div>
+        <Segmented
+          name="theme"
+          legend="Theme"
+          options={THEME_OPTIONS}
+          value={theme}
+          onChange={setTheme}
+          hint="Night uses darker colours for late evenings. Automatic follows your device."
+        />
       </Section>
 
       {/* Bubble's look: its face follows its mood, which people can set here any time.
@@ -357,6 +418,21 @@ export default function SettingsPanel({ selectedEnvironment = 'ocean', setSelect
             </div>
           </div>
         </div>
+      </Section>
+
+      {/* Sent with each chat message so Bubble can follow it; kept on this device */}
+      <Section title="What helps you">
+        <Note>Tell Bubble how you like to be supported, and it will follow that in chat. Either leaves it to Bubble.</Note>
+        {CARE_CHOICES.map(({ key, legend, options }) => (
+          <Segmented
+            key={key}
+            name={`care-${key}`}
+            legend={legend}
+            options={options}
+            value={care[key]}
+            onChange={(value) => care.set({ [key]: value })}
+          />
+        ))}
       </Section>
 
       <Section title="Safety">
