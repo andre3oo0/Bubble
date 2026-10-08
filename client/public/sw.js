@@ -1,7 +1,7 @@
 // Makes Bubble installable and shows the helplines page when there's no
 // connection. It deliberately caches nothing else: the app and the API always
 // come from the network, so a deploy is never hidden behind an old copy.
-const CACHE = 'bubble-offline-v1';
+const CACHE = 'bubble-offline-v2';
 const OFFLINE_FILES = ['/offline.html', '/icon-192.png'];
 
 self.addEventListener('install', (event) => {

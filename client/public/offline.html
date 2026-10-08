@@ -6,7 +6,8 @@
     <meta name="theme-color" content="#174f86" />
     <title>Bubble - You're offline</title>
     <!-- Shown by sw.js when there's no connection. Keep the numbers in step with
-         HELPLINES in shared/safety.ts (offline.test.ts checks). No scripts: it
+         HELPLINES in shared/safety.ts and the grounding steps in step with
+         client/src/lib/calmKit.ts (offline.test.ts checks). No scripts: it
          has to work with nothing else loaded. -->
     <style>
       * { box-sizing: border-box; }
@@ -43,6 +44,8 @@
       .hours { font-size: 0.85rem; color: #3b4a5c; }
       .phone { font-size: 1.15rem; font-weight: 700; white-space: nowrap; }
       .danger { background: #fde8e8; color: #7a1b1b; border-radius: 16px; padding: 12px 16px; font-weight: 500; }
+      h2 { font-size: 1.1rem; margin: 28px 0 8px; }
+      ol { margin: 0 0 16px; padding-left: 1.4em; line-height: 1.6; }
       a.retry {
         display: block;
         margin-top: 20px;
@@ -80,6 +83,16 @@
       </a>
 
       <p class="danger">If you're in immediate danger, call 112 or go to your nearest hospital emergency unit.</p>
+
+      <h2>While you wait: 5-4-3-2-1</h2>
+      <p>If your mind is racing, bring yourself back to the room, one sense at a time:</p>
+      <ol>
+        <li>Name five things you can see</li>
+        <li>Notice four things you can feel</li>
+        <li>Listen for three things you can hear</li>
+        <li>Find two things you can smell</li>
+        <li>Notice one thing you can taste</li>
+      </ol>
 
       <a class="retry" href="/">Try again</a>
     </main>

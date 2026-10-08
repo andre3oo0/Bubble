@@ -1,10 +1,10 @@
 # Bubble handover
 
-Status as of 7 October 2026. Read this before changing anything. The README is the public overview; [SAFETY.md](SAFETY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) cover crisis handling, privacy and hosting in detail.
+Status as of 8 October 2026. Read this before changing anything. The README is the public overview; [SAFETY.md](SAFETY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) cover crisis handling, privacy and hosting in detail.
 
 ## What Bubble is
 
-An emotional-support web app: an AI chat companion ("Bubble") with crisis safety, a private journal, mood check-ins, a breathing exercise, calming scenes with ambient sound, and a help screen with South African helplines. The product vision is in Immanah's design document (the PDD); this repo is at roughly its Phase 1 (MVP).
+An emotional-support web app: an AI chat companion ("Bubble") with crisis safety, a private journal, mood check-ins, a calm kit (breathing, grounding, lines for overthinking, kind words), calming scenes with ambient sound, and a help screen with South African helplines. The product vision is in Immanah's design document (the PDD); this repo is at roughly its Phase 1 (MVP).
 
 ## Who makes it, and where the code lives
 
@@ -24,7 +24,7 @@ Bubble is a shared project by **Immanah Makitla** and **andre3oo0**, and it's bo
 | Auth | Better Auth: email and password, plus Google when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set. Sessions in Postgres |
 | AI | OpenAI SDK. Live: Groq free tier, `qwen/qwen3.8-27b` (best-effort structured outputs, checked by `parseBestEffort`), via `OPENAI_BASE_URL`. Unset that and the model for OpenAI (`gpt-4.1-mini` default) |
 | Email | Brevo HTTP API (free, verified sender, no domain) or Resend; console output when neither is configured |
-| Tests | Vitest 4 (193 tests), in-memory database, AI, email and the breached-password check mocked |
+| Tests | Vitest 4 (256 tests), in-memory database, AI, email and the breached-password check mocked |
 | Deploy | Render free web service (Docker, Frankfurt), Neon free Postgres (Frankfurt), UptimeRobot pings `/api/health` so it doesn't sleep. GitHub Actions CI (check, test, build) |
 
 ## Layout
@@ -34,7 +34,7 @@ client/src/
   pages/        Home (whole app shell, phone + desktop layouts), ResetPassword, Legal (privacy policy
                 and terms of use, at /privacy and /terms), not-found
   components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
-                ("Reflect with Bubble"), MoodPanel, SettingsPanel (the Settings tab), SosScreen,
+                ("Reflect with Bubble"), MoodPanel, CalmKitPanel (the calm kit), SettingsPanel (the Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar (Bubble's face), BubbleLogo,
                 SceneBackdrop (the drawn scenes), MoodAmbience (the mood tint and pace over the scene),
                 scenes.ts (scene names), IntroTour (first-visit walkthrough),
@@ -47,14 +47,14 @@ client/src/
                 account dialog, chat, intro (seen once), journalDelete (6-second undo), journalEditor
                 (unsaved journal writing, memory only)
   lib/          api.ts, chatService.ts, online.ts (browser's online flag), googleSignIn.ts, authClient.ts, audioHandler.ts (generated ambient sound),
-                breathing.ts, motion.ts, moods.ts (mood words, check-in levels and feelings), checkinDays.ts (the
+                breathing.ts, calmKit.ts (the calm kit's words, grounding steps and exercises), motion.ts, moods.ts (mood words, check-in levels and feelings), checkinDays.ts (the
                 14-day view), moodAmbience.ts (each mood's tint and pace), journalPrompts.ts, dates.ts (en-ZA
                 dates and 24-hour times everywhere), feedback.ts (the feedback email link)
-client/public/  manifest, favicon.svg and PNG icons (from the logo), sw.js (service worker), offline.html (helplines with no connection)
+client/public/  manifest, favicon.svg and PNG icons (from the logo), sw.js (service worker), offline.html (helplines and the grounding steps with no connection)
 server/
   index.ts      startup: migrations, app, Vite (dev) or static files (prod), graceful shutdown
   app.ts        Express app: proxy trust, helmet, auth handler, logging, routes, JSON 404
-  routes.ts     /api/chat (+ fallback replies, usage cap), scenes, affirmation
+  routes.ts     /api/chat (+ fallback replies, usage cap)
   dataRoutes.ts journal, moods, data export (all need a session)
   auth.ts       Better Auth config, requireUser middleware
   openaiService.ts  the AI calls: chat reply {reply, user_mood, risk}, chat reflection, entry reflection;
@@ -121,6 +121,7 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **Problems aren't put in Bubble's mouth.** A message that can't be sent is marked "Not sent" with Retry; rate limits and the daily limit are plain notices. The one exception is a crisis message with no connection: it still gets Bubble's crisis reply and the helplines, from the browser.
 - **Bubble says it's an AI**, on the home screen and at the top of every chat, and that it isn't a substitute for a therapist, and where to get help if they're in danger. The owner chose this wording (6 October): "Bubble is an AI and isn't a substitute for a therapist. If you're in danger…". Earlier versions ("isn't a therapist and can't respond to emergencies") read as harsh.
 - **Breathing is 4 in, 4 hold, 6 out, 2 rest** (`breathing.ts`): the longer out-breath is the calming part. 4-2-4-2 felt rushed to testers.
+- **The calm kit** (8 October, step 1 of the plan, the design document's emotional first aid; `CalmKitPanel.tsx`, words in `lib/calmKit.ts`): breathing (the one breathing dialog), 5-4-3-2-1 grounding a step at a time, lines for overthinking with a small thing to try, kind words (affirmations) one at a time, and a mirror moment (four steps on talking to yourself like a friend would). The design document gives nothing more on "Mirror Moment" than the name, so that's our reading of it. Hand-written, no AI and nothing fetched, so it works once the app has loaded, with or without a connection, and stores nothing. Two overthinking lines are the design document's word for word; `calmKit.test.ts` keeps them and keeps out the stock phrases Bubble's prompt avoids ("valid", "sit with"). It's reached from Home ("Open the calm kit"), the desktop sidebar, the phone menu (phones keep four tabs) and the help screen, whose button opens grounding straight away. The offline page repeats the grounding steps (`offline.test.ts` checks), and `sw.js` went to `bubble-offline-v2` so installed copies pick it up. It replaced the unused `AffirmationsTab.tsx` and the unused `/api/safe-space/affirmation` route. The introduction's feature list folds Breathe into the calm kit, so it still fits a phone screen.
 - **Chat works without an account**; journal and mood history need one. Crisis support shouldn't sit behind a sign-up.
 - **Sign-in comes first, but is optional.** The first page of the first-visit introduction offers "Continue with Google", "Continue with email" and "Not now, show me around". Neither sign-in route counts as finishing the introduction, so it picks up again afterwards ("Hi Sam, I'm Bubble"). Chat never needs an account.
 - **Google sign-in** (free) is switched on by the two `GOOGLE_*` settings; without them the button doesn't show. It always shows Google's account chooser (shared phones), stores Google's tokens encrypted, and asks only for name and email. An existing email account is linked to Google only once its email is confirmed, so an unconfirmed sign-up can't be taken over; the person is told to use their password instead. Google-only accounts have no password, so "Change password" is hidden and deleting needs a sign-in from the last 24 hours instead. Google sign-in leaves the page, so it's hidden in the chat debrief, where it would lose the reflection. Apple (US$99/year) and phone numbers (paid per SMS) are parked until Bubble is funded.
@@ -188,11 +189,11 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. Since then (7 October): the fixes from a UI/UX review (`UX-REVIEW.md`, local only): shared control styles and the end of pill shapes (04), journal draft protection and the duplicate-entry fix, feedback by email, a roomier phone chat, one breathing dialog, opaque dialogs, en-ZA dates, mood check-ins without a pre-selected mood, and the home summary. Later on 7 October: faster replies (Qwen's thinking off, about a second each), a tighter prompt, no false crisis alarms on grief or arguments, more indirect warning signs in the keyword check, repeated and cut-off replies handled, journal drafts that survive switching tabs, the five-step mood scale with feelings and a 14-day view, the scene following Bubble's mood, and the Settings order Account, Display, Bubble's mood, Safety, Privacy. All old branches were deleted on 7 October; only `main` remains. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. Since then (7 October): the fixes from a UI/UX review (`UX-REVIEW.md`, local only): shared control styles and the end of pill shapes (04), journal draft protection and the duplicate-entry fix, feedback by email, a roomier phone chat, one breathing dialog, opaque dialogs, en-ZA dates, mood check-ins without a pre-selected mood, and the home summary. Later on 7 October: faster replies (Qwen's thinking off, about a second each), a tighter prompt, no false crisis alarms on grief or arguments, more indirect warning signs in the keyword check, repeated and cut-off replies handled, journal drafts that survive switching tabs, the five-step mood scale with feelings and a 14-day view, the scene following Bubble's mood, and the Settings order Account, Display, Bubble's mood, Safety, Privacy. On 8 October: the calm kit (step 1 of the plan of action). All old branches were deleted on 7 October; only `main` remains. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
-**Next action item: the emotional first-aid kit**, step 1 of the plan of action under "Outstanding work" (owner's choice, 8 October, from Immanah's design document). Grounding (5-4-3-2-1), the design document's overthinking lines ("Your thoughts don't define you…"), breathing and affirmations in one place, working offline. It takes over the unused `AffirmationsTab.tsx` and the "Mirror Moment" idea. Plain content, no AI. Then the rest of the plan in order. Done on 7 October: journal drafts survive switching tabs, the five-step mood scale, the mood-driven scene and the Settings order.
+**Next action item: "What helps you" settings**, step 2 of the plan of action under "Outstanding work" (owner's choice, 8 October, from Immanah's design document). Then the rest of the plan in order. Done on 8 October: step 1, the calm kit (see "The calm kit" under decisions). Done on 7 October: journal drafts survive switching tabs, the five-step mood scale, the mood-driven scene and the Settings order.
 
 **AI, later** (Qwen on Groq, thinking off). The fourth live run (7 October, see "AI" below) confirmed the crisis-flag fix: no false alarms on grief or "am I overreacting", and the model still flagged four indirect warning signs as crisis. The keyword check missed all four, so it now also catches them and close variants (giving things away, goodbye or suicide letters and notes, wanting everything or the pain to stop for good, no point carrying on or keeping going, nobody noticing or caring if they were gone, better off if they weren't here), with tests that keep grief and everyday phrases out ("no point carrying on with this essay", "I want to stop smoking for good"). Deliberately broad: "giving away all my stuff" before a move also gets the helplines. A reply that repeats Bubble's previous one word for word now gets one more try with a nudge (`repeatsLastReply` in `openaiService.ts`), then a canned reply; a crisis rating from either try is kept. A reply that stops mid-sentence is trimmed back to its last full sentence (`trimUnfinished`). A reply that ends on an opening quote mark is trimmed too (fifth run). Still to do:
 1. Banned lines still get through with thinking off: "Your feelings are valid" (word for word on the list), "sit with" twice and "I can imagine how lonely that must feel" in the fifth run; "completely valid" and "holding space" in the fourth; plus one lowercase reply and joined-up words ("Itmakes", "Imhope"). Try `OPENAI_REASONING_EFFORT=low` in Render with a paced `try-chat` run; if that doesn't help, ask the model again when a reply uses a banned line.
@@ -252,7 +253,7 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 ## Outstanding work
 
 **Plan of action (owner's choice, 8 October).** Drawn from Immanah's design document (the PDD) and her later improvement and business notes, keeping to what's free on the current stack. In order, one branch each:
-1. **Emotional first-aid kit.** Grounding (5-4-3-2-1), the PDD's overthinking lines ("Your thoughts don't define you…"), breathing and affirmations in one place, working offline. Absorbs the unused `AffirmationsTab.tsx` and the "Mirror Moment" idea. Plain content, no AI. Small to medium. It's the heart of the PDD.
+1. **Emotional first-aid kit.** Done 8 October as the calm kit. Grounding (5-4-3-2-1), the PDD's overthinking lines ("Your thoughts don't define you…"), breathing and affirmations in one place, working offline. Absorbs the unused `AffirmationsTab.tsx` and the "Mirror Moment" idea. Plain content, no AI. Small to medium. It's the heart of the PDD.
 2. **"What helps you" settings.** Hugs or no hugs, listen or suggest, gentle or direct tone, passed to Bubble with each message. The PDD's "personalised care" and the notes' "personalised AI speech style". Small; one line in the privacy policy.
 3. **Your week.** A weekly look-back built from check-ins and the journal, with an optional AI reflection on request. A gentle version of the notes' "Spotify Wrapped" idea; covers "weekly AI reflections" and "growth timeline". Medium.
 4. **Bubble bursts.** A 2-minute vent where Bubble only listens, then offers to let it go. Small; reuses "Let go".
@@ -276,7 +277,6 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 
 **Known loose ends:**
 - Mood check-in reminders: the times screen is hidden until notifications exist (step 9 of the plan) (old saved times stay in `checkInTimes` on the device and are cleared on sign-out)
-- `AffirmationsTab.tsx` is unused and still in the old rounded style (step 1 of the plan replaces it)
 - Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed (step 6, the lock box, covers entries the AI doesn't need)
 
 **Later phases (not started):** community, wearables, sleep system, AR, Orrery, Chronicle, smart home, Teams, therapist portal, monetisation, analytics and safety metrics.

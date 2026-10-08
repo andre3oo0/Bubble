@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { ChevronRight, Heart, HelpCircle, Menu, Pause, Play, Settings, X } from 'lucide-react';
+import { ChevronRight, Heart, HelpCircle, Leaf, Menu, Pause, Play, Settings, X } from 'lucide-react';
 import { useSession } from '@/lib/authClient';
 import { useAccountDialog } from '@/store/accountStore';
 import { useIntroStore } from '@/store/introStore';
@@ -9,7 +9,7 @@ import SceneBackdrop from './SceneBackdrop';
 import { SCENES, type SceneId } from './scenes';
 
 interface PhoneMenuProps {
-  onOpenPanel: (panel: 'avatar' | 'feedback') => void;
+  onOpenPanel: (panel: 'kit' | 'avatar' | 'feedback') => void;
   scene: SceneId;
   onSceneChange: (scene: SceneId) => void;
 }
@@ -41,6 +41,7 @@ export default function PhoneMenu({ onOpenPanel, scene, onSceneChange }: PhoneMe
   };
 
   const links = [
+    { label: 'Calm kit', detail: 'Grounding, breathing and kind words', icon: Leaf, action: () => onOpenPanel('kit') },
     { label: 'Settings', detail: 'Account, privacy, safety and display', icon: Settings, action: () => onOpenPanel('avatar') },
     { label: 'Send feedback', detail: 'Tell us what would make Bubble better', icon: Heart, action: () => onOpenPanel('feedback') },
     { label: 'What can Bubble do?', icon: HelpCircle, action: openIntro },
@@ -74,7 +75,7 @@ export default function PhoneMenu({ onOpenPanel, scene, onSceneChange }: PhoneMe
             </DialogPrimitive.Close>
           </div>
           <DialogPrimitive.Description className="sr-only">
-            Your account, scene, settings and feedback
+            Your account, scene, the calm kit, settings and feedback
           </DialogPrimitive.Description>
 
           {/* Account */}

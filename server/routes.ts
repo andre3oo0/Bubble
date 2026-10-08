@@ -260,26 +260,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(204).end();
   });
 
-  // Safe Space routes
-  app.get('/api/safe-space/affirmation', async (req, res) => {
-    try {
-      // Simulated affirmation
-      const affirmations = [
-        "You are doing your best, and that is enough.",
-        "You are worthy of love and support.",
-        "Your feelings are valid and important.",
-        "Each breath is a fresh start.",
-        "You have the strength to overcome challenges."
-      ];
-      
-      const randomIndex = Math.floor(Math.random() * affirmations.length);
-      
-      res.json({ affirmation: affirmations[randomIndex] });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch affirmation' });
-    }
-  });
-
   // Journal and mood check-ins (signed-in users only)
   registerDataRoutes(app);
 

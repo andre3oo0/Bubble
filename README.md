@@ -4,7 +4,7 @@
 
 <p align="center">
   An AI companion for talking things through, with a private journal, mood check-ins,<br>
-  a breathing exercise, calming scenes and South African crisis helplines one tap away.
+  a calm kit for hard moments, calming scenes and South African crisis helplines one tap away.
 </p>
 
 <p align="center">
@@ -68,11 +68,11 @@
 - **End-of-chat choices.** "I'm done for now" offers to let the conversation go, reflect on it, or save a short reflection to the journal.
 - **Private journal.** Writing prompts, search, delete with undo, a warning before unsaved writing is lost, and "Reflect with Bubble" on any entry. Only the person who wrote it can read it.
 - **Mood check-ins** on a five-step scale, from really low to really good, with optional feelings (anxious, tired, lonely, angry and more), a 14-day view, every check-in from the last 30 days, and the latest one on the home screen.
-- **Breathing exercise.** A slow 4-4-6-2 pace, with a longer out-breath.
+- **Calm kit.** Things that help in a hard moment, in one place and working offline: breathing at a slow 4-4-6-2 pace, 5-4-3-2-1 grounding, lines for overthinking, kind words, and a mirror moment for talking to yourself like a friend would. Hand-written, no AI.
 - **Calming scenes.** Ocean, forest, sunset and a cozy room, drawn in SVG, with ambient sound generated in the browser. The scene follows Bubble's mood: it deepens and slows on hard days and livens a little on good ones (a switch in Settings). Calm visuals turns off movement.
 - **Accounts that stay optional.** Email and password or Google. Download or delete everything at any time. A plain-language [privacy policy](https://bubble-1-kafq.onrender.com/privacy) and [terms of use](https://bubble-1-kafq.onrender.com/terms) say what's kept and why.
 - **Feedback by email.** The feedback form opens your own email app, so Bubble's server never stores it.
-- **Installable.** Works as a PWA with an offline helplines page, and as an Android app.
+- **Installable.** Works as a PWA with an offline page that has the helplines and the grounding steps, and as an Android app.
 
 ## How it works
 
@@ -140,7 +140,7 @@ client/src/
   pages/        Home (the app shell for phone and desktop), ResetPassword, not-found
   components/   Chat, journal, mood, settings, help screen, scenes, intro, menu
   store/        Small Zustand stores (mood, help screen, sound, preferences, account)
-  lib/          API calls, auth client, breathing timings, generated sound, moods
+  lib/          API calls, auth client, breathing timings, calm kit content, generated sound, moods
 client/public/  Manifest, icons, service worker and the offline helplines page
 server/         Express app, routes, AI calls, auth, usage limits, email, database
 shared/         Database schema, request and response types, crisis safety

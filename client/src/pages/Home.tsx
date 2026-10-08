@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, Wind, LifeBuoy, LogIn, UserRound, ChevronRight } from 'lucide-react';
+import { Home as HomeIcon, MessageCircle, Book, BarChart3, Settings, Heart, Wind, Leaf, LifeBuoy, LogIn, UserRound, ChevronRight } from 'lucide-react';
 import BubbleAvatar from '@/components/BubbleAvatar';
 import BubbleLogo from '@/components/BubbleLogo';
 import SceneBackdrop from '@/components/SceneBackdrop';
@@ -12,6 +12,7 @@ import MoodPanel from '@/components/MoodPanel';
 import SettingsPanel from '@/components/SettingsPanel';
 import FeedbackPanel from '@/components/FeedbackPanel';
 import BreathingExercise from '@/components/BreathingExercise';
+import CalmKitPanel, { type CalmKitView } from '@/components/CalmKitPanel';
 import SosScreen, { helpButtonClass } from '@/components/SosScreen';
 import AuthenticationModal from '@/components/AuthenticationModal';
 import ConsentGate from '@/components/ConsentGate';
@@ -33,16 +34,17 @@ import { usePreferences } from '@/store/preferencesStore';
 import { useSosStore } from '@/store/sosStore';
 import { useIntroStore } from '@/store/introStore';
 
-type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'feedback' | 'welcome' | 'home';
+type ActivePanel = 'chat' | 'avatar' | 'journal' | 'mood' | 'kit' | 'feedback' | 'welcome' | 'home';
 
 // The desktop sidebar lists them all; phones show the first four as tabs and keep
-// Settings and Feedback in the header menu, so the tab bar stays calm
+// the calm kit, Settings and Feedback in the header menu, so the tab bar stays calm
 const PHONE_TABS = 4;
 const NAV_ITEMS: { panel: ActivePanel; label: string; icon: typeof HomeIcon }[] = [
   { panel: 'home', label: 'Home', icon: HomeIcon },
   { panel: 'chat', label: 'Chat', icon: MessageCircle },
   { panel: 'journal', label: 'Journal', icon: Book },
   { panel: 'mood', label: 'Mood', icon: BarChart3 },
+  { panel: 'kit', label: 'Calm kit', icon: Leaf },
   { panel: 'avatar', label: 'Settings', icon: Settings },
   { panel: 'feedback', label: 'Feedback', icon: Heart },
 ];
@@ -110,6 +112,14 @@ function HomeSummary({ onOpen }: { onOpen: (panel: ActivePanel) => void }) {
 export default function Home() {
   const [activePanel, setActivePanel] = useState<ActivePanel>('welcome');
   const [selectedEnvironment, setSelectedEnvironment] = useState<SceneId>('ocean');
+  // Where the calm kit opens. The help screen goes straight to grounding; the count
+  // starts the kit afresh even when it's already showing another page
+  const [kitStart, setKitStart] = useState<{ view: CalmKitView; count: number }>({ view: 'list', count: 0 });
+  const openKit = (view: CalmKitView = 'list') => {
+    setKitStart(({ count }) => ({ view, count: count + 1 }));
+    setActivePanel('kit');
+  };
+  const openPanel = (panel: ActivePanel) => (panel === 'kit' ? openKit() : setActivePanel(panel));
   const { open: openSos, close: closeSos } = useSosStore();
   const { open: openBreathing } = useBreathing();
   const { currentMood } = useMoodStore();
@@ -164,6 +174,8 @@ export default function Home() {
         return <JournalPanel />;
       case 'mood':
         return <MoodPanel />;
+      case 'kit':
+        return <CalmKitPanel key={kitStart.count} start={kitStart.view} onTalk={() => setActivePanel('chat')} />;
       case 'feedback':
         return <FeedbackPanel />;
       case 'home':
@@ -188,6 +200,10 @@ export default function Home() {
                 <button onClick={openBreathing} className={buttonClass({ variant: 'secondary' })}>
                   <Wind size={18} aria-hidden="true" />
                   Breathe for a minute
+                </button>
+                <button onClick={() => openKit()} className={buttonClass({ variant: 'secondary' })}>
+                  <Leaf size={18} aria-hidden="true" />
+                  Open the calm kit
                 </button>
                 <button onClick={openIntro} className={buttonClass({ variant: 'tertiary', size: 'sm', className: 'self-center' })}>
                   What can Bubble do?
@@ -274,6 +290,10 @@ export default function Home() {
           closeSos();
           openBreathing();
         }}
+        onCalmKit={() => {
+          closeSos();
+          openKit('grounding');
+        }}
       />
 
       <BreathingExercise />
@@ -287,7 +307,7 @@ export default function Home() {
           <LifeBuoy size={18} aria-hidden="true" />
           Get help
         </button>
-        <PhoneMenu onOpenPanel={setActivePanel} scene={selectedEnvironment} onSceneChange={setSelectedEnvironment} />
+        <PhoneMenu onOpenPanel={openPanel} scene={selectedEnvironment} onSceneChange={setSelectedEnvironment} />
       </header>
 
       {/* Desktop sidebar: labelled links, help that's always there, and the account */}
@@ -300,7 +320,7 @@ export default function Home() {
           {NAV_ITEMS.map(({ panel, label, icon: Icon }) => (
             <li key={panel}>
               <button
-                onClick={() => setActivePanel(panel)}
+                onClick={() => openPanel(panel)}
                 aria-current={isActive(panel) ? 'page' : undefined}
                 className={cn(sidebarRow, isActive(panel) ? 'bg-white/15 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white')}
               >
@@ -336,7 +356,7 @@ export default function Home() {
         {NAV_ITEMS.slice(0, PHONE_TABS).map(({ panel, label, icon: Icon }) => (
           <button
             key={panel}
-            onClick={() => setActivePanel(panel)}
+            onClick={() => openPanel(panel)}
             aria-current={isActive(panel) ? 'page' : undefined}
             className={cn(
               'flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-medium focus:outline-none focus-visible:bg-white/20',

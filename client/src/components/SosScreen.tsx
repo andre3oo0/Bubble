@@ -1,4 +1,4 @@
-import { Phone, Wind } from 'lucide-react';
+import { Leaf, Phone, Wind } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSosStore } from '@/store/sosStore';
 import { EMERGENCY_NUMBER, HELPLINES } from '@shared/safety';
@@ -14,9 +14,10 @@ const tel = (phone: string) => `tel:${phone.replace(/\s/g, '')}`;
 
 interface SosScreenProps {
   onBreathe: () => void;
+  onCalmKit: () => void;
 }
 
-export default function SosScreen({ onBreathe }: SosScreenProps) {
+export default function SosScreen({ onBreathe, onCalmKit }: SosScreenProps) {
   const { isOpen, close } = useSosStore();
   const lines = HELPLINES.filter((line) => line.phone !== EMERGENCY_NUMBER);
 
@@ -63,6 +64,10 @@ export default function SosScreen({ onBreathe }: SosScreenProps) {
           <button onClick={onBreathe} className={buttonClass({ tone: 'light', variant: 'secondary', className: 'min-h-12' })}>
             <Wind className="h-5 w-5" aria-hidden="true" />
             Breathe with Bubble
+          </button>
+          <button onClick={onCalmKit} className={buttonClass({ tone: 'light', variant: 'secondary', className: 'min-h-12' })}>
+            <Leaf className="h-5 w-5" aria-hidden="true" />
+            Ground yourself with the calm kit
           </button>
           <button onClick={close} className={buttonClass({ tone: 'light', variant: 'tertiary', className: 'min-h-12 text-gray-700' })}>
             I'm safe for now, back to Bubble

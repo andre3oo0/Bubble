@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { ArrowLeft, ArrowRight, Book, LifeBuoy, Mail, MessageCircle, Palette, BarChart3, Wind } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Book, Leaf, LifeBuoy, Mail, MessageCircle, Palette, BarChart3 } from 'lucide-react';
 import BubbleAvatar from './BubbleAvatar';
 import { useIntroStore } from '@/store/introStore';
 import { helpButtonClass } from './SosScreen';
@@ -22,7 +22,7 @@ interface Step {
 
 const FEATURES = [
   { icon: MessageCircle, name: 'Chat', text: 'Talk things through with Bubble, any time of day.' },
-  { icon: Wind, name: 'Breathe', text: 'A guided breathing exercise to slow things down.' },
+  { icon: Leaf, name: 'Calm kit', text: 'Breathing, grounding and kind words for hard moments, even offline.' },
   { icon: Book, name: 'Journal', text: 'Write your thoughts down and come back to them.' },
   { icon: BarChart3, name: 'Mood', text: "Check in with yourself and look back on how you've felt." },
   { icon: Palette, name: 'Scenes', text: 'Choose a calming scene and sound in Settings.' },
@@ -204,7 +204,7 @@ export default function IntroTour({ onStartChat }: IntroTourProps) {
           </div>
 
           {/* A steady height, so Back and Next don't jump between the later steps */}
-          <div className={cn('text-center', step > 0 && 'min-h-[19rem]')}>
+          <div className={cn('shrink-0 text-center', step > 0 && 'min-h-[19rem]')}>
             <DialogPrimitive.Title className="mb-3 text-2xl font-semibold">{steps[step].title}</DialogPrimitive.Title>
             <div id="intro-body" className="text-base leading-relaxed">
               {steps[step].body}
