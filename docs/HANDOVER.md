@@ -192,7 +192,7 @@ Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `m
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 
-**Next action item: the owner picks the next app item** (app work before more AI tuning, owner's choice 7 October). Candidates: optional past chats (decided 5 October, needs a table, a privacy policy and terms update and a `LEGAL_VERSION` bump), or the next Phase 1 gap under "Outstanding work" (calibration onboarding, Mirror Moment, streaming replies, a rain sound). Done on 7 October: journal drafts survive switching tabs, the five-step mood scale, and the mood-driven scene.
+**Next action item: the emotional first-aid kit**, step 1 of the plan of action under "Outstanding work" (owner's choice, 8 October, from Immanah's design document). Grounding (5-4-3-2-1), the design document's overthinking lines ("Your thoughts don't define you…"), breathing and affirmations in one place, working offline. It takes over the unused `AffirmationsTab.tsx` and the "Mirror Moment" idea. Plain content, no AI. Then the rest of the plan in order. Done on 7 October: journal drafts survive switching tabs, the five-step mood scale, the mood-driven scene and the Settings order.
 
 **AI, later** (Qwen on Groq, thinking off). The fourth live run (7 October, see "AI" below) confirmed the crisis-flag fix: no false alarms on grief or "am I overreacting", and the model still flagged four indirect warning signs as crisis. The keyword check missed all four, so it now also catches them and close variants (giving things away, goodbye or suicide letters and notes, wanting everything or the pain to stop for good, no point carrying on or keeping going, nobody noticing or caring if they were gone, better off if they weren't here), with tests that keep grief and everyday phrases out ("no point carrying on with this essay", "I want to stop smoking for good"). Deliberately broad: "giving away all my stuff" before a move also gets the helplines. A reply that repeats Bubble's previous one word for word now gets one more try with a nudge (`repeatsLastReply` in `openaiService.ts`), then a canned reply; a crisis rating from either try is kept. A reply that stops mid-sentence is trimmed back to its last full sentence (`trimUnfinished`). A reply that ends on an opening quote mark is trimmed too (fifth run). Still to do:
 1. Banned lines still get through with thinking off: "Your feelings are valid" (word for word on the list), "sit with" twice and "I can imagine how lonely that must feel" in the fifth run; "completely valid" and "holding space" in the fourth; plus one lowercase reply and joined-up words ("Itmakes", "Imhope"). Try `OPENAI_REASONING_EFFORT=low` in Render with a paced `try-chat` run; if that doesn't help, ask the model again when a reply uses a banned line.
@@ -251,20 +251,32 @@ From the owner's design handoff, `Bubble UIUX improvements.zip` (5 October 2026,
 
 ## Outstanding work
 
-**Next (Phase 1 gaps from the design doc, cheap because the pieces exist):**
-1. Sensory Calibration onboarding (sound or silence, motion, theme) feeding the existing settings
-2. Mirror Moment: grounding overlay on the model's "concern" risk level
-3. Streaming replies
-4. A rain sound
-5. Affirmations tab: the component exists (`AffirmationsTab.tsx`) but isn't linked and needs a real backend
+**Plan of action (owner's choice, 8 October).** Drawn from Immanah's design document (the PDD) and her later improvement and business notes, keeping to what's free on the current stack. In order, one branch each:
+1. **Emotional first-aid kit.** Grounding (5-4-3-2-1), the PDD's overthinking lines ("Your thoughts don't define you…"), breathing and affirmations in one place, working offline. Absorbs the unused `AffirmationsTab.tsx` and the "Mirror Moment" idea. Plain content, no AI. Small to medium. It's the heart of the PDD.
+2. **"What helps you" settings.** Hugs or no hugs, listen or suggest, gentle or direct tone, passed to Bubble with each message. The PDD's "personalised care" and the notes' "personalised AI speech style". Small; one line in the privacy policy.
+3. **Your week.** A weekly look-back built from check-ins and the journal, with an optional AI reflection on request. A gentle version of the notes' "Spotify Wrapped" idea; covers "weekly AI reflections" and "growth timeline". Medium.
+4. **Bubble bursts.** A 2-minute vent where Bubble only listens, then offers to let it go. Small; reuses "Let go".
+5. **Optional memory.** The optional past chats decided on 5 October (off by default, 30 days), plus a short summary Bubble can remember. The notes' "persistent emotional memory". Medium to large; needs a privacy policy and terms update and a `LEGAL_VERSION` bump.
+6. **Lock box.** Journal entries sealed with the person's own passphrase, which the server can't read and the AI never sees. Medium; partly closes the open journal-encryption point.
+7. **Calendar view and colour journal.** A month of check-ins and entries, plus picking a colour for the day. Small to medium.
+8. **Creative prompts.** Art and writing prompts, and dream reflections framed carefully. Small.
+9. **Wellness reminders.** Hydrate, take a break, check in. Web notifications are free and work in the Android app, but need careful permission handling. Medium. Also brings back the hidden check-in reminder times.
+
+**Possible later (cost, consent or legal review first):** voice (speech to text and back; audio is sensitive and the mic was removed for want of consent), voice and image journals (file storage), CBT and narrative-therapy techniques as self-help exercises (never called therapy), multilingual including South African languages (every translation, helplines above all, checked by a person), safety alerts to a trusted contact the person chooses, community circles and peer groups (need moderation), Bubble Teams and EDU for institutions (a separate product with billing, a company and legal work).
+
+**Advised against (8 October):** facial and voice-tone emotion detection (biometric data, unreliable), wearables (need a native app), VR/AR, blockchain (POPIA's right to deletion), and mood forecasting or stress prediction (unreliable promises; gentle pattern notes like "three low days in a row" instead).
+
+**To raise with Immanah:** the notes target schools and Gen Z, but Bubble is 18+ (under-18s would need parental consent and different safeguards); Teams admins seeing "spikes in collective distress" and high-risk escalation alerts need a POPIA view even when anonymised, and sit uneasily with "full control"; "reflection emojis" clash with the no-emoji design rule.
+
+**Other Phase 1 gaps:** sensory calibration onboarding (sound or silence, motion, theme) feeding the existing settings; streaming replies; a rain sound.
 
 **From testing the APK (owner, 5 October):**
 - Sign-up was hard to find: now offered on the first page of the introduction, at the top of the phone menu, at the bottom of the desktop sidebar, and as "Create a free account" on the home screen. Testers found sign-in easy (6 October)
 - The APK showed a browser bar because the site didn't serve its verification file. The current APK's package name and fingerprint are now built into `server/app.ts`, so it opens full screen. The owner wants it to feel like a real app later, not the website in a wrapper
 
 **Known loose ends:**
-- Mood check-in reminders: the times screen is hidden until notifications exist (old saved times stay in `checkInTimes` on the device and are cleared on sign-out)
-- `AffirmationsTab.tsx` is unused and still in the old rounded style
-- Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed
+- Mood check-in reminders: the times screen is hidden until notifications exist (step 9 of the plan) (old saved times stay in `checkInTimes` on the device and are cleared on sign-out)
+- `AffirmationsTab.tsx` is unused and still in the old rounded style (step 1 of the plan replaces it)
+- Journal encryption at rest (field level) not done; the PDD's end-to-end encryption isn't compatible with server-side AI as designed (step 6, the lock box, covers entries the AI doesn't need)
 
 **Later phases (not started):** community, wearables, sleep system, AR, Orrery, Chronicle, smart home, Teams, therapist portal, monetisation, analytics and safety metrics.
