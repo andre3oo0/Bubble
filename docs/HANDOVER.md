@@ -36,17 +36,20 @@ client/src/
   components/   ChatPanel, ChatDebrief (end-of-chat choices), JournalPanel, EntryReflection
                 ("Reflect with Bubble"), MoodPanel, SettingsPanel (the Settings tab), SosScreen,
                 BreathingExercise, AuthenticationModal (account dialog), BubbleAvatar (Bubble's face), BubbleLogo,
-                SceneBackdrop (the drawn scenes), scenes.ts (scene names), IntroTour (first-visit walkthrough),
+                SceneBackdrop (the drawn scenes), MoodAmbience (the mood tint and pace over the scene),
+                scenes.ts (scene names), IntroTour (first-visit walkthrough),
                 OfflineBanner, Skeleton (loading placeholders), PhoneMenu (account, Settings, Feedback on phones),
                 GoogleButton, PageHeader (every screen's title, back arrow and one action), HelplineList (the
                 one way helplines are drawn), EmptyState
   components/ui/ controls.ts (the shared button, field, chip and dialog styles: use these, don't restyle),
                 dialog and toast (Radix)
   store/        Zustand: mood (shared app mood), sos, breathing (the one breathing exercise), sound, preferences,
-                account dialog, chat, intro (seen once), journalDelete (6-second undo)
+                account dialog, chat, intro (seen once), journalDelete (6-second undo), journalEditor
+                (unsaved journal writing, memory only)
   lib/          api.ts, chatService.ts, online.ts (browser's online flag), googleSignIn.ts, authClient.ts, audioHandler.ts (generated ambient sound),
-                breathing.ts, motion.ts, moods.ts (labels and muted colours), journalPrompts.ts, dates.ts (en-ZA dates
-                and 24-hour times everywhere), feedback.ts (the feedback email link)
+                breathing.ts, motion.ts, moods.ts (mood words, check-in levels and feelings), checkinDays.ts (the
+                14-day view), moodAmbience.ts (each mood's tint and pace), journalPrompts.ts, dates.ts (en-ZA
+                dates and 24-hour times everywhere), feedback.ts (the feedback email link)
 client/public/  manifest, favicon.svg and PNG icons (from the logo), sw.js (service worker), offline.html (helplines with no connection)
 server/
   index.ts      startup: migrations, app, Vite (dev) or static files (prod), graceful shutdown
@@ -55,12 +58,15 @@ server/
   dataRoutes.ts journal, moods, data export (all need a session)
   auth.ts       Better Auth config, requireUser middleware
   openaiService.ts  the AI calls: chat reply {reply, user_mood, risk}, chat reflection, entry reflection;
-                strict structured outputs for GPT models, best-effort plus parseBestEffort() for others
+                strict structured outputs for GPT models, best-effort plus parseBestEffort() for others;
+                reasoningFor() (Qwen's thinking off), and the reply clean-up: stripFieldLines, trimUnfinished,
+                repeatsLastReply
   usage.ts      daily counters and limits (AI per person and app-wide, emails, failed sign-ins)
   email.ts      transactional email, passwordCheck.ts breached-password check, log.ts (describeError), db.ts database
 shared/
   schema.ts     Drizzle tables (server only), api.ts / chat.ts request + response types,
   safety.ts     crisis keyword check, helplines, crisis reply (used by client AND server)
+  checkin.ts    the five-step check-in scale, feelings, how a check-in sets Bubble's mood, the old-word mapping
 migrations/     generated SQL, applied automatically on startup
 scripts/        try-chat.mjs: scripted conversations against a server, to judge how Bubble talks;
                 screenshots.mjs: retakes the README images from a local server
@@ -77,7 +83,7 @@ npm run dev        # http://localhost:5000, needs OPENAI_API_KEY in .env
 npm test
 npm run check      # type-check
 npm run build && npm start
-npm run try-chat   # five test conversations against the live site; prints Bubble's replies
+npm run try-chat   # five test conversations against the live site, 20 s between messages; prints replies and times
 npm run screenshots -- http://localhost:5055   # retake README images (local server only)
 ```
 
@@ -167,18 +173,22 @@ npm run screenshots -- http://localhost:5055   # retake README images (local ser
 - **`gh` defaults to this repo** (`gh repo set-default andre3oo0/Bubble`). Before that was set, `gh release create` went to Immanah's `upstream` repo (GitHub refused it). If the setting is ever lost, pass `-R andre3oo0/Bubble`.
 - **Server changes need a dev restart:** `npm run dev` (tsx) doesn't reload server files, only the client.
 - **Screenshots with the preview pane hidden:** framer-motion fades freeze part-way, so text looks faded. That's the capture, not the page.
+- **Testing with the preview pane hidden:** animations don't run, so a closing Radix dialog (or the phone menu sheet) stays mounted with the page's clicks blocked, and `animationstart` events don't fire. Dispatch `animationend` on the `[data-state=closed]` elements to let it close. In the real app this never happens.
+- **"Invalid hook call" and a blank page after restarting the dev server:** Vite re-bundled its dependencies mid-load and the page got two copies of React. Reload the page.
+- **Migrations that add a required column to a table with rows:** `db:generate` writes `ADD COLUMN ... NOT NULL`, which fails on existing rows. Edit the SQL to add it nullable, fill it in, then set `NOT NULL` (as in `0004_mood_scale.sql`), before the migration has run anywhere.
+- **Groq's free tier has a per-minute token limit.** Every chat message sends the whole prompt and recent history, so a few quick messages hit it; the OpenAI library waits and retries by itself, and the reply arrives 8 to 16 s late instead of failing.
 
 ## Workflow
 
-- One branch per piece of work, merged to `main` with fast-forward only, then pushed. [CONTRIBUTING.md](../CONTRIBUTING.md) has the checks and rules.
+- One branch per piece of work, merged to `main` with fast-forward only, then pushed, then deleted locally and on GitHub so only `main` stays (owner's choice, 7 October). [CONTRIBUTING.md](../CONTRIBUTING.md) has the checks and rules.
 - Commit messages: short, lowercase, imperative, no lists or emoji.
-- Changes to Bubble's prompt are checked after deploy with `npm run try-chat`, comparing against the previous run. It counts against the signed-out daily limit for the network it runs from (40 by default), so a few runs in a day use it up.
+- Changes to Bubble's prompt are checked after deploy with `npm run try-chat`, comparing against the previous run (results under "AI" in Current state). It waits 20 seconds between messages so the times measure Bubble, not Groq's rate limit (`TRY_CHAT_PAUSE=0` to skip), and counts against the signed-out daily limit for the network it runs from (40 per device, 200 per network), so a few runs in a day use it up. On the work network, run the same conversations from the in-app browser with `fetch('/api/chat')`.
 - **Releases:** versions follow `package.json` (0.x until beta). A release is a git tag (`v0.1.0`) plus a GitHub release with short notes on what changed for users.
 - **README screenshots** (`docs/images/`) are taken from the local app with a throwaway in-memory account and made-up journal entries, phone at 390 x 844 and desktop at 1440 x 900, both at 2x. Retake them when a screen in the README changes noticeably.
 
 ## Current state
 
-Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. Since then (7 October): the fixes from a UI/UX review (`UX-REVIEW.md`, local only): shared control styles and the end of pill shapes (04), journal draft protection and the duplicate-entry fix, feedback by email, a roomier phone chat, one breathing dialog, opaque dialogs, en-ZA dates, mood check-ins without a pre-selected mood, and the home summary. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
+Live at `https://bubble-1-kafq.onrender.com` on the free stack, deployed from `main`. Version 0.1.0 is the first GitHub release (6 October 2026); later work is on `main` but not yet in a release. The live app has: the drawn scenes, the first-visit introduction with optional sign-in (email or Google), the post-chat debrief, journal prompts, search, undo and "Reflect with Bubble", mood check-ins, a calmer help screen, loading, offline and 404 states, the phone layout with four tabs and a menu sheet, the desktop sidebar, a slower breathing pace, the gentler AI notice and replies, the new Bubble faces and logo, and (6 October, after 0.1.0) the security-audit fixes, the redesigned Settings screen, and the privacy policy and terms of use with consent at sign-up and before the first chat. Since then (7 October): the fixes from a UI/UX review (`UX-REVIEW.md`, local only): shared control styles and the end of pill shapes (04), journal draft protection and the duplicate-entry fix, feedback by email, a roomier phone chat, one breathing dialog, opaque dialogs, en-ZA dates, mood check-ins without a pre-selected mood, and the home summary. Later on 7 October: faster replies (Qwen's thinking off, about a second each), a tighter prompt, no false crisis alarms on grief or arguments, more indirect warning signs in the keyword check, repeated and cut-off replies handled, journal drafts that survive switching tabs, the five-step mood scale with feelings and a 14-day view, the scene following Bubble's mood, and the Settings order Account, Display, Bubble's mood, Safety, Privacy. All old branches were deleted on 7 October; only `main` remains. The repo has a full README with screenshots, SAFETY, DEPLOYMENT, CONTRIBUTING, SECURITY and an MIT licence.
 
 First, the owner's security follow-ups under "Before launch" (new keys, two-factor sign-in, Dependabot).
 

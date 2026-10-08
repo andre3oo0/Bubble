@@ -14,7 +14,7 @@ No database server or AI key is needed to run it locally. See the [README](READM
 
 ## Workflow
 
-- One branch per piece of work: `feat/...`, `fix/...`, `docs/...` or `chore/...`.
+- One branch per piece of work: `feat/...`, `fix/...`, `docs/...` or `chore/...`. Once it's merged into `main`, the branch is deleted, here and on GitHub.
 - Before asking for a review, all three must pass:
 
   ```bash
